@@ -82,13 +82,9 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
             try:
                 if uploaded_file.name.endswith('.pdf'):
                     loader = PyMuPDFLoader(temp_path)
-                elif uploaded_file.name.endswith('.docx'):
-                    loader = TextLoader(temp_path, encoding="utf-8")
                 elif uploaded_file.name.endswith('.md'):
                     loader = UnstructuredMarkdownLoader(temp_path)
-                elif uploaded_file.name.endswith('.txt'):
-                    loader = TextLoader(temp_path, encoding="utf-8")
-                elif uploaded_file.name.endswith('.html'):
+                elif uploaded_file.name.endswith(('.docx', '.txt', '.html', '.tf')):
                     loader = TextLoader(temp_path, encoding="utf-8")
                 else:
                     logger.warning(f"Tipo de archivo no soportado: {uploaded_file.name}")

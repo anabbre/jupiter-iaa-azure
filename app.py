@@ -35,6 +35,23 @@ def main():
     # Mostrar el título
     st.title(f"Chat con asistente de Terraform")
 
+
+    # Botón para subir archivos de entrenamiento
+    st.markdown("### Subir archivos de entrenamiento (.tf, .txt, .md, .pdf, .docx, .html)")
+    uploaded_files = st.file_uploader(
+        "Selecciona uno o varios archivos para añadir al modelo:",
+        type=["tf", "txt", "md", "pdf", "docx", "html"],
+        accept_multiple_files=True,
+        key="file_uploader_train"
+    )
+    if uploaded_files:
+        with st.spinner("Procesando archivos y añadiendo al modelo..."):
+            success = utils.ingest_docs(uploaded_files, assistant_id="terraform", index_name=index_name)
+        if success:
+            st.success("Archivos añadidos correctamente al modelo.")
+        else:
+            st.error("Error al procesar los archivos. Revisa el log para más detalles.")
+
     # Botón para reiniciar conversación
     if st.button("🔄 Reiniciar conversación", key="reset_chat"):
         chat_state["user_prompt_history"] = []
@@ -47,7 +64,7 @@ def main():
         st.rerun()
 
     # Área de mensajes con scroll
-    chat_messages = st.container(height=600)
+    chat_messages = st.container(height=300)
     with chat_messages:
         # Mostrar historial de mensajes
         for i, (user_query, ai_response) in enumerate(zip(

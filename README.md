@@ -48,6 +48,7 @@ La aplicación cuenta con dos pestañas principales:
 1. **Clona el repositorio**  
 	```bash
 	git clone https://github.com/anabbre/jupiter-iaa-azure.git
+	cd jupiter-iaa-azure
 	```
 
 2. **Instala las dependencias**  
@@ -57,12 +58,14 @@ La aplicación cuenta con dos pestañas principales:
 	```
 
 3. **Configura las variables de entorno**  
-	Crea un archivo `.env` en la raíz del proyecto con tus credenciales de Azure y otras configuraciones necesarias.  
-	Ejemplo:
-	```
-	OPENAI_API_KEY==tu_openai_apikey
-	PINECONE_API_KEY==tu_pinecode_apikey
-	```
+Crea un archivo `.env` en la raíz del proyecto con tus credenciales de OpenAI y Pinecone.  
+
+    Ejemplo:
+
+```
+    OPENAI_API_KEY=tu_openai_apikey
+    PINECONE_API_KEY=tu_pinecode_apikey
+```
 
 4. **Ejecuta la aplicación**  
 	```bash
@@ -71,4 +74,3 @@ La aplicación cuenta con dos pestañas principales:
 
 5. **Accede a la interfaz web**  
 	Abre tu navegador y visita la Local URL que te muestra y ya puedes interactuar con el chatbot.
-

@@ -6,7 +6,8 @@ from typing import List
 from dotenv import load_dotenv
 load_dotenv()
 
-from pinecone import Pinecone 
+
+from pinecone import Pinecone
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from langchain import hub
 from langchain.text_splitter import RecursiveCharacterTextSplitter

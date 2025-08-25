@@ -59,7 +59,7 @@ htmlcov/
 docker-compose.override.yml
 
 # --- Terraform (if used) ---
-.terraform/
+**/.terraform/
 *.tfstate
 *.tfstate.backup
 

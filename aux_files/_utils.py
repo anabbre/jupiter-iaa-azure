@@ -6,6 +6,7 @@ from typing import List
 from dotenv import load_dotenv
 load_dotenv()
 
+
 from pinecone import Pinecone
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from langchain import hub
@@ -27,6 +28,12 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 
+# Variables desde .env
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_ENV = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")  # valor por defecto
+
+# Configuración de Logs
 LOG_FILE = os.path.join(os.path.dirname(__file__), '..', 'chatbot.log')
 logging.basicConfig(
     level=logging.INFO,
@@ -39,6 +46,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Embeddings de OpenAI
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
 def save_file_with_content_check(output_dir, filename, content):
@@ -103,7 +111,7 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
                     # "shard_size": 1000,
                     "serverless": {
                         "cloud": "aws",
-                        "region": "us-east-1"  # o la región que prefieras
+                        "region": PINECONE_ENV   # configurable desde .env
                     }
                 }
             )
@@ -152,8 +160,9 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
                         f.write(full_text)
                     pdf_doc.close()
                 elif uploaded_file.name.endswith('.md'):
-                    loader = UnstructuredMarkdownLoader(temp_path)
+                    loader = TextLoader(temp_path, encoding="utf-8")
                     file_documents = loader.load()
+
                 elif uploaded_file.name.endswith(('.docx', '.txt', '.html', '.tf')):
                     loader = TextLoader(temp_path, encoding="utf-8")
                     file_documents = loader.load()
@@ -258,11 +267,17 @@ def get_docs_by_index(index_name: str, limit: int = 7, chunked = False):
     try:
         pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
         vectorstore = PineconeVectorStore(index_name=index_name, embedding=embeddings)
-        docs = vectorstore.similarity_search("", k=limit)
+
+        # Búsqueda robusta (consulta neutra + fallback MMR)
+        docs = vectorstore.similarity_search("terraform", k=limit)
+        if not docs:
+            docs = vectorstore.max_marginal_relevance_search("terraform", k=limit)
+
         if chunked:
             return [doc.page_content for doc in docs]
         else:
             return docs
+
     except Exception as e:
         logger.error(f"Error al obtener documentos del índice {index_name}: {e}")
         return []

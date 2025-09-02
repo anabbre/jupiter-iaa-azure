@@ -1,0 +1,128 @@
+You now have an HCP Terraform workspace configured to use AWS credentials
+defined in an HCP Terraform variable set. You can further configure your
+workspace using workspace-specific variables.
+In this tutorial, you will customize your workspace by defining Terraform
+variables for your EC2 settings. You will then use HCP Terraform to provision
+your EC2 instance.
+Configure Terraform variables
+Both workspace-specific variables and reusable variable sets support Terraform
+variables and environment variables. HCP Terraform will define
+Terraform
+Variables
+as input variables in Terraform's configuration language. You can
+use them to customize the infrastructure that Terraform creates from your
+configuration.
+Return to the HCP Terraform UI and navigate to the
+Variables
+page for
+your
+learn-terraform
+workspace. Find the
+Workspace variables
+section to
+set two variables that Terraform will use to configure your instance. Then,
+click
++ Add variable
+.
+First, define a Terraform variable by selecting the
+Terraform variable
+radio button. Set the key to
+instance_type
+and value to
+t2.micro
+.
+Click
+Add variable
+.
+Then, click
++ Add variable
+again. Create another Terraform variable
+with the key
+instance_name
+and the value
+Provisioned by Terraform
+. Click
+Add variable
+.
+Your workspace is now configured with 2 workspace-specific input variables and
+uses the
+AWS Credentials
+variable set as configured in the
+previous tutorial
+.
+Apply planned changes
+Now that you have defined your configuration's input variables in your HCP Terraform workspace, you can provision your infrastructure.
+When using the CLI-driven workflow for HCP Terraform, you can manage your infrastructure using the same familiar workflow as with Terraform Community Edition.
+You already initialized your configuration in the
+previous
+tutorial
+to create your new
+workspace. Now, run
+terraform apply
+to create your EC2 instance.
+$
+terraform apply
+Running apply in HCP Terraform. Output will stream here. Pressing Ctrl-C
+will cancel the remote apply if it's still pending. If the apply started it
+will stop streaming the logs, but will not stop the apply running remotely.
+Preparing the remote apply...
+To view this run in a browser, visit:
+https://app.terraform.io/app/hashicorp-training/learn-terraform/runs/run-dzy...
+##...
+Terraform will trigger your run in HCP Terraform and stream the output to
+your terminal. Alternatively, you can follow and manage the run in the
+HCP Terraform UI.
+Navigate to the run URL that Terraform displays in your command output.
+HCP Terraform referenced your workspace's
+variables and variable sets to authenticate with the AWS provider and configure
+your EC2 instance's name and instance type.
+Under the planned changes, Terraform displays the count and type of updates.
+Terraform will not modify your infrastructure until you confirm and apply the
+plan. This checkpoint gives you and your team an opportunity to review the
+planned changes before they happen. For the CLI-driven workflow, you can
+approve the run either in the UI, or in your Terminal.
+Once the plan is complete, click the
+Confirm & Apply
+button, followed by the
+Confirm Plan
+button to apply the change.
+After a few minutes, your apply should complete. HCP Terraform will display a confirmation.
+Now return to the workspace's
+Overview
+page. Under the details about your latest run, Terraform displays a table of the resources currently managed in the workspace.
+It also shows the workspace's outputs in the
+Outputs
+tab for easy access.
+In this tutorial, you created an AWS EC2 instance using HCP
+Terraform. Verify that the infrastructure exists by visiting the
+AWS web
+console
+page for EC2 in the
+N.
+California/us-west-1
+region, the region specified in the provider
+configuration.
+Tip
+The EC2 instance that you have provisioned will remain active
+until you destroy it. You will do this in the
+clean-up
+tutorial.
+Next Steps
+In this tutorial, you configured your workspace with workspace-specific Terraform
+variables, and created an EC2 instance using HCP Terraform. Read more about
+variables in HCP Terraform in the
+documentation
+.
+Now you are ready to modify your EC2 instance by updating your Terraform variables and changing your configuration files.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Create workspace
+Next
+Modify infrastructure
+This tutorial also appears in:
+37 tutorials
+Terraform Associate (003) Tutorials
+Progress through these tutorials to prepare for the Terraform Associate (003) certification exam.
+Terraform

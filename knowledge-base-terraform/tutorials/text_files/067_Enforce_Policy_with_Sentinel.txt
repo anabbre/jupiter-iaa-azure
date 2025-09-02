@@ -1,0 +1,28 @@
+Enforce Policy with Sentinel
+Enforce policies before your users create infrastructure using Sentinel policy-as-code. Write, test, and implement Sentinel policies.
+6 tutorials
+4min
+Install the Sentinel CLI
+Install the Sentinel CLI, then run a policy locally with the Sentinel CLI against HCP Terraform data.
+Terraform
+Interactive
+5min
+Generate policy mock data
+Generate and download plan data in HCP Terraform for the Sentinel CLI to evaluate a policy against.
+Terraform
+6min
+Write a Sentinel policy for a Terraform deployment
+Create filters and rules for your governance requirements with the Sentinel policy language
+Terraform
+6min
+Test Sentinel policies
+Use mock import data and the Sentinel CLI to write tests for Sentinel policies.
+Terraform
+5min
+Upload your Sentinel policy set to HCP Terraform
+Create and upload a Sentinel policy set. Apply the policy set to your HCP Terraform organization.
+Terraform
+23min
+Detect infrastructure drift and enforce policies
+Use HCP Terraform to enforce policies and detect infrastructure configuration drift.
+Terraform

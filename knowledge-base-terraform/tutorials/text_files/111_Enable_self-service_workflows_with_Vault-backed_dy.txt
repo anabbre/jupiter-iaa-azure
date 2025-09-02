@@ -1,0 +1,1765 @@
+Vault-backed dynamic credentials let you provision infrastructure in HCP
+Terraform using short-lived, strictly-scoped credentials managed by Vault,
+eliminating the need to store long-lived static credentials in your HCP
+Terraform projects and workspaces. This workflow also enhances your security posture
+by letting you scope which projects and workspaces can use the generated
+credentials.
+To enable Vault-backed dynamic credentials for your organization, you must
+create a trust relationship between HCP Terraform and Vault that defines which
+projects and workspaces can request the credentials. Rather than managing
+credentials and their access, this workflow requires managing and carefully
+configuring the trust relationships. This workflow is based on the OpenID
+Connect protocol (OIDC), an open source standard for verifying identity across
+different systems.
+In this tutorial, you will enable Vault-backed dynamic credentials and use
+HCP Terraform projects and variable sets to enable a self-service workflow.
+First, you will configure Vault's secrets engine for AWS. Then you will use the
+Terraform Enterprise provider to create an HCP Terraform team and project to
+manage your trust relationships. The provider will also create a variable set
+containing the values needed to create new trust relationships for future
+projects and workspaces. You will then create two trust relationships, one for a
+single workspace and one for an entire project. Then you will deploy
+infrastructure using dynamic credentials created from these trust relationships
+with both a traditional workspace and a no-code module.
+Prerequisites
+This tutorial assumes that you are familiar with the Terraform, HCP Terraform,
+and Vault workflows. If you are new to Terraform, complete the
+Get Started
+collection
+first. If you are new to
+HCP Terraform, complete the
+HCP Terraform Get Started
+collection
+first. If you are new to
+Vault, complete the
+Vault foundations
+collection
+.
+This tutorial also assumes you are already familiar with dynamic credentials. If
+you are new to dynamic credentials, refer to the
+Authenticate Providers with
+Dynamic Credentials
+and
+Authenticate Providers with Vault-Backed Dynamic
+Credentials
+tutorials to
+learn how to create them.
+For this tutorial, you will need:
+Terraform v1.2+ installed locally.
+An
+HCP Terraform
+account
+and
+Organization with
+Teams
+enabled, or a Terraform Enterprise instance.
+A Vault cluster. We recommend you use a non-production
+HCP Vault
+cluster
+to
+complete this tutorial.
+An
+AWS account
+with local credentials
+configured
+for use with
+Terraform
+.
+Note
+Teams are available in HCP Terraform Standard Edition. Refer to
+HCP
+Terraform pricing
+for
+details.
+Clone example repository
+Visit the
+template
+repository
+for this tutorial. Click the
+Use this template
+button and select
+Create a
+New Repository
+. Choose the GitHub owner that you use with HCP Terraform, and
+name the new repository
+learn-terraform-dynamic-credentials-no-code
+. Leave the
+rest of the settings at their default values.
+Clone the new repository, which contains Terraform configuration you will use to
+create your trust project, trust relationships, and infrastructure. Find the URL
+to your repository by clicking the
+Code
+button on GitHub, or customize the
+following command.
+$
+git clone https://github.com/
+<
+YOUR_USERNAME
+>
+/learn-terraform-dynamic-credentials-no-code
+Replace
+<YOUR_USERNAME>
+with your GitHub user name.
+Change into the example repository directory.
+$
+cd learn-terraform-dynamic-credentials-no-code
+Create trust relationship project
+In this step, you will configure Vault's secrets engine for AWS and create an
+HCP Terraform team, project, and variable set to manage your trust
+relationships. Later in this tutorial you will use this project to create trust
+relationships that will allow the workspaces and projects you specify to
+provision infrastructure with Vault-backed dynamic credentials.
+Review the configuration to understand how your trust project will work.
+Change into the
+trust-project
+subdirectory.
+$
+cd trust-project
+This directory contains the configuration required to set up Vault's secrets
+engine for AWS and an HCP Terraform project to manage your trust relationships.
+You will use Terraform to provision the trust project in your HCP Terraform
+organization, and then create and manage your all of your trust
+relationships in the project. To bootstrap this workflow, you will apply this configuration by running Terraform commands locally using standard credentials.
+Review cloud provider configuration
+Open
+aws.tf
+and review the configuration.
+The configuration first configures the AWS provider, and defines an IAM user and
+access key that Vault's secrets engine will use to provision your dynamic
+credentials.
+trust-project/aws.tf
+resource
+"random_string"
+"name_suffix"
+{
+length
+=
+6
+special
+=
+false
+}
+resource
+"aws_iam_user"
+"trust_relationships"
+{
+name
+=
+"vault-secrets-engine-
+${
+random_string
+.
+name_suffix
+.
+result
+}
+"
+}
+resource
+"aws_iam_access_key"
+"trust_relationships"
+{
+user
+=
+aws_iam_user.trust_relationships.name
+}
+The configuration uses the random provider to generate a unique, randomized
+username for the Vault secrets engine user.
+Warning
+Terraform will store the credentials that AWS generates for your
+aws_iam_access_key.trust_relationships
+resource in your workspace's state.
+Always keep your state file secure.
+Next, the configuration defines an IAM user policy and role for the AWS user to
+assume.
+trust-project/aws.tf
+resource
+"aws_iam_role"
+"trust_relationships"
+{
+assume_role_policy
+=
+jsonencode(
+{
+Statement
+=
+[
+{
+Action
+=
+"sts:AssumeRole"
+Condition
+=
+{}
+Effect
+=
+"Allow"
+Principal
+=
+{
+AWS
+=
+aws_iam_user.trust_relationships.arn
+}
+},
+]
+Version
+=
+"2012-10-17"
+}
+)
+}
+resource
+"aws_iam_user_policy"
+"trust_relationships"
+{
+user
+=
+aws_iam_user.trust_relationships.name
+policy
+=
+jsonencode({
+Statement
+=
+[
+{
+Action
+=
+[
+"iam:*"
+,
+]
+Effect
+=
+"Allow"
+Resource
+=
+"*"
+},
+]
+Version
+=
+"2012-10-17"
+})
+}
+After you create the trust relationship, Vault will assume this user's role to
+provision dynamic credentials.
+Review Vault configuration
+Open
+vault.tf
+and review the configuration for your trust relationship.
+This configuration uses the Vault provider to enable Vault's AWS secrets engine
+and configures it to authenticate with the IAM user and credentials defined in
+aws.tf
+.
+trust-project/vault.tf
+provider
+"vault"
+{
+address
+=
+var.vault_url
+}
+resource
+"vault_aws_secret_backend"
+"aws_secret_backend"
+{
+namespace
+=
+var.vault_namespace
+path
+=
+var.aws_secrets_backend_path
+access_key
+=
+aws_iam_access_key.trust_relationships.id
+secret_key
+=
+aws_iam_access_key.trust_relationships.secret
+}
+The Vault secrets engine will use these credentials to access the role defined
+in the previous section. That role has the permissions required to create the
+IAM roles that your trust relationships will use.
+Next, the configuration defines a JWT authentication backend, which implements
+the OpenID standard.
+trust-project/vault.tf
+resource
+"vault_jwt_auth_backend"
+"tfc_jwt"
+{
+path
+=
+var.jwt_backend_path
+type
+=
+"jwt"
+oidc_discovery_url
+=
+"https://
+${
+var
+.
+tfc_hostname
+}
+"
+bound_issuer
+=
+"https://
+${
+var
+.
+tfc_hostname
+}
+"
+}
+Finally, the configuration defines the Vault policy that allows Vault-backed dynamic
+credentials access to the AWS secrets engine, and a user attached to that
+policy. In the next section, you will use this user to create trust
+relationships.
+trust-project/vault.tf
+resource
+"vault_policy"
+"trust_policy"
+{
+name
+=
+var.vault_aws_secret_backend_policy_name
+policy
+=
+<<EOT
+# Allow tokens to query themselves
+path "auth/token/lookup-self" {
+capabilities = ["read"]
+}
+# Allow tokens to renew themselves
+path "auth/token/renew-self" {
+capabilities = ["update"]
+}
+# Allow tokens to revoke themselves
+path "auth/token/revoke-self" {
+capabilities = ["update"]
+}
+# Allow Access to AWS Secrets Engine
+path "aws/sts/*" {
+capabilities = [ "read" ]
+}
+path "aws/roles/*" {
+capabilities = ["create", "read", "update", "delete", "list"]
+}
+path "auth/*" {
+capabilities = ["create", "read", "update", "delete", "list"]
+}
+EOT
+}
+resource
+"random_password"
+"vault"
+{
+length
+=
+24
+}
+resource
+"vault_auth_backend"
+"userpass"
+{
+type
+=
+"userpass"
+}
+resource
+"vault_generic_endpoint"
+"trust_relationships"
+{
+depends_on
+=
+[vault_auth_backend.userpass]
+path
+=
+"auth/userpass/users/
+${
+var
+.
+vault_user_name
+}
+"
+ignore_absent_fields
+=
+true
+data_json
+=
+<<EOT
+{
+"policies": ["
+${
+vault_policy
+.
+trust_policy
+.
+name
+}
+"],
+"password": "
+${
+random_password
+.
+vault
+.
+result
+}
+"
+}
+EOT
+}
+Review HCP Terraform Configuration
+Open
+tfe.tf
+and review the configuration for your trust relationship project.
+This configuration creates a project-scoped variable set containing all of the
+credentials and settings you will need to create trust relationships. This is an
+example of one way that a security team could manage trust relationships for
+other projects and teams. By maintaining a single project for all trust relationships with individual workspaces for each trust relationship, you can easily share required credentials at the project level while reducing the scope of each workspace to only the logically-related resources.
+After defining the provider, the configuration creates the project for your
+trust relationships, a team with permissions to manage workspaces and projects,
+and a token for that team.
+trust-project/tfe.tf
+provider
+"tfe"
+{
+hostname
+=
+var.tfc_hostname
+}
+resource
+"tfe_project"
+"trust_relationships"
+{
+name
+=
+"
+${
+var
+.
+project_prefix
+}
+${
+var
+.
+tfc_trust_project_name
+}
+"
+organization
+=
+var.tfc_organization_name
+}
+resource
+"tfe_team"
+"trust_relationships"
+{
+name
+=
+"
+${
+var
+.
+project_prefix
+}
+${
+var
+.
+tfc_trust_team_name
+}
+"
+organization
+=
+var.tfc_organization_name
+organization_access
+{
+read_workspaces
+=
+true
+read_projects
+=
+true
+manage_workspaces
+=
+true
+manage_projects
+=
+true
+}
+}
+resource
+"tfe_team_token"
+"trust_relationships"
+{
+team_id
+=
+tfe_team.trust_relationships.id
+}
+Later in this tutorial, you will use the team's token to authenticate with
+HCP Terraform and create the workspaces and projects for
+your infrastructure.
+Finally, the configuration defines a variable set with all of the variables you
+will need to provision trust relationships. In this example scenario, the security team manages multiple trust relationships
+for other teams in the organization. Each trust relationship is managed in its own workspace.
+trust-project/tfe.tf
+resource
+"tfe_variable_set"
+"trust_relationships"
+{
+name
+=
+"
+${
+var
+.
+project_prefix
+}
+${
+var
+.
+tfc_variable_set_name
+}
+"
+description
+=
+"Variables required to create trust relationships."
+organization
+=
+var.tfc_organization_name
+}
+resource
+"tfe_project_variable_set"
+"trust_relationships"
+{
+variable_set_id
+=
+tfe_variable_set.trust_relationships.id
+project_id
+=
+tfe_project.trust_relationships.id
+}
+resource
+"tfe_variable"
+"organization_name"
+{
+key
+=
+"tfc_organization_name"
+value
+=
+var.tfc_organization_name
+category
+=
+"terraform"
+description
+=
+"organization name"
+variable_set_id
+=
+tfe_variable_set.trust_relationships.id
+}
+##...
+Later in this tutorial, your workspaces will use these variables to create two trust relationships: one that allows dynamic credentials for a single workspace, and one with access for an entire project.
+Create trust project
+In the
+trust-project
+directory, copy the example
+.tfvars
+file to create a
+new variables file that configures your organization and workspace name.
+$
+cp terraform.tfvars.example terraform.tfvars
+Open
+terraform.tfvars
+and configure the variables for the trust project.
+trust-project/terraform.tfvars
+tfc_organization_name
+=
+"<YOUR_ORG>"
+vault_url
+=
+"<YOUR_VAULT_CLUSTER>"
+Replace
+<YOUR_ORG>
+with your HCP Terraform organization name, and
+<YOUR_VAULT_CLUSTER>
+with your Vault cluster's public URL. If you are using
+HCP Vault to complete this tutorial, navigate to your cluster, find the
+Cluster URLs
+tool, and click
+Public
+to copy it to your clipboard.
+Note
+You will also need an administrator token to provision Vault resources. If you
+are using HCP Vault, find the
+New admin token
+tool, and click
+Copy
+to
+copy it to your clipboard. Then export it as an environment variable:
+export
+VAULT_TOKEN=<PASTE_TOKEN>
+.
+Initialize configuration
+Initialize the configuration for your trust project.
+$
+terraform
+init
+Initializing
+the
+backend...
+Initializing
+provider
+plugins...
+-
+Reusing
+previous
+version
+of
+hashicorp/aws
+from
+the
+dependency
+lock
+file
+-
+Reusing
+previous
+version
+of
+hashicorp/vault
+from
+the
+dependency
+lock
+file
+-
+Reusing
+previous
+version
+of
+hashicorp/random
+from
+the
+dependency
+lock
+file
+-
+Reusing
+previous
+version
+of
+hashicorp/tfe
+from
+the
+dependency
+lock
+file
+-
+Installing
+hashicorp/vault
+v3.15.2...
+-
+Installed
+hashicorp/vault
+v3.15.2
+(signed
+by
+HashiCorp
+)
+-
+Installing
+hashicorp/random
+v3.5.1...
+-
+Installed
+hashicorp/random
+v3.5.1
+(signed
+by
+HashiCorp
+)
+-
+Installing
+hashicorp/tfe
+v0.45.0...
+-
+Installed
+hashicorp/tfe
+v0.45.0
+(signed
+by
+HashiCorp
+)
+-
+Installing
+hashicorp/aws
+v5.1.0...
+-
+Installed
+hashicorp/aws
+v5.1.0
+(signed
+by
+HashiCorp
+)
+Terraform
+has
+been
+successfully
+initialized!
+You
+may
+now
+begin
+working
+with
+Terraform.
+Try
+running
+"terraform plan"
+to
+see
+any
+changes
+that
+are
+required
+for
+your
+infrastructure.
+All
+Terraform
+commands
+should
+now
+work.
+If
+you
+ever
+set
+or
+change
+modules
+or
+backend
+configuration
+for
+Terraform,
+rerun
+this
+command
+to
+reinitialize
+your
+working
+directory.
+If
+you
+forget,
+other
+commands
+will
+detect
+it
+and
+remind
+you
+to
+do
+so
+if
+necessary.
+Apply configuration
+Apply this configuration to create the Vault AWS secrets engine, OIDC
+connection, trust project, and related resources. Respond to the confirmation
+prompt with a
+yes
+.
+$
+terraform apply
+Terraform used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
++ create
+Terraform will perform the following actions:
+# aws_iam_access_key.trust_relationships will be created
++ resource "aws_iam_access_key" "trust_relationships" {
++ create_date
+##...
+Plan: 31 to add, 0 to change, 0 to destroy.
+Changes to Outputs:
++ tfc_org_name = "hashicorp-training"
++ tfc_project_name = "DEMO Trust Relationships"
++ trust_relationships_arn = (known after apply)
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+random_password.vault: Creating...
+random_string.name_suffix: Creating...
+##...
+aws_iam_role.trust_relationships: Creation complete after 10s [id=terraform-20230611191440822800000002]
+Apply complete! Resources: 31 added, 0 changed, 0 destroyed.
+Outputs:
+tfc_org_name = "hashicorp-training"
+tfc_project_name = "DEMO Trust Relationships"
+trust_project_url = "https://app.terraform.io/app/hashicorp-training/workspaces?project=prj-LsTNaXqRwFQNTs4G"
+trust_relationships_arn = "arn:aws:iam::841397984957:role/terraform-20230611191440822800000002"
+trust_varset_url = "https://app.terraform.io/app/hashicorp-training/settings/varsets/varset-wJA5LvooKTNdNvRt"
+Open the
+trust_project_url
+output value in your web browser to review your new
+trust project. In the next sections you will create two trust relationships in workspaces in this project.
+Open the
+trust_varset_url
+to review the variables that you configured for your trust project.
+Create a trust relationship for a single workspace
+In this section, you will use your trust project to create a trust relationship
+scoped to a single workspace. Then you will use that workspace to provision
+infrastructure with dynamic credentials.
+Review configuration
+In the example repository that you cloned to your local machine, the
+trust-relationship-ec2
+directory contains the configuration required to create
+a trust relationship with AWS that allows you to manage EC2 instances. Review
+the configuration now.
+Open
+trust-relationship-ec2/aws.tf
+. This file contains an IAM policy and role
+that allows access to EC2, and allows the Vault secrets engine user to assume
+this role.
+trust-relationship-ec2/aws.tf
+resource
+"aws_iam_user_policy"
+"vault_secrets_engine_generate_credentials"
+{
+user
+=
+var.aws_iam_user_name
+policy
+=
+jsonencode({
+Version
+=
+"2012-10-17"
+Statement
+=
+[
+{
+Action
+=
+[
+"sts:AssumeRole"
+,
+]
+Effect
+=
+"Allow"
+Resource
+=
+"
+${
+aws_iam_role
+.
+tfc_role
+.
+arn
+}
+"
+},
+]
+})
+}
+resource
+"aws_iam_role"
+"tfc_role"
+{
+assume_role_policy
+=
+jsonencode(
+{
+Statement
+=
+[
+{
+Action
+=
+"sts:AssumeRole"
+Condition
+=
+{}
+Effect
+=
+"Allow"
+Principal
+=
+{
+AWS
+=
+var.aws_iam_user_arn
+}
+},
+]
+Version
+=
+"2012-10-17"
+}
+)
+}
+resource
+"aws_iam_policy"
+"tfc_policy"
+{
+description
+=
+"TFC run policy"
+policy
+=
+jsonencode({
+Statement
+=
+[
+{
+Action
+=
+[
+"ec2:*"
+,
+]
+Effect
+=
+"Allow"
+Resource
+=
+"*"
+},
+]
+Version
+=
+"2012-10-17"
+})
+}
+resource
+"aws_iam_role_policy_attachment"
+"tfc_policy_attachment"
+{
+role
+=
+aws_iam_role.tfc_role.name
+policy_arn
+=
+aws_iam_policy.tfc_policy.arn
+}
+Open
+vault.tf
+. This configuration sets up the trust relationship in Vault, and
+assigns the policy created by
+aws.tf
+to it. It authenticates to Vault with the
+Vault user you created when you created your trust project in the previous step.
+trust-relationship-ec2/vault.tf
+provider
+"vault"
+{
+address
+=
+var.vault_url
+auth_login_userpass
+{
+namespace
+=
+var.vault_namespace
+}
+}
+resource
+"vault_aws_secret_backend_role"
+"aws_secret_backend_role"
+{
+backend
+=
+var.vault_aws_secrets_backend_path
+name
+=
+"secret-engine-role-ec2"
+credential_type
+=
+"assumed_role"
+role_arns
+=
+[aws_iam_role.tfc_role.arn]
+}
+resource
+"vault_jwt_auth_backend_role"
+"aws_secret_backend_role"
+{
+backend
+=
+var.jwt_backend_path
+role_name
+=
+"tfc-role"
+token_policies
+=
+[var.vault_policy_name]
+bound_audiences
+=
+[var.tfc_vault_audience]
+bound_claims_type
+=
+"glob"
+bound_claims
+=
+{
+sub
+=
+"organization:
+${
+var
+.
+tfc_organization_name
+}
+:project:
+${
+var
+.
+tfc_project_name
+}
+:workspace:
+${
+var
+.
+tfc_workspace_name
+}
+:run_phase:*"
+}
+user_claim
+=
+"terraform_full_workspace"
+role_type
+=
+"jwt"
+token_ttl
+=
+1200
+}
+The
+vault_jwt_auth_backend_role.aws_secret_backend_role
+role configures the
+trust relationship, and sets the
+sub
+claim to match your organization, project
+name, and workspace name. Your project variable set contains a variable value for the organization name, and you will set an input variable for the workspace name. You will leave the project name set to its default value, “Default Project”.
+Open
+tfe.tf
+to review the configuration for your workspace and variables.
+trust-relationship-ec2/tfe.tf
+data
+"tfe_oauth_client"
+"client"
+{
+organization
+=
+var.tfc_organization_name
+name
+=
+var.vcs_oath_client_name
+service_provider
+=
+var.vcs_service_provider
+}
+resource
+"tfe_workspace"
+"trusted_workspace"
+{
+name
+=
+var.tfc_workspace_name
+organization
+=
+var.tfc_organization_name
+working_directory
+=
+var.vcs_working_directory
+vcs_repo
+{
+identifier
+=
+var.vcs_identifier
+oauth_token_id
+=
+data.tfe_oauth_client.client.oauth_token_id
+}
+}
+resource
+"tfe_variable"
+"enable_vault_provider_auth"
+{
+workspace_id
+=
+tfe_workspace.trusted_workspace.id
+key
+=
+"TFC_VAULT_PROVIDER_AUTH"
+value
+=
+"true"
+category
+=
+"env"
+description
+=
+"Enable the Workload Identity integration for Vault."
+}
+resource
+"tfe_variable"
+"tfc_vault_addr"
+{
+workspace_id
+=
+tfe_workspace.trusted_workspace.id
+key
+=
+"TFC_VAULT_ADDR"
+value
+=
+var.vault_url
+category
+=
+"env"
+sensitive
+=
+true
+description
+=
+"The address of the Vault instance runs will access."
+}
+resource
+"tfe_variable"
+"tfc_vault_role"
+{
+workspace_id
+=
+tfe_workspace.trusted_workspace.id
+key
+=
+"TFC_VAULT_RUN_ROLE"
+value
+=
+vault_jwt_auth_backend_role.aws_secret_backend_role.role_name
+category
+=
+"env"
+description
+=
+"The Vault role runs will use to authenticate."
+}
+##...
+The configuration sets several required and optional values. Refer to the
+Vault-backed dynamic credentials
+documentation
+to learn how these variables work. Your workspace will reference these variables along with the variables in the project-scoped variable set to create your resources.
+Create trust relationship workspace
+The previous step created a project configured with all of the variables needed to manage your trust relationships. You will now create a workspace in that project. This workspace will provision a new HCP Terraform workspace in which to manage infrastructure, and configure a trust relationship that lets that workspace using dynamic credentials for runs.
+Visit your trust project, either by logging into your HCP Terraform account
+and navigating to it, or pasting the
+trust_project_url
+output value from your
+trust project into your web browser. Then follow these steps to create the
+workspace for your first trust relationship.
+Create a new version-control driven workspace
+Choose the
+learn-terraform-dynamic-credentials-no-code
+GitHub repository. If
+you have not yet connected your GitHub account to HCP Terraform, follow the
+prompts to do so. Refer to the
+Use VCS-Driven
+Workflow
+tutorial for detailed instructions.
+On the
+Configure settings
+step, set the following options:
+Set the Workspace name to
+trust-project-vulcan
+.
+Set the Project to the name of your trust relationships project, which was displayed in the outputs of the last run.
+Expand the
+Advanced options
+interface, and set the
+Terraform Working Directory
+to
+trust-relationship-ec2
+.
+Click
+Create workspace
+to create the workspace.
+After you create the workspace, set the following workspace-specific variables:
+Variable category
+Key
+Value
+Sensitive
+Terraform variable
+tfc_workspace_name
+project-vulcan
+No
+Terraform variable
+vcs_oath_client_name
+Your OAuth client name for GitHub
+No
+Terraform variable
+vcs_identifier
+The path to your forked GitHub repository
+No
+Terraform variable
+vcs_working_directory
+infra
+No
+Note
+You can find the name of your OAuth client for GitHub in your HCP Terraform
+organization's settings under Version Control => Providers. The name of the
+OAuth client is displayed next to the GitHub "octocat" icon. Your VCS identifier
+will be the path to your forked GitHub repository, usually your username
+followed by a slash and the name of the repository, such as
+"<YOUR_GITHUB_USERNAME>/learn-terraform-dynamic-credentials-no-code".
+The trust relationship you will define for this workspace will let it access
+dynamic credentials that allow you to create EC2 instances.
+Note
+This tutorial's infrastructure and trust relationship configuration are in the
+same GitHub repository. You may wish to structure the configuration differently
+based on your organization's separation of responsibility.
+Expand your workspace's
+Actions
+menu, select
+Start a new run
+, then click the
+Start run
+.
+Once the plan is complete, click
+Confirm & Apply
+followed by
+Confirm
+Plan
+to apply it. Once the apply is complete, note the output values. Your
+trust workspace created the workspace you will use to provision your
+infrastructure, and configured it with the correct workspace-specific variables
+to use the trust relationship. The output values also include the IAM role that
+Vault will assign to your workspace's dynamic credentials. In your own organization, you can scope this IAM role to the
+permissions the target workspace or project needs.
+Open the URL given for the
+workspace_url
+output value to visit your
+workspace.
+Provision infrastructure with trust relationship workspace
+On the workspace's
+Overview
+tab, start a new run for this workspace by
+selecting
+Start new run
+from the workspace's
+Actions
+menu, then click
+Start run
+. Once
+the apply is complete, note the output values, including the URL of your EC2
+instance.
+HCP Terraform provisioned your EC2 instance with dynamic credentials. Since
+you created a trust project, you can use it to create and manage your trust
+relationships for all of your workspaces and projects.
+Create a trust relationship for a project
+While you can create trust relationships for individual workspaces, you must
+also consider the time and effort required to manage these trust relationships.
+In some cases it may be more efficient to establish a trust relationship for an
+entire HCP Terraform project rather than individual workspaces. This would
+allow all workspaces in the project to request and use dynamic credentials.
+In this section, you will establish a trust relationship for an entire project.
+Each workspace you create in the project will use the same trust relationship to
+manage your resources.
+Review configuration
+The configuration for this trust relationship is in the
+trust-relationship-s3
+directory inside the example repository. This configuration is similar to the
+configuration you used to create the trust relationship in the previous section.
+Review the differences between them.
+First, open
+trust-relationship-s3/aws.tf
+.
+trust-relationship-s3/aws.tf
+resource
+"aws_iam_policy"
+"tfc_policy"
+{
+description
+=
+"TFC run policy"
+policy
+=
+jsonencode({
+Statement
+=
+[
+{
+Action
+=
+[
+"s3:*"
+,
+]
+Effect
+=
+"Allow"
+Resource
+=
+"*"
+},
+]
+Version
+=
+"2012-10-17"
+})
+}
+Instead of allowing actions on EC2 instances, this policy allows access to S3
+buckets.
+Open
+vault.tf
+to review the vault configuration. This configuration sets a
+different name for the Vault AWS secrets backend role. Each role name in your
+secrets engine must be unique. While it sets the same value for
+sub
+, you will
+set the
+tfc_project_name
+variable to be the name of the project you will
+create trust relationship for, and leave
+tfc_workspace_name
+to its default
+value (
+*
+) to enable the trust relationship for any workspace in your project.
+trust-relationship-s3/vault.tf
+resource
+"vault_aws_secret_backend_role"
+"aws_secret_backend_role"
+{
+backend
+=
+var.vault_aws_secrets_backend_path
+name
+=
+"secret-engine-role-s3"
+credential_type
+=
+"assumed_role"
+role_arns
+=
+[aws_iam_role.tfc_role.arn]
+}
+resource
+"vault_jwt_auth_backend_role"
+"aws_secret_backend_role"
+{
+backend
+=
+var.jwt_backend_path
+role_name
+=
+"tfc-role"
+token_policies
+=
+[var.vault_policy_name]
+bound_audiences
+=
+[var.tfc_vault_audience]
+bound_claims_type
+=
+"glob"
+bound_claims
+=
+{
+sub
+=
+"organization:
+${
+var
+.
+tfc_organization_name
+}
+:project:
+${
+var
+.
+tfc_project_name
+}
+:workspace:
+${
+var
+.
+tfc_workspace_name
+}
+:run_phase:*"
+}
+user_claim
+=
+"terraform_full_workspace"
+role_type
+=
+"jwt"
+token_ttl
+=
+1200
+}
+Next, review the HCP Terraform configuration in
+tfe.tf
+. The configuration
+for your single-workspace trust relationship created a workspace and assigned
+the variables for your trust relationship on that workspace. This configuration
+creates a project, and a variable set for that project. The variable set will be
+applied to all workspaces in your project, so any workspace you create in the
+project will use the trust relationship to access dynamic credentials for its runs. Since your organization name
+and project name are configured in the
+sub
+claim you reviewed in the
+vault.tf
+file, and the workspace name is
+*
+, the trust relationship is valid
+for any workspace in your project.
+trust-relationship-s3/tfe.tf
+resource
+"tfe_project"
+"s3_websites"
+{
+name
+=
+var.tfc_project_name
+organization
+=
+var.tfc_organization_name
+}
+resource
+"tfe_variable_set"
+"s3_trust_relationship"
+{
+name
+=
+"
+${
+var
+.
+tfc_project_name
+}
+${
+var
+.
+tfc_variable_set_name
+}
+"
+description
+=
+"Trust relationships for S3 buckets project."
+organization
+=
+var.tfc_organization_name
+}
+resource
+"tfe_project_variable_set"
+"s3_trust_relationship"
+{
+variable_set_id
+=
+tfe_variable_set.s3_trust_relationship.id
+project_id
+=
+tfe_project.s3_websites.id
+}
+resource
+"tfe_variable"
+"enable_vault_provider_auth"
+{
+variable_set_id
+=
+tfe_variable_set.s3_trust_relationship.id
+key
+=
+"TFC_VAULT_PROVIDER_AUTH"
+value
+=
+"true"
+category
+=
+"env"
+description
+=
+"Enable the Workload Identity integration for Vault."
+}
+##...
+Note
+This example duplicates some of the configuration between the two trust
+relationships. You may prefer to encapsulate this configuration in one or more
+modules simplify managing trust relationships.
+In the next section, you will provision a trust relationship and project with
+this configuration.
+Create trust relationship workspace
+In this section, you will create a use HCP Terraform to provision a new project and a trust relationship scoped to that project.
+Navigate to the trust project you created at the start of the tutorial, then follow these steps to create the workspace:
+Create a new version-control driven workspace.
+Choose the
+learn-terraform-dynamic-credentials-no-code
+GitHub repository.
+On the
+Configure settings
+step, set the following options:
+Set the workspace name to
+trust-project-phoenix
+.
+Set the project to your trust relationships project.
+Expand the
+Advanced options
+interface, and set the
+Terraform Working Directory
+to
+trust-relationship-s3
+.
+Click
+Create workspace
+to create the workspace.
+After you create the trust workspace, set a workspace-specific variable for the project name:
+Variable category
+Key
+Value
+Sensitive
+Terraform variable
+tfc_project_name
+S3 Websites
+No
+The configuration will create a new HCP Terraform project and assign a
+project-scoped variable set that contains the values for the new trust
+relationship.
+Start a new run for this workspace by selecting
+Start new run
+from the
+workspace's
+Actions
+menu, then click
+Start run
+. Once the plan is
+complete, click
+Confirm & Apply
+and then
+Apply Plan
+to apply it. After
+the apply completes, note the output values. This workspace created a new
+project and a variable set containing the variables that the child workspaces in
+the project can use to access dynamic credentials.
+Create a no-code module
+In this tutorial, you will use a no-code module to provision a workspace for the
+S3 Websites project. This workspace will use the trust relationship you created
+in the previous step to provision your S3 bucket with dynamic credentials
+managed by Vault. This way, anyone in your organization with the permissions to
+create a no-code workspace in the “S3 Websites” project can deploy an S3-backed
+static website without needing to configure AWS credentials or write Terraform
+configuration.
+Create no-code module repository
+Visit the
+template
+repository
+for
+this tutorial. Click the
+Use this template
+button and select
+Create a New
+Repository
+. Choose the GitHub owner that you use with HCP Terraform, and
+name the new repository
+terraform-aws-s3-website
+. Leave the rest of the
+settings at their default values.
+Then, create a release in your repository. Select
+Releases
+from the right
+side of your repository's GitHub page, and click the
+Create new release
+button. Follow the instructions to create a new tag named "1.0.0". Give the
+release a title of "First release", leave the rest of the options at their
+default values, and click the green
+Publish release
+button.
+Next, visit the registry for your HCP Terraform organization, and create the
+no-code module. From the main Registry page for your HCP Terraform
+organization, use the
+Publish > Module
+interface to create your no-code
+module.
+Select your GitHub version control provider.
+Select the
+terraform-aws-s3-website
+repository you just created.
+Select the
+Add Module to no-code provision allowlist
+option, and click
+the purple
+Publish module
+button to publish your no-code module.
+Deploy no-code module
+It may take a few minutes for HCP Terraform to create your no-code module.
+Once it does, deploy your module in the S3 Websites project you just created.
+From your no-code module's page, select the purple
+Provision workspace
+button.
+This module does not require any variables, so click the
+Next: Workspace settings
+button to continue.
+On the Configure workspace settings page:
+Name the workspace "example-s3-website".
+Select the S3 Websites project.
+Select the
+Manual apply
+option.
+Leave the other options at their default values, and click the
+Create workspace
+button.
+Once your workspace is created, HCP Terraform will redirect you to the
+workspace's Overview page.
+Start a new run for this workspace by using the
+Actions
+interface to select
+Start a new run
+, then click the
+Start run
+on the dialog box.
+Once the plan is complete, click
+Confirm & Apply
+and then
+Apply Plan
+to
+apply it. Once the apply is complete, note the output values, including the
+hostname for your new S3 bucket.
+In this tutorial, you created an HCP Terraform project to manage your trust
+relationships. Then, you used the project to create trust relationships for a
+single workspace and for an entire project. You used these trust relationships
+to provision infrastructure with vault-backed dynamic credentials.
+In your organization, different teams may be responsible for managing trust
+relationships and deploying infrastructure. For example, a security team could
+configure and manage the workspaces that define trust relationships, while
+infrastructure teams configure and manage downstream workspaces that use the
+trust relationships from the security team. When different teams manage trust
+and infrastructure, consider how you will coordinate changes to maintain scoped
+trust relationships while still enabling the downstream teams that rely on them.
+This tutorial demonstrates one example pattern that you could use to do so.
+Remember that trust relationships reference your organization, project, and
+workspace names, so changing any of those values within HCP Terraform can
+potentially break your trust relationships.
+Clean up your infrastructure
+Remove the infrastructure and trust relationship that you created in this
+tutorial.
+Destroy infrastructure
+Remove the infrastructure you created in this tutorial.
+In your "S3 Buckets" project, select the "example-s3-website" workspace, and
+navigate to
+Settings > Destruction and Deletion
+. From that page, select the
+Queue destroy plan
+button and follow the prompts to destroy your S3 bucket.
+Once the plan is complete, click
+Config & Apply
+and then
+Apply Plan
+to
+destroy your S3 bucket.
+Once you have destroyed your S3 bucket, return to the Destruction and Deletion
+page and click the
+Delete from HCP Terraform
+button. Follow the prompts to
+remove the "example-s3-website" workspace.
+Next, remove your no-code module. Navigate to your organizations
+Registry
+page and select the
+code-s3-website
+module. From the module details page,
+select the
+Manage Module for Organization > Delete module
+button. Follow the
+prompts to delete your module from HCP Terraform.
+Then, find the "project-vulcan" workspace. Navigate to
+Settings > Destruction
+and Deletion
+. From that page, select the
+Queue destroy plan
+button and
+follow the prompts to destroy your EC2 instance. Do not delete the
+project-vulcan workspace from HCP Terraform. This will happen automatically
+when you remove the trust relationship.
+Then destroy the infrastructure and remove the two workspaces in your trust
+project. Navigate to the trust project in your HCP Terraform organization.
+Then select the "trust-project-vulcan" workspace, and navigate to
+Settings >
+Destruction and Deletion
+. From that page, select the
+Queue destroy plan
+button and follow the prompts to destroy the trust relationship.
+Once the trust relationship has been destroyed, return to the
+Destruction and
+Deletion
+page, select the
+Delete from HCP Terraform
+button, and follow
+the prompts to delete the workspace from HCP Terraform.
+Then, return to your Trust Project, select the "trust-project-phoenix", and
+repeat the previous steps to destroy that trust project and remove the workspace
+from HCP Terraform.
+Now that you have removed all of the resources you created with dynamic
+credentials and the two trust relationships, return to your command prompt to
+destroy your trust project and related infrastructure. Respond to the
+confirmation prompt with
+yes
+.
+$
+terraform destroy
+random_password.vault: Refreshing state... [id=none]
+random_string.name_suffix: Refreshing state... [id=AimkFX]
+vault_policy.trust_policy: Refreshing state... [id=aws_secret_backend_policy]
+vault_auth_backend.userpass: Refreshing state... [id=userpass]
+vault_jwt_auth_backend.tfc_jwt: Refreshing state... [id=jwt]
+##...
+Plan: 0 to add, 0 to change, 31 to destroy.
+Changes to Outputs:
+- tfc_org_name = "hashicorp-training" -> null
+- tfc_project_name = "DEMO Trust Relationships" -> null
+- trust_project_url = "https://app.terraform.io/app/hashicorp-training/workspaces?project=prj-LsTNaXqRwFQNTs4G" -> null
+- trust_relationships_arn = "arn:aws:iam::841397984957:role/terraform-20230611191440822800000002" -> null
+- trust_varset_url = "https://app.terraform.io/app/hashicorp-training/settings/varsets/varset-wJA5LvooKTNdNvRt" -> null
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+aws_iam_user.trust_relationships: Destroying... [id=vault-secrets-engine-AimkFX]
+aws_iam_user.trust_relationships: Destruction complete after 0s
+random_string.name_suffix: Destroying... [id=AimkFX]
+random_string.name_suffix: Destruction complete after 0s
+Destroy complete! Resources: 31 destroyed.
+Next steps
+In this tutorial, you created a project to manage Vault-backed trust
+relationships. You used this project to create a trust relationship for a single
+workspace, and another trust relationship for an entire project.
+Refer to the following resources to learn more about dynamic credentials.
+Refer to the
+terraform-dynamic-credentials-setup-examples
+GitHub
+repository
+for other example configurations.
+Read the
+dynamic credentials
+documentation
+for more details about how to configure your trust relationships.
+You can also
+manually
+generate
+custom auth tokens for custom authentication workflows or providers that do
+not natively support dynamic credentials.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Vault-backed dynamic credentials
+Next
+Drift and policies

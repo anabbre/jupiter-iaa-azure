@@ -1,0 +1,57 @@
+Call APIs with Custom Framework Providers
+In these tutorials, learn how Terraform uses providers to interact with target APIs. Then, build a custom provider based on the new Terraform Plugin Framework.
+Start
+13 tutorials
+11min
+Implement a provider with the Terraform Plugin Framework
+Begin creating a custom provider using the Terraform Plugin Framework.
+Terraform
+15min
+Configure provider client
+Configure a shared client requiring authentication with provider configuration.
+Terraform
+12min
+Implement data source
+Add a data source to a custom provider.
+Terraform
+10min
+Implement logging
+Add structured logging with optional filtering capabilities.
+Terraform
+17min
+Implement resource create and read
+Add a resource with create and read capabilities to a custom provider.
+Terraform
+Interactive
+12min
+Implement resource update
+Add update capabilities to a resource.
+Terraform
+7min
+Implement resource delete
+Add delete capabilities to a resource.
+Terraform
+8min
+Implement resource import
+Add import capabilities to a resource.
+Terraform
+9min
+Implement a function
+Add a function to your provider.
+Terraform
+11min
+Implement automated testing
+Add automated acceptance testing for data sources and resources.
+Terraform
+8min
+Implement documentation generation
+Add documentation generation to a custom provider.
+Terraform
+10min
+Release and publish to the Terraform registry
+Create a release for your custom Terraform provider using GoReleaser and GitHub Actions. Add GPG key to Terraform Registry to prepare for provider publishing.
+Terraform
+18min
+Build a function-only provider with the Terraform Plugin Framework
+Create a function-only provider using the Terraform Plugin Framework.
+Terraform

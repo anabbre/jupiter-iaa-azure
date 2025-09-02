@@ -1,0 +1,152 @@
+Sentinel
+is an embedded policy-as-code framework integrated with various HashiCorp products. It enables fine-grained, logic-based policy decisions, and can use information from external sources. HCP Terraform lets users enforce Sentinel policies as part of the run workflow.
+A policy consists of:
+The policy controls defined as code.
+An enforcement level that determines run behavior in the event of policy failure.
+Policy sets are a named grouping of policies and their enforcement levels. To apply a policy to a workspace and it's run, you must first add it to a policy set. Each policy set can apply to specific workspaces, or to all workspaces within an organization. Policy sets are the mapping between policies and workspaces.
+Note
+HCP Terraform
+Free
+Edition includes one policy set of up to five policies. In HCP Terraform
+Plus
+Edition, you can connect a policy set to a version control repository or create policy set versions via the API. Refer to
+HCP Terraform pricing
+for details.
+In this tutorial, you will define a policy set in a Version Control System (VCS), then connect it to HCP Terraform to verify that the Terraform version is 1.1.0 or above.
+Prerequisites
+This tutorial assumes that you are familiar with HCP Terraform and you have an existing HCP Terraform workspace configured with AWS access credentials.
+If you do not, refer to the
+Use VCS-Driven Workflow
+and
+Create a Variable Set
+tutorials for guidance.
+You must be in the "owners" team or have
+"Manage Policies"
+organization-level permissions to create new policy sets and policies.
+Fork GitHub Repository
+To create a policy set, you will need a VCS repository to host the policy configuration. Fork the
+example Enforce Policy repository
+.
+In the repository, you will find two files —
+sentinel.hcl
+and
+allowed-terraform-version.sentinel
+.
+Explore a policy set
+sentinel.hcl
+defines the policy set. This configuration declares a policy named
+allowed-terraform-version
+and sets a soft-mandatory enforcement level. You can define multiple
+policy
+blocks in the
+sentinel.hcl
+file to configure more policies.
+sentinel.hcl
+policy
+"allowed-terraform-version"
+{
+enforcement_level
+=
+"soft-mandatory"
+}
+Enforcement levels establish whether or not an operation can proceed if a policy fails. Sentinel provides three enforcement levels:
+Hard-mandatory
+requires that the policy passes. If a policy fails, the run stops. You must resolve the failure to proceed.
+Soft-mandatory
+lets an organization owner or a user with override privileges proceed with the run in the event of failure. HCP Terraform logs all overrides.
+Advisory
+will notify you of policy failures, but proceed with the operation.
+Explore a policy
+allowed-terraform-version.sentinel
+defines the policy declared in the policy set. Sentinel code files must follow the naming convention of
+<policy name>.sentinel
+.
+This policy will pass and return a value of
+true
+when the Terraform version is 1.1.0 and above. You can experiment with this policy and trigger a failure by changing the expression to
+version.new(tfplan.terraform_version).less_than("1.1.0")
+or changing the version in the parentheses.
+allowed-terraform-version.sentinel
+import
+"tfplan"
+import
+"version"
+main
+=
+rule
+{
+version.new(tfplan.terraform_version).greater_than(
+"1.1.0"
+)
+}
+Connect the Policy to HCP Terraform
+You need to connect your policy set to your HCP Terraform organization before you use it. Navigate to your organization's
+Settings
+, and then to the
+Policy Sets
+page.
+Click on the
+Connect a new policy set
+button.
+Select
+Github
+as the VCS provider
+Select your forked
+learn-terraform-enforce-policies
+repository
+On the
+Configure settings
+page:
+Select
+Sentinel
+as the policy framework.
+Under
+Scope of Policies
+, select
+Policies enforced on select workspaces
+.
+Specify the workspaces you want this policy set to apply to. If you are continuing from the previous tutorial, use your
+learn-terraform
+workspace.
+Select
+Standard
+as the policy set type.
+Finally, click the
+Connect policy set
+button to create the policy set.
+Note
+Policy set names within an HCP Terraform organization must be unique. If your organization already has a policy named
+learn-terraform-enforce-policies
+, rename the policy so it's unique.
+This creates a policy set that checks whether the Terraform version is 1.1.0 or above for the workspaces specified.
+After creating the policy set, HCP Terraform returns to the policy sets index page. The list now contains your new policy set. The VCS information, including the latest commit SHA, should appear within the policy set (if it's empty at first, allow a few moments and refresh).
+Now that you created the policy set and associated it with a workspace, navigate to the
+learn-terraform
+workspace and select
+Start new run
+from the
+Actions
+menu. Select the
+Plan only
+option, then click
+Start run
+.
+There is now an additional policy check step in the run, showing that the policy passed.
+Now that you completed the tutorial, optionally destroy the workspace.
+Tip
+For detailed guidance on destroying a workspace, review the
+Destroy Resources and Workspaces tutorial
+.
+Next steps
+In this tutorial, you created and used a policy check to verify the Terraform version before each run.
+In the next tutorial, you will learn how to enable and integrate cost estimation into policies. HCP Terraform's cost estimation feature helps you manage your infrastructure spending.
+To learn more about policies, refer to the
+HCP Terraform Sentinel documentation
+.
+Was this tutorial helpful?
+Yes
+No
+Previous
+VCS-driven workflow
+Next
+Destroy

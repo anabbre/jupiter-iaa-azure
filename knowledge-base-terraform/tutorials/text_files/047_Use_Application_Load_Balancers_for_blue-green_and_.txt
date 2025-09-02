@@ -1,0 +1,1119 @@
+Blue-green deployments and rolling deployments (canary tests) let you release new software gradually, reducing the potential blast radius of a failed software release. This workflow lets you publish software updates with near-zero downtime.
+Blue-Green Deployment Background
+In a blue-green deployment, the current service deployment acts as the
+blue
+environment. When you are ready to release an update, you deploy the new service version and underlying infrastructure into a new
+green
+environment. After verifying the green deployment, you redirect traffic from the blue environment to the green one.
+This workflow lets you:
+Test the green environment and identify any errors before promoting it. Your configuration still routes traffic to the blue environment while you test, ensuring near-zero downtime.
+Easily roll back to the previous deployment in the event of errors by redirecting all traffic back to the blue environment.
+Canary and Rolling Deployment Background
+Canary tests and rolling deployments release the new version of the service to a small group of users, reducing the blast radius in the event of failure.
+You can use blue-green deployments for canary tests. After the green environment is ready, the load balancer sends a small fraction of the traffic to the green environment (in this example, 10%).
+If the canary test succeeds without errors, you incrementally direct traffic to the green environment (50/50 — split traffic). Finally, you redirect all traffic to the green environment. After verifying the new deployment, you can destroy the old, blue environment. The green environment is now the current production service.
+AWS's
+application load balancer
+(ALB) lets you define rules that route traffic at the application layer. This differs from classic load balancers, which only let you balance traffic across multiple EC2 instances. You can define an ALB's
+listeners
+(rules) and
+target groups
+to dynamically route traffic to multiple services. These rules let you run canary tests on and incrementally promote the green environment.
+In this tutorial, you will use Terraform to:
+Provision networking resources (VPC, security groups, load balancers) and a set of web servers to serve as the blue environment.
+Provision a second set of web servers to serve as the green environment.
+Add feature toggles to your Terraform configuration to define a list of potential deployment strategies.
+Use feature toggles to conduct a canary test and incrementally promote your green environment.
+Prerequisites
+This tutorial assumes you are familiar with the standard Terraform workflow. If you are unfamiliar with Terraform, complete the
+Get Started tutorials
+first.
+For this tutorial, you will need:
+Terraform 1.3+ installed locally
+an
+AWS account
+Review example configuration
+Clone the
+Learn Terraform Advanced Deployment Strategies
+repository.
+$
+git clone https://github.com/hashicorp-education/learn-terraform-advanced-deployments
+Navigate to the repository directory in your terminal.
+$
+cd learn-terraform-advanced-deployments
+This repository contains multiple Terraform configuration files:
+main.tf
+defines the VPC, security groups, and load balancers.
+variables.tf
+defines variables used by the configuration such as region, CIDR blocks, number of subnets, etc.
+blue.tf
+defines 2 AWS instances that run a user data script to start a web server. These instances represent "version 1.0" of the example service.
+init-script.sh
+contains the script to start the web server.
+terraform.tf
+defines the
+terraform
+block, which specifies the Terraform binary and AWS provider versions.
+.terraform.lock.hcl
+is the Terraform
+dependency lock file
+.
+Note
+This example combines the network (load balancer) and the application configuration in one directory for convenience. In a production environment, you should manage these resources separately to reduce the potential blast radius of any changes.
+Review
+main.tf
+Open
+main.tf
+. This file uses the AWS provider to deploy the base infrastructure for this tutorial, including a VPC, subnets, an application security group, and a load balancer security group.
+The configuration defines an
+aws_lb
+resource
+which represents an ALB. When the load balancer receives the request, it evaluates the listener rules, defined by
+aws_lb_listener.app
+, and routes traffic to the appropriate target group.
+This load balancer currently directs all traffic to the blue load balancing target group on port 80.
+main.tf
+resource
+"aws_lb"
+"app"
+{
+name
+=
+"main-app-lb"
+internal
+=
+false
+load_balancer_type
+=
+"application"
+subnets
+=
+module.vpc.public_subnets
+security_groups
+=
+[module.lb_security_group.this_security_group_id]
+}
+resource
+"aws_lb_listener"
+"app"
+{
+load_balancer_arn
+=
+aws_lb.app.arn
+port
+=
+"80"
+protocol
+=
+"HTTP"
+default_action
+{
+type
+=
+"forward"
+target_group_arn
+=
+aws_lb_target_group.blue.arn
+}
+}
+Review
+blue.tf
+Open
+blue.tf
+. This configuration defines two AWS instances that start web servers, which return the text
+Version 1.0 - #${count.index}
+. This represents the sample application's first version and indicates which server responded to the request.
+blue.tf
+resource
+"aws_instance"
+"blue"
+{
+count
+=
+var.enable_blue_env
+?
+var.blue_instance_count
+:
+0
+ami
+=
+data.aws_ami.amazon_linux.id
+instance_type
+=
+"t2.micro"
+subnet_id
+=
+module.vpc.private_subnets[count.index
+%
+length(module
+.
+vpc
+.
+private_subnets)
+]
+vpc_security_group_ids
+=
+[module.app_security_group.this_security_group_id]
+user_data
+=
+templatefile(
+"
+${
+path
+.
+module
+}
+/init-script.sh"
+,
+{
+file_content
+=
+"version 1.0 - #
+${
+count
+.
+index
+}
+"
+})
+tags
+=
+{
+Name
+=
+"blue-
+${
+count
+.
+index
+}
+"
+}
+}
+This file also defines the blue load balancer target group and attaches the blue instances to it using
+aws_lb_target_group_attachment
+.
+blue.tf
+resource
+"aws_lb_target_group"
+"blue"
+{
+name
+=
+"blue-tg-
+${
+random_pet
+.
+app
+.
+id
+}
+-lb"
+port
+=
+80
+protocol
+=
+"HTTP"
+vpc_id
+=
+module.vpc.vpc_id
+health_check
+{
+port
+=
+80
+protocol
+=
+"HTTP"
+timeout
+=
+5
+interval
+=
+10
+}
+}
+resource
+"aws_lb_target_group_attachment"
+"blue"
+{
+count
+=
+length(aws_instance
+.
+blue)
+target_group_arn
+=
+aws_lb_target_group.blue.arn
+target_id
+=
+aws_instance.blue[count.index].id
+port
+=
+80
+}
+Initialize and apply the configuration
+In your terminal, initialize your Terraform configuration.
+$
+terraform init
+Initializing modules...
+Downloading terraform-aws-modules/security-group/aws 4.17.1 for app_security_group...
+- app_security_group in .terraform/modules/app_security_group/modules/web
+- app_security_group.sg in .terraform/modules/app_security_group
+Downloading terraform-aws-modules/security-group/aws 4.17.1 for lb_security_group...
+- lb_security_group in .terraform/modules/lb_security_group/modules/web
+- lb_security_group.sg in .terraform/modules/lb_security_group
+Downloading terraform-aws-modules/vpc/aws 3.19.0 for vpc...
+- vpc in .terraform/modules/vpc
+Initializing the backend...
+Initializing provider plugins...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+- Reusing previous version of hashicorp/random from the dependency lock file
+- Installing hashicorp/aws v4.15.1...
+- Installed hashicorp/aws v4.15.1 (signed by HashiCorp)
+- Installing hashicorp/random v3.4.3...
+- Installed hashicorp/random v3.4.3 (signed by HashiCorp)
+Terraform has been successfully initialized!
+## ...
+Apply your configuration. Respond
+yes
+to the prompt to confirm the operation.
+$
+terraform apply
+## ...
+Plan: 36 to add, 0 to change, 0 to destroy.
+## ...
+Apply complete! Resources: 36 added, 0 changed, 0 destroyed.
+Outputs:
+lb_dns_name = "main-app-bursting-slug-lb-976734382.us-west-2.elb.amazonaws.com"
+Verify blue environment
+Verify your blue environment by visiting the load balancer's DNS name in your browser or cURLing it from your terminal.
+Note
+It may take a few minutes for the load balancer's health checks to pass and the web servers to respond.
+$
+for
+i
+in
+`
+seq
+1
+5
+`
+;
+do
+curl
+$(
+terraform
+output -raw lb_dns_name)
+;
+done
+Version 1.0 - #0!
+Version 1.0 - #1!
+Version 1.0 - #0!
+Version 1.0 - #0!
+Version 1.0 - #1!
+Notice that the load balancer evenly distributes traffic between the two instances in the blue environment.
+Deploy green environment
+Create a new file named
+green.tf
+and paste in the configuration for the sample application's version 1.1.
+green.tf
+resource
+"aws_instance"
+"green"
+{
+count
+=
+var.enable_green_env
+?
+var.green_instance_count
+:
+0
+ami
+=
+data.aws_ami.amazon_linux.id
+instance_type
+=
+"t2.micro"
+subnet_id
+=
+module.vpc.private_subnets[count.index
+%
+length(module
+.
+vpc
+.
+private_subnets)
+]
+vpc_security_group_ids
+=
+[module.app_security_group.security_group_id]
+user_data
+=
+templatefile(
+"
+${
+path
+.
+module
+}
+/init-script.sh"
+,
+{
+file_content
+=
+"version 1.1 - #
+${
+count
+.
+index
+}
+"
+})
+tags
+=
+{
+Name
+=
+"green-
+${
+count
+.
+index
+}
+"
+}
+}
+resource
+"aws_lb_target_group"
+"green"
+{
+name
+=
+"green-tg-
+${
+random_pet
+.
+app
+.
+id
+}
+-lb"
+port
+=
+80
+protocol
+=
+"HTTP"
+vpc_id
+=
+module.vpc.vpc_id
+health_check
+{
+port
+=
+80
+protocol
+=
+"HTTP"
+timeout
+=
+5
+interval
+=
+10
+}
+}
+resource
+"aws_lb_target_group_attachment"
+"green"
+{
+count
+=
+length(aws_instance
+.
+green)
+target_group_arn
+=
+aws_lb_target_group.green.arn
+target_id
+=
+aws_instance.green[count.index].id
+port
+=
+80
+}
+Notice how this configuration is similar to the blue application, except that the web servers return
+green #${count.index}
+.
+Add the following variables to
+variables.tf
+.
+variables.tf
+variable
+"enable_green_env"
+{
+description
+=
+"Enable green environment"
+type
+=
+bool
+default
+=
+true
+}
+variable
+"green_instance_count"
+{
+description
+=
+"Number of instances in green environment"
+type
+=
+number
+default
+=
+2
+}
+Apply your configuration to deploy your green application. Remember to confirm your apply with a
+yes
+.
+$
+terraform apply
+## ...
+Plan: 5 to add, 0 to change, 0 to destroy.
+## ...
+Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
+Outputs:
+lb_dns_name = "main-app-bursting-slug-lb-976734382.us-west-2.elb.amazonaws.com"
+Add feature toggles to route traffic
+Even though you deployed your green environment, the load balancer does not yet route traffic to it.
+$
+for
+i
+in
+`
+seq
+1
+5
+`
+;
+do
+curl
+$(
+terraform
+output -raw lb_dns_name)
+;
+done
+Version 1.0 - #1!
+Version 1.0 - #0!
+Version 1.0 - #0!
+Version 1.0 - #0!
+Version 1.0 - #1!
+While you could manually modify the load balancer's target groups to include the green environment, using feature toggles codifies this change for you. In this step, you will add a
+traffic_distribution
+variable and
+traffic_dist_map
+local variable to your configuration. The configuration will update the target group's weight based on the
+traffic_distribution
+variable.
+First, add the configuration for the local value and traffic distribution variable to
+variables.tf
+.
+variables.tf
+locals
+{
+traffic_dist_map
+=
+{
+blue
+=
+{
+blue
+=
+100
+green
+=
+0
+}
+blue-90
+=
+{
+blue
+=
+90
+green
+=
+10
+}
+split
+=
+{
+blue
+=
+50
+green
+=
+50
+}
+green-90
+=
+{
+blue
+=
+10
+green
+=
+90
+}
+green
+=
+{
+blue
+=
+0
+green
+=
+100
+}
+}
+}
+variable
+"traffic_distribution"
+{
+description
+=
+"Levels of traffic distribution"
+type
+=
+string
+}
+Notice that the local variable defines five traffic distributions. Each traffic distribution specifies the weight for the respective target group:
+The
+blue
+target distribution is the current distribution — the load balancer routes 100% of the traffic to the blue environment, 0% to the green environment.
+The
+blue-90
+target distribution simulates canary testing. This canary test routes 90% of the traffic to the blue environment and 10% to the green environment.
+The
+split
+target distribution builds on top of canary testing by increasing traffic to the green environment. This splits the traffic evenly between the blue and green environments (50/50).
+The
+green-90
+target distribution increases traffic to the green environment, sending 90% of the traffic to the green environment, 10% to the blue environment.
+The
+green
+target distribution fully promotes the green environment — the load balancer routes 100% of the traffic to the green environment.
+Modify the
+aws_lb_listener.app
+'s
+default_action
+block in
+main.tf
+to match the following. The configuration uses
+lookup
+to set the target groups' weight. Notice that the configuration defaults to directing all traffic to the blue environment if no value is set.
+main.tf
+resource "aws_lb_listener" "app" {
+## ...
+default_action {
+type = "forward"
+-
+target_group_arn = aws_lb_target_group.blue.arn
++
+forward {
++
+target_group {
++
+arn = aws_lb_target_group.blue.arn
++
+weight = lookup(local.traffic_dist_map[var.traffic_distribution], "blue", 100)
++
+}
++
+target_group {
++
+arn = aws_lb_target_group.green.arn
++
+weight = lookup(local.traffic_dist_map[var.traffic_distribution], "green", 0)
++
+}
++
+stickiness {
++
+enabled = false
++
+duration = 1
++
+}
++
+}
+}
+}
+Note
+The ELB's stickiness is set to false and 1 second to demonstrate traffic routing between the two target groups. Refer to
+AWS's guidance on these settings for production environments
+.
+Begin canary test
+Apply your configuration with the
+traffic_distribution
+variable set to
+blue-90
+to run a canary test. Remember to confirm your apply with a
+yes
+.
+$
+terraform apply -var
+'traffic_distribution=blue-90'
+## ...
+Terraform will perform the following actions:
+# aws_lb_listener.app will be updated in-place
+~ resource "aws_lb_listener" "app" {
+id = "arn:aws:elasticloadbalancing:us-west-2:561656980159:listener/app/main-app-bursting-slug-lb/ace5fc1e7af739e9/1823f9a776b1232e"
+# (4 unchanged attributes hidden)
+~ default_action {
+- target_group_arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/blue-tg-bursting-slug-lb/c8ed1be403ce253c" -> null
+# (2 unchanged attributes hidden)
++ forward {
++ stickiness {
++ duration = 1
++ enabled = false
+}
++ target_group {
++ arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/blue-tg-bursting-slug-lb/c8ed1be403ce253c"
++ weight = 100
+}
++ target_group {
++ arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/green-tg-bursting-slug-lb/ade9778242aab1c2"
++ weight = 0
+}
+}
+}
+}
+Plan: 0 to add, 1 to change, 0 to destroy.
+## ...
+aws_lb_listener.app: Modifying... [id=arn:aws:elasticloadbalancing:us-west-2:561656980159:listener/app/main-app-bursting-slug-lb/ace5fc1e7af739e9/1823f9a776b1232e]
+aws_lb_listener.app: Modifications complete after 0s [id=arn:aws:elasticloadbalancing:us-west-2:561656980159:listener/app/main-app-bursting-slug-lb/ace5fc1e7af739e9/1823f9a776b1232e]
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+Outputs:
+lb_dns_name = "main-app-bursting-slug-lb-976734382.us-west-2.elb.amazonaws.com"
+Verify canary deployment traffic
+Verify that your load balancer now routes 10% of the traffic to the green environment.
+Note
+It may take a few minutes for the load balancer's health checks to pass and for the green environment to begin responding.
+$
+for
+i
+in
+`
+seq
+1
+10
+`
+;
+do
+curl
+$(
+terraform
+output -raw lb_dns_name)
+;
+done
+Version 1.0 - #0!
+Version 1.0 - #0!
+Version 1.0 - #1!
+Version 1.0 - #0!
+Version 1.1 - #1!
+Version 1.0 - #0!
+Version 1.0 - #0!
+Version 1.0 - #1!
+Version 1.0 - #0!
+Version 1.0 - #1!
+Notice that the load balancer now routes 10% of the traffic to the green environment.
+Increase traffic to green environment
+Now that the canary deployment was successful, increase the traffic to the green environment.
+Apply your configuration with the
+traffic_distribution
+variable set to
+split
+to increase traffic to the green environment. Remember to confirm your apply with a
+yes
+.
+$
+terraform apply -var
+'traffic_distribution=split'
+## ...
+Terraform will perform the following actions:
+# aws_lb_listener.app will be updated in-place
+~ resource "aws_lb_listener" "app" {
+id = "arn:aws:elasticloadbalancing:us-west-2:561656980159:listener/app/main-app-bursting-slug-lb/ace5fc1e7af739e9/1823f9a776b1232e"
+# (4 unchanged attributes hidden)
+~ default_action {
+# (2 unchanged attributes hidden)
+~ forward {
++ target_group {
++ arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/blue-tg-bursting-slug-lb/c8ed1be403ce253c"
++ weight = 50
+}
+- target_group {
+- arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/blue-tg-bursting-slug-lb/c8ed1be403ce253c" -> null
+- weight = 90 -> null
+}
+- target_group {
+- arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/green-tg-bursting-slug-lb/ade9778242aab1c2" -> null
+- weight = 10 -> null
+}
++ target_group {
++ arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/green-tg-bursting-slug-lb/ade9778242aab1c2"
++ weight = 50
+}
+# (1 unchanged block hidden)
+}
+}
+}
+Plan: 0 to add, 1 to change, 0 to destroy.
+## ...
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+Outputs:
+lb_dns_name = "main-app-bursting-slug-lb-976734382.us-west-2.elb.amazonaws.com"
+Verify rolling deployment traffic
+Verify that your load balancer now splits the traffic to the blue and green environments.
+Note
+It may take a few minutes for the load balancer's health checks to pass. The results may not always show an exact 50/50 distribution when running the following command.
+$
+for
+i
+in
+`
+seq
+1
+10
+`
+;
+do
+curl
+$(
+terraform
+output -raw lb_dns_name)
+;
+done
+Version 1.0 - #0!
+Version 1.1 - #1!
+Version 1.0 - #1!
+Version 1.1 - #1!
+Version 1.1 - #0!
+Version 1.0 - #0!
+Version 1.0 - #1!
+Version 1.0 - #1!
+Version 1.1 - #1!
+Version 1.1 - #0!
+Notice that the load balancer now evenly splits the traffic between the blue and green environments.
+Promote green environment
+Since both the canary and rolling deployments succeeded, route 100% of the load balancer's traffic to the green environment to promote it.
+Apply your configuration to promote the green environment by setting the
+traffic_distribution
+variable to
+green
+. Remember to confirm your apply with a
+yes
+.
+$
+terraform apply -var
+'traffic_distribution=green'
+## ...
+Terraform will perform the following actions:
+# aws_lb_listener.app will be updated in-place
+~ resource "aws_lb_listener" "app" {
+id = "arn:aws:elasticloadbalancing:us-west-2:561656980159:listener/app/main-app-bursting-slug-lb/ace5fc1e7af739e9/1823f9a776b1232e"
+# (4 unchanged attributes hidden)
+~ default_action {
+# (2 unchanged attributes hidden)
+~ forward {
++ target_group {
++ arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/blue-tg-bursting-slug-lb/c8ed1be403ce253c"
++ weight = 0
+}
+- target_group {
+- arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/blue-tg-bursting-slug-lb/c8ed1be403ce253c" -> null
+- weight = 50 -> null
+}
++ target_group {
++ arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/green-tg-bursting-slug-lb/ade9778242aab1c2"
++ weight = 100
+}
+- target_group {
+- arn = "arn:aws:elasticloadbalancing:us-west-2:561656980159:targetgroup/green-tg-bursting-slug-lb/ade9778242aab1c2" -> null
+- weight = 50 -> null
+}
+# (1 unchanged block hidden)
+}
+}
+}
+Plan: 0 to add, 1 to change, 0 to destroy.
+## ...
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+Outputs:
+lb_dns_name = "main-app-bursting-slug-lb-976734382.us-west-2.elb.amazonaws.com"
+Verify load balancer traffic
+Verify that your load balancer now routes all traffic to the green environment.
+Note
+It may take a few minutes for the load balancer's health checks to pass.
+$
+for
+i
+in
+`
+seq
+1
+5
+`
+;
+do
+curl
+$(
+terraform
+output -raw lb_dns_name)
+;
+done
+Version 1.1 - #1!
+Version 1.1 - #0!
+Version 1.1 - #0!
+Version 1.1 - #0!
+Version 1.1 - #1!
+Using this deployment strategy, you successfully promoted your green environment with near-zero downtime.
+Scale down blue environment
+After verifying that your load balancer directs all traffic to your green environment, it is safe to disable the blue environment.
+Apply your configuration to destroy the blue environment resources by setting the
+traffic_distribution
+variable to
+green
+and
+enable_blue_env
+to
+false
+. Remember to confirm your apply with a
+yes
+.
+$
+terraform apply -var
+'traffic_distribution=green'
+-var
+'enable_blue_env=false'
+##...
+Terraform used the selected providers to generate the
+following execution plan. Resource actions are indicated with
+the following symbols:
+- destroy
+Terraform will perform the following actions:
+##...
+Plan: 0 to add, 0 to change, 4 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Deploy new version
+In this tutorial, you deployed the application's Version 1.0 in the blue environment, and the new version, 1.1, in the green environment. When you promoted the green environment, it became the current production environment. Deploy the next release to the blue environment, which minimizes modifications to your existing configuration by alternating the blue and green environments.
+Modify the
+aws_instance.blue
+'s
+user_data
+and
+tags
+blocks in
+blue.tf
+to display a new version number, 1.2.
+blue.tf
+resource "aws_instance" "blue" {
+## ...
+user_data = templatefile("${path.module}/init-script.sh", {
+-
+file_content = "version 1.0 - #${count.index}"
++
+file_content = "version 1.2 - #${count.index}"
+})
+tags = {
+Name = "blue-${count.index}"
+}
+}
+Enable new version environment
+Apply your configuration to provision the new version of your infrastructure. Remember to confirm your apply with a
+yes
+. Set the
+traffic_distribution
+variable to
+green
+to continue directly all traffic to your current production deployment in the green environment.
+$
+terraform apply -var
+'traffic_distribution=green'
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the
+following symbols:
++ create
+Terraform will perform the following actions:
+##...
+Plan: 4 to add, 0 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+Outputs:
+lb_dns_name = "main-app-infinite-toucan-lb-937939527.us-west-2.elb.amazonaws.com"
+Start shifting traffic to blue environment
+Apply your configuration to run a canary test to the blue environment by setting the
+traffic_distribution
+variable to
+green-90
+. Remember to confirm your apply with a
+yes
+.
+$
+terraform apply -var
+'traffic_distribution=green-90'
+##...
+Plan: 0 to add, 1 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+Outputs:
+lb_dns_name = "main-app-infinite-toucan-lb-937939527.us-west-2.elb.amazonaws.com"
+Once the apply completes, verify that your load balancer routes traffic to both environments.
+Note
+It may take a few minutes for the load balancer's health checks to pass.
+$
+for
+i
+in
+`
+seq
+1
+10
+`
+;
+do
+curl
+$(
+terraform
+output -raw lb_dns_name)
+;
+done
+Version 1.1 - #1!
+Version 1.1 - #0!
+Version 1.1 - #0!
+Version 1.2 - #0!
+Version 1.1 - #1!
+Version 1.1 - #1!
+Version 1.1 - #0!
+Version 1.1 - #0!
+Version 1.1 - #1!
+Version 1.1 - #0!
+Promote blue environment
+Now that the canary deployment is successful, fully promote your blue environment.
+Apply your configuration to promote the blue environment by setting the
+traffic_distribution
+variable to
+blue
+. Remember to confirm your apply with a
+yes
+.
+$
+terraform apply -var
+'traffic_distribution=blue'
+##...
+Plan: 0 to add, 1 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+Outputs:
+lb_dns_name = "main-app-infinite-toucan-lb-937939527.us-west-2.elb.amazonaws.com"
+Verify that your load balancer now routes all traffic to the blue environment.
+Note
+It may take a few minutes for the load balancer's health checks to pass.
+$
+for
+i
+in
+`
+seq
+1
+5
+`
+;
+do
+curl
+$(
+terraform
+output -raw lb_dns_name)
+;
+done
+Version 1.2 - #1!
+Version 1.2 - #0!
+Version 1.2 - #0!
+Version 1.2 - #0!
+Version 1.2 - #1!
+You now used blue-green, canary, and rolling deployments to safely deploy two releases.
+Clean up your infrastructure
+Destroy the resources you provisioned. Remember to respond to the confirmation prompt with
+yes
+.
+$
+terraform destroy -var
+'traffic_distribution=blue'
+##...
+Plan: 0 to add, 0 to change, 41 to destroy.
+Changes to Outputs:
+- lb_dns_name = "main-app-infinite-toucan-lb-937939527.us-west-2.elb.amazonaws.com" -> null
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+##...
+Destroy complete! Resources: 41 destroyed.
+Next steps
+In this tutorial, you used Terraform to incrementally deploy a new application release. You implemented feature toggles to perform blue-green deployments and canary testing, helping you consistently and reliably use these advanced deployment techniques.
+To learn how to automate your infrastructure deployment process and schedule near-zero downtime releases, review the following resources.
+Follow the
+tutorial on using Terraform to create preview environments
+.
+Follow the
+tutorial on automating Terraform with CircleCI
+.
+Learn how to
+perform Blue/Green & Canary Deployments with Nomad
+.
+Learn how to
+configure traffic splitting for service deployments with Consul
+.
+Was this tutorial helpful?
+Yes
+No
+Collection Overview
+Applications
+Next
+Cloudflare static website
+This tutorial also appears in:
+12 tutorials
+Use Cases for Terraform
+Use Terraform to perform common operations with other technologies, including Consul, Vault, Packer, and Kubernetes.
+Terraform
+3 tutorials
+Network Applications with Terraform
+Use Terraform to control your Networking infrastructure, or interact with Networking tools like HashiCorp Consul. Update firewall rules based on Consul service registration. Use Terraform to register services.
+Terraform
+13 tutorials
+HashiCorp Products - Better Together
+Use Terraform with other Hashicorp products including Vault, Boundary, Consul, Packer, and Hashicorp Cloud Platform.
+Terraform
+14 tutorials
+Manage AWS Services
+Use the AWS provider to manage AWS services with Terraform. Configure IAM policy documents, deploy serverless functions with Lambda, use application load balancers to schedule near-zero downtime releases, manage RDS and more.
+Terraform

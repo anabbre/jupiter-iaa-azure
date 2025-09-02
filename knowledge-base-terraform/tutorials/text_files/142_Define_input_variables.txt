@@ -1,0 +1,144 @@
+You now have enough Terraform knowledge to create useful configurations, but the
+examples so far have used hard-coded values. Terraform configurations can
+include variables to make your configuration more dynamic and flexible.
+Note
+This tutorial builds on configuration from an
+earlier tutorial
+. If you have not yet completed it, do so now.
+Define your variables
+In your
+learn-terraform-azure
+directory, create a new file called
+variables.tf
+. Copy and paste the variable declaration below.
+variables.tf
+variable
+"resource_group_name"
+{
+default
+=
+"myTFResourceGroup"
+}
+This declaration includes a default value for the variable, so the
+resource_group_name
+variable will not be a required input.
+Update your Terraform configuration with your variables
+Update your
+azurerm_resource_group
+configuration to use the input variable for the resource group name. Modify the virtual machine block as follows:
+main.tf
+resource
+"azurerm_resource_group"
+"rg"
+{
+name
+=
+var.resource_group_name
+location
+=
+"westus2"
+tags
+=
+{
+Environment
+=
+"Terraform Getting Started"
+Team
+=
+"DevOps"
+}
+}
+Apply your configuration
+Re-run
+terraform apply
+to recreate your infrastructure using input variables. Respond
+yes
+to the prompt to confirm the operation.
+$
+terraform apply
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
++ create
+Terraform will perform the following actions:
+##...
+Plan: 2 to add, 0 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+azurerm_resource_group.rg: Creating...
+azurerm_resource_group.rg: Creation complete after 1s [id=/subscriptions/c9ed8610-47a3-4107-a2b2-a322114dfb29/resourceGroups/myTFResourceGroup]
+azurerm_virtual_network.vnet: Creating...
+azurerm_virtual_network.vnet: Creation complete after 7s [id=/subscriptions/c9ed8610-47a3-4107-a2b2-a322114dfb29/resourceGroups/myTFResourceGroup/providers/Microsoft.Network/virtualNetworks/myTFVnet]
+Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+Now apply the configuration again, this time overriding the default resource
+group name by passing in a variable using the
+-var
+flag. Updating the
+resource group name is a destructive update that forces Terraform to recreate the
+resource, and in turn the virtual network that depends on it. Respond to the
+confirmation prompt with
+yes
+to rename the resource group and create the new resources.
+$
+terraform apply -var
+"resource_group_name=myNewResourceGroupName"
+azurerm_resource_group.rg: Refreshing state... [id=/subscriptions/c9ed8610-47a3-4107-a2b2-a322114dfb29/resourceGroups/myTFResourceGroup]
+azurerm_virtual_network.vnet: Refreshing state... [id=/subscriptions/c9ed8610-47a3-4107-a2b2-a322114dfb29/resourceGroups/myTFResourceGroup/providers/Microsoft.Network/virtualNetworks/myTFVnet]
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+-/+ destroy and then create replacement
+Terraform will perform the following actions:
+# azurerm_resource_group.rg must be replaced
+-/+ resource "azurerm_resource_group" "rg" {
+~ id = "/subscriptions/c9ed8610-47a3-4107-a2b2-a322114dfb29/resourceGroups/myTFResourceGroup" -> (known after apply)
+~ name = "myTFResourceGroup" -> "myNewResourceGroupName" # forces replacement
+tags = {
+"Environment" = "Terraform Getting Started"
+"Team" = "DevOps"
+}
+# (1 unchanged attribute hidden)
+}
+# azurerm_virtual_network.vnet must be replaced
+-/+ resource "azurerm_virtual_network" "vnet" {
+- dns_servers = [] -> null
+~ guid = "260a1a64-08ed-4693-84d8-eda800326faa" -> (known after apply)
+~ id = "/subscriptions/c9ed8610-47a3-4107-a2b2-a322114dfb29/resourceGroups/myTFResourceGroup/providers/Microsoft.Network/virtualNetworks/myTFVnet" -> (known after apply)
+name = "myTFVnet"
+~ resource_group_name = "myTFResourceGroup" -> "myNewResourceGroupName" # forces replacement
+~ subnet = [] -> (known after apply)
+- tags = {} -> null
+# (3 unchanged attributes hidden)
+}
+Plan: 2 to add, 0 to change, 2 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+azurerm_virtual_network.vnet: Destroying... [id=/subscriptions/c9ed8610-47a3-4107-a2b2-a322114dfb29/resourceGroups/myTFResourceGroup/providers/Microsoft.Network/virtualNetworks/myTFVnet]
+azurerm_virtual_network.vnet: Still destroying... [id=/subscriptions/c9ed8610-47a3-4107-a2b2-...osoft.Network/virtualNetworks/myTFVnet, 10s elapsed]
+azurerm_virtual_network.vnet: Destruction complete after 11s
+azurerm_resource_group.rg: Destroying... [id=/subscriptions/c9ed8610-47a3-4107-a2b2-a322114dfb29/resourceGroups/myTFResourceGroup]
+azurerm_resource_group.rg: Still destroying... [id=/subscriptions/c9ed8610-47a3-4107-a2b2-...dfb29/resourceGroups/myTFResourceGroup, 10s elapsed]
+azurerm_resource_group.rg: Still destroying... [id=/subscriptions/c9ed8610-47a3-4107-a2b2-...dfb29/resourceGroups/myTFResourceGroup, 20s elapsed]
+azurerm_resource_group.rg: Still destroying... [id=/subscriptions/c9ed8610-47a3-4107-a2b2-...dfb29/resourceGroups/myTFResourceGroup, 30s elapsed]
+azurerm_resource_group.rg: Still destroying... [id=/subscriptions/c9ed8610-47a3-4107-a2b2-...dfb29/resourceGroups/myTFResourceGroup, 40s elapsed]
+azurerm_resource_group.rg: Destruction complete after 48s
+azurerm_resource_group.rg: Creating...
+azurerm_resource_group.rg: Creation complete after 1s [id=/subscriptions/c9ed8610-47a3-4107-a2b2-a322114dfb29/resourceGroups/myNewResourceGroupName]
+azurerm_virtual_network.vnet: Creating...
+azurerm_virtual_network.vnet: Creation complete after 6s [id=/subscriptions/c9ed8610-47a3-4107-a2b2-a322114dfb29/resourceGroups/myNewResourceGroupName/providers/Microsoft.Network/virtualNetworks/myTFVnet]
+Apply complete! Resources: 2 added, 0 changed, 2 destroyed.
+Setting variables via the command-line will not save their values. Terraform
+supports many ways to use and set variables so you can avoid having to enter
+them repeatedly as you execute commands. To learn more, follow our in-depth
+tutorial,
+Customize Terraform Configuration with
+Variables
+.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Destroy
+Next
+Outputs

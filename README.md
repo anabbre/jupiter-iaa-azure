@@ -60,13 +60,18 @@ La aplicación cuenta con dos pestañas principales:
 	Crea un archivo `.env` en la raíz del proyecto con tus credenciales de Azure y otras configuraciones necesarias.  
 	Ejemplo:
 	```
-	OPENAI_API_KEY==tu_openai_apikey
-	PINECONE_API_KEY==tu_pinecode_apikey
+	OPENAI_API_KEY=
+    LANGCHAIN_PROJECT=
+    TAVILY_API_KEY=
+    
+    LANGSMITH_TRACING=true
+    LANGSMITH_API_KEY=
 	```
 
 4. **Ejecuta la aplicación**  
 	```bash
-	streamlit run app.py
+	uvicorn api:app --port 8008 --reload
+    python ui.py
 	```
 
 5. **Accede a la interfaz web**  

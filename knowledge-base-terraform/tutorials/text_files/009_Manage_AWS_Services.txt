@@ -1,0 +1,59 @@
+Manage AWS Services
+Use the AWS provider to manage AWS services with Terraform. Configure IAM policy documents, deploy serverless functions with Lambda, use application load balancers to schedule near-zero downtime releases, manage RDS and more.
+14 tutorials
+14min
+Manage AWS Auto Scaling Groups
+Provision AWS Auto Scaling Groups with load balancers using Terraform. Configure scaling policies and use lifecycle arguments to maintain desired capacity while avoiding state drift.
+Terraform
+1hr 30min
+Manage AWS accounts using Control Tower Account Factory for Terraform
+Use the AWS Control Tower Account Factory for Terraform to create a pipeline for provisioning and customizing AWS accounts in Control Tower. Create a new account and learn more about AWS Control Tower governance.
+Terraform
+11min
+Manage new AWS resources with the Cloud Control provider
+Use the Terraform AWS Cloud Control provider to manage resources that the traditional AWS provider does not yet support.
+Terraform
+16min
+Upgrade RDS major version
+Use Terraform to manage a major version upgrade for an RDS instance and parameter group. Use an ephemeral resource and write-only argument to securely set your database password.
+Terraform
+9min
+Provision AWS resources across accounts using AssumeRole
+Define an AWS IAM role with Terraform to allow a user in one AWS account to provision infrastructure in another.
+Terraform
+13min
+Configure default tags for AWS resources
+Configure the AWS Terraform provider to set default tags on resources. Override default tags on individual resources.
+Terraform
+9min
+Create IAM policies
+Use Terraform to apply policy permissions to IAM user and S3 bucket resources. Refactor your policy with the IAM policy document data source to automatically format your JSON policies for reuse.
+Terraform
+13min
+Deploy serverless applications with AWS Lambda and API Gateway
+Deploy a serverless web application on AWS with Lambda and API Gateway. Package and deploy a Lambda function to S3, configure an IAM role, and provision an API Gateway deployment to allow users to call the Lamba function via HTTP.
+Terraform
+19min
+Use Application Load Balancers for blue-green and canary deployments
+Configure AWS application load balancers to release an application in a rolling upgrade with near-zero downtime. Incrementally promote a new canary application version to production by building a feature toggle with Terraform.
+Terraform
+19min
+Host a static website with S3 and Cloudflare
+Set up an S3-hosted static website with Cloudflare for DNS, TLS, and CDN. Redirect HTTP traffic to HTTPS, and redirect certain paths with Cloudflare page rules. Alternatively, use ACM for TLS certificate management and Cloudfront for CDN.
+Terraform
+14min
+Manage AWS RDS instances
+Provision an RDS instance, subnet group, and parameter group using Terraform. Modify the RDS instance configuration, and provision a second replica instance.
+Terraform
+9min
+Provision an EKS cluster (AWS)
+Provision a Kubernetes Cluster in AWS. Configure the AWS CLI to provide IAM credentials to Terraform, clone an example repository, and deploy the cluster. Configure kubectl and the Kubernetes dashboard. Finally destroy the cluster.
+Terraform
+25min
+Create preview environments with Terraform, GitHub Actions, and Vercel
+Configure HCP Terraform and GitHub Actions to create frontend and backend preview environments for your application. Dynamically create and destroy preview environments by opening, merging and closing pull requests.
+Terraform
+35min
+Manage AWS DynamoDB scale
+Create an AWS DynamoDB table with Terraform. Configure provisioned capacity, autoscaling, local and global secondary indexes, global tables, TTL, and the table class.
+Terraform

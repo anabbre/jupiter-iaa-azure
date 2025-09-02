@@ -1,0 +1,89 @@
+HCP Terraform runs Terraform operations and stores state remotely, so you can use Terraform without worrying about the stability of your local machine, or the security of your state file.
+To use HCP Terraform from the command line, you must log in. Logging in allows you to trigger remote plans and runs, migrate state to the cloud, and perform other remote operations on configurations with HCP Terraform.
+Prerequisites
+The
+Terraform CLI
+(version 1.1.0+) installed locally
+An
+HCP Terraform
+account
+Tip
+If you are using an older version of Terraform, set up a
+CLI configuration file
+to authenticate to HCP Terraform.
+Start the
+login
+flow
+In order to authenticate with HCP Terraform, run the
+terraform login
+subcommand. Respond
+yes
+to the prompt to confirm that you want to authenticate.
+$
+terraform login
+Terraform will request an API token for app.terraform.io using your browser.
+If login is successful, Terraform will store the token in plain text in
+the following file for use by subsequent commands:
+/Users/redacted/.terraform.d/credentials.tfrc.json
+Do you want to proceed?
+Only 'yes' will be accepted to confirm.
+Enter a value: yes
+Generate a token
+A browser window will automatically open to the HCP Terraform login screen. Enter a token name in the web UI, or leave the default name,
+terraform login
+.
+Tip
+If your browser does not open automatically, navigate to the URL output in your terminal or
+click here
+to go to the token creation UI.
+Click
+Create API token
+to generate the authentication token.
+Save a copy of the token in a secure location. It provides access to your HCP Terraform organization. Terraform will also store your token locally at the file path specified in the command output.
+Add the token to the CLI
+When the Terraform CLI prompts you, paste the user token exactly once into your terminal. Terraform will hide the token for security when you paste it into your terminal. Press
+Enter
+to complete the authentication process.
+Terraform must now open a web browser to the tokens page for app.terraform.io.
+If a browser does not open this automatically, open the following URL to proceed:
+https://app.terraform.io/app/settings/tokens?source=terraform-login
+---------------------------------------------------------------------------------
+Generate a token using your browser, and copy-paste it into this prompt.
+Terraform will store the token in plain text in the following file
+for use by subsequent commands:
+/Users/redacted/.terraform.d/credentials.tfrc.json
+Token for app.terraform.io:
+Enter a value:
+Retrieved token for user redacted
+Welcome to HCP Terraform!
+Next Steps
+Once you have authenticated to HCP Terraform, you are ready to perform remote operations. Continue to the
+next tutorial
+to create a new HCP Terraform variable set.
+Discover more remote operations to perform with a logged in CLI in the HCP Terraform
+CLI-driven Runs documentation
+.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Sign up
+Next
+Credentials variable set
+This tutorial also appears in:
+37 tutorials
+Terraform Associate (003) Tutorials
+Progress through these tutorials to prepare for the Terraform Associate (003) certification exam.
+Terraform
+30 tutorials
+Collaborate using HCP Terraform
+Collaborate on infrastructure with HCP Terraform. Follow these tutorials to migrate state from local storage and take a deeper look at HCP Terraform operations, including VCS integration, workspace configuration, and remote runs.
+Terraform
+16 tutorials
+Use the Command Line Interface
+Use the Terraform Command Line Interface (CLI) to manage infrastructure, and interact with Terraform state, providers, configuration files, and Terraform Cloud.
+Terraform
+4 tutorials
+Terraform 0.13 tutorials
+Try the new capabilities in Terraform 0.13. Use count and for each with modules, log into HCP Terraform with the CLI, and use a third-party provider with the new provider source syntax.
+Terraform

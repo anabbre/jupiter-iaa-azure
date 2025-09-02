@@ -1,0 +1,32 @@
+Provision Infrastructure
+Install software, edit files, and provision machines created with Terraform. Use Packer or Cloud-Init to automatically provision SSH keys and a web server onto a Linux VM created by Terraform in AWS.
+6 tutorials
+5min
+Provision infrastructure with Cloud-Init
+Deploy preconfigured infrastructure with Terraform using the Cloud-Init tool.
+Terraform
+5min
+Provision infrastructure with Packer
+Create an image with Packer and deploy it with Terraform.
+Packer
+Terraform
+4min
+Set up HCP Terraform run task for HCP Packer
+Configure an HCP Terraform run task for HCP Packer that helps enforce security and compliance best practices.
+Packer
+Terraform
+12min
+Identify compromised artifacts with HCP Terraform
+Use an HCP Terraform run task to validate HCP Packer data source artifacts and ensure that your Terraform configuration does not use revoked artifacts.
+Terraform
+Packer
+15min
+Enforce artifact compliance with HCP Terraform
+Use an HCP Terraform run task to detect when Terraform resources use revoked artifact versions, or reference hard-coded or untracked image IDs.
+Terraform
+Packer
+18min
+Standardize artifacts across multiple cloud providers
+Use Packer to build consistent artifacts for multiple cloud providers and store metadata in HCP Packer. Deploy artifacts to AWS and Azure with Terraform.
+Terraform
+Packer

@@ -1,0 +1,242 @@
+In addition to the CLI-driven workflow, HCP Terraform offers a VCS-driven
+workflow that automatically triggers runs based on changes to your VCS
+repositories. The CLI-driven workflow allows you to quickly iterate on your
+configuration and work locally, while the VCS-driven workflow enables
+collaboration within teams by establishing your shared repositories as the
+source of truth for infrastructure configuration.
+In this tutorial, you will configure a VCS integration for your organization,
+connect your workspace to a VCS repository, and trigger a speculative plan
+based on a pull request. Then, you will merge the pull request to automatically
+apply changes to your infrastructure using HCP Terraform.
+Configure new GitHub repository
+In order to trigger HCP Terraform runs from changes to VCS, you first need to
+create a new repository in your personal GitHub account.
+In the GitHub UI, create a new repository.
+Name the repository
+learn-terraform
+, then leave the rest of the options blank and click
+Create repository
+.
+Copy the remote endpoint URL for your new repository.
+In the directory of your cloned configuration, update the remote endpoint URL for your
+repository to the one you just copied. This updates your configuration to use
+your personal repository rather than the HashiCorp one you cloned the
+configuration from.
+$
+git remote set-url origin YOUR_REMOTE
+Next, open your
+terraform.tf
+file and comment out the
+cloud
+configuration block.
+terraform.tf
+terraform
+{
+/*
+cloud {
+organization = "organization-name"
+workspaces {
+name = "learn-terraform"
+}
+}
+*/
+required_providers
+{
+aws
+=
+{
+source
+=
+"hashicorp/aws"
+version
+=
+"~> 3.28.0"
+}
+}
+required_version
+=
+">= 0.14.0"
+}
+When using the VCS-driven workflow for HCP Terraform, you do not need to
+define the
+cloud
+block in your configuration.
+Now, add your change.
+$
+git add
+.
+Commit the change.
+$
+git commit -m
+"Remove cloud block"
+Finally, push your configuration to your personal repository.
+$
+git push
+Enable VCS integration
+To connect your workspace with your new GitHub repository, go to the workspace's
+Settings
+, then select
+Version Control
+.
+On the next page, click
+Connect to version control
+.
+Next, choose the
+Version Control Workflow
+option.
+Select
+Github
+then
+GitHub.com (Custom)
+from the dropdown menu.
+A new window will open asking you to authorize HCP Terraform to use your GitHub
+account. Click the green
+Authorize
+button to authorize the connection.
+You may be asked to install HCP Terraform for your GitHub account or organization.
+If prompted, select your account or organization.
+Next, search for and select your new
+learn-terraform
+repository.
+On the next page, scroll to the bottom, then confirm that HCP Terraform enabled
+Automatic speculative plans
+, then click
+Update VCS settings
+.
+Speculative plans are non-destructive, plan-only runs that show you the changes
+Terraform will make to your infrastructure if you merge a pull request. The
+runs will not appear in your HCP Terraform logs and you can only access them
+through a direct link, which HCP Terraform will attach to your pull request.
+Any pushes to the main branch of your repository will trigger Terraform runs in
+your workspace. You also enabled speculative plans, which will preview the
+changes Terraform will make to your infrastructure if you merge a pull request.
+HCP Terraform also lets you configure your workspace to trigger runs on
+changes to specific paths within your repository, or whenever you push a tag of
+a specified format.
+Discard run
+When you connected your workspace to your new repository, it triggered a new
+HCP Terraform run to revert your instance type to
+t2.micro
+, as defined by
+your workspace's
+instance_type
+input variable. Discard the run to avoid reverting the change.
+Navigate to your workspace's
+Variables
+page and delete the
+instance_type
+input variable by clicking on the ellipses next to it, then selecting
+Delete
+.
+.
+Update configuration
+In your repository directory, create a new file named
+terraform.auto.tfvars
+and paste in the following contents.
+terraform.auto.tfvars
+instance_type
+=
+"t2.micro"
+In addition to command line flags, variable sets, and workspace variables, you
+can pass variables to your configuration in HCP Terraform through files named
+*.auto.tfvars
+. The variable value defined here will attempt to update your
+instance type back to
+t2.micro
+. Note that
+auto.tfvars
+files have the lowest
+precedence in a workspace, and any workspace specific variables will override
+the values defined in this file.
+Check out a new branch for your change.
+$
+git checkout -b use_auto_vars_file
+Add your changes.
+$
+git add
+.
+Commit your change.
+$
+git commit -m
+"Add auto.tfvars file"
+Finally, push up your change to your new branch.
+$
+git push -u origin use_auto_vars_file
+Enumerating objects: 162, done.
+Counting objects: 100% (162/162), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (86/86), done.
+Writing objects: 100% (162/162), 32.39 KiB | 32.39 MiB/s, done.
+Total 162 (delta 70), reused 152 (delta 67)
+remote: Resolving deltas: 100% (70/70), done.
+remote:
+remote: Create a pull request for 'use_auto_vars_file' on GitHub by visiting:
+remote: https://github.com/redacted/learn-terraform/pull/new/use_auto_vars_file
+remote:
+To https://github.com/redacted/learn-terraform
+* [new branch] use_auto_vars_file -> use_auto_vars_file
+Branch 'use_auto_vars_file' set up to track remote branch 'use_auto_vars_file' from 'origin'.
+Create a pull request
+Visit your
+learn-terraform
+repository on GitHub and open a new pull
+request for your branch.
+After your create the pull request, HCP Terraform will trigger a speculative
+plan. View this plan by clicking on the
+Details
+link in the
+Checks
+portion of your pull request.
+When the speculative plan finishes, you and your teammates can review it before
+approving or merging the pull request. This HCP Terraform workflow enables
+teams to collaborate on planned infrastructure changes.
+You
+cannot
+apply speculative plans, since your infrastructure would differ
+from the configuration on your main branch of your connected repository. You
+must merge the pull request to apply this change.
+Merge pull request
+Return to the GitHub UI, and merge the pull request with the
+Merge pull request
+button.
+Switch back to the
+Runs
+page for your workspace in HCP Terraform. HCP Terraform has picked up the change to your configuration and started a new run.
+Review the run details.
+Confirm & Apply
+the run. Once it completes, you can verify that Terraform updated your instance configuration by searching for the EC2 instance in the AWS console.
+Next steps
+The Terraform documentation contains more details on
+state
+, the
+VCS-driven workflow
+, and
+speculative plans
+.
+In these tutorials, you configured a new workspace, provisioned infrastructure,
+and updated that infrastructure. Now, you are ready to destroy the resources
+and workspace.
+In the next tutorial, you will clean up the resources created by your
+configuration and find additional learning materials on Terraform's
+configuration language.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Modify infrastructure
+Next
+Destroy
+This tutorial also appears in:
+9 tutorials
+Get Started - HCP Terraform
+Collaborate on version-controlled configuration using HCP Terraform. Follow this track to build, change, and destroy infrastructure using remote runs and state.
+Terraform
+Stay Informed
+Sign up to be notified with updates to the HashiCorp Product Certifications program and to receive news and information about HashiCorp products.
+Email
+*
+Send me news about HashiCorp products, releases and events.
+By submitting this form, you acknowledge and agree that HashiCorp will process your personal information in accordance with the
+Privacy Policy
+.
+Submit

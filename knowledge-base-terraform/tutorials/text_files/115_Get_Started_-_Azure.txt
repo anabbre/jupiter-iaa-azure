@@ -1,0 +1,39 @@
+Get Started - Azure
+Build, change, and destroy Azure infrastructure using Terraform. Step-by-step, command-line tutorials will walk you through the Terraform basics for the first time.
+Start
+8 tutorials
+3min
+What is Infrastructure as Code with Terraform?
+Learn how infrastructure as code lets you safely build, change, and manage infrastructure. Try Terraform.
+Terraform
+Interactive
+Video
+7min
+Install Terraform
+Install Terraform on Mac, Linux, or Windows by downloading the binary or using a package manager (Homebrew or Chocolatey). Then create a Docker container locally by following a quick-start tutorial to check that Terraform installed correctly.
+Terraform
+Video
+10min
+Build infrastructure
+Initialize, plan and apply configuration in a directory to create an Azure resource group. Inspect the Terraform state to discover the group ID once Terraform creates it.
+Terraform
+4min
+Change infrastructure
+Add tags to an existing Azure resource group to learn how Terraform manages infrastructure changes. Edit Terraform configuration, then plan and apply the change.
+Terraform
+3min
+Destroy infrastructure
+Destroy Azure infrastructure managed by Terraform. Evaluate the plan and confirm the destruction.
+Terraform
+4min
+Define input variables
+Declare your Azure resource group name as a variable. Reference the variable in Terraform configuration. Define a variable using command line flags or default values.
+Terraform
+2min
+Query data with output values
+Declare output values to display an Azure resource group ID. Display all outputs and query specific outputs.
+Terraform
+8min
+Store remote state
+Configure Terraform to store state in HCP Terraform. Add a remote state block directly to configuration or set an environment variable to load remote state configuration when Terraform initializes.
+Terraform

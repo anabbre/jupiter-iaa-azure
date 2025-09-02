@@ -1,0 +1,19 @@
+Recommended Enterprise Patterns
+Implement the most efficient solutions for enterprise organizations with these recommended patterns for Terraform.
+4 tutorials
+17min
+Module creation - recommended pattern
+Learn the architectural recommendations for module creation distilled from engagements with large enterprises using Terraform. Use Terraform module best practices to scope, build, improve and consume Terraform modules.
+Terraform
+29min
+Terraform Enterprise backup - recommended pattern
+Ensure business continuity by backing up Terraform Enterprise according to HashiCorp's recommendations. Learn public cloud-specific approaches covering all components of Standalone and Active/Active deployments.
+Terraform
+35min
+Terraform Enterprise recovery and restore - recommended pattern
+Ensure business continuity through recommended approaches to restore Terraform Enterprise. Learn public cloud-specific approaches covering all components of Standalone and Active/Active deployments.
+Terraform
+8min
+Forward Terraform Enterprise logs to Datadog
+Configure Terraform Enterprise to forward logs to Datadog, then filter audit and application TFE logs.
+Terraform

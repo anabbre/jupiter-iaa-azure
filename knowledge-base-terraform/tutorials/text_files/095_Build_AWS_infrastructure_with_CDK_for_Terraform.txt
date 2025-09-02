@@ -1,0 +1,634 @@
+The Cloud Development Kit for Terraform (CDKTF) allows you to define your
+infrastructure in a familiar programming language such as TypeScript, Python,
+Go, C#, or Java. CDKTF generates Terraform configuration in JSON, then
+automatically applies that configuration via Terraform to provision your
+infrastructure.
+In this tutorial, you will provision an EC2 instance on AWS using your preferred
+programming language.
+If you do not have CDKTF installed on your system, follow the steps in the
+install CDKTF
+tutorial to install it
+before you continue with this tutorial.
+Prerequisites
+To follow this tutorial, you need the following installed locally:
+Terraform
+v1.2+
+An
+HCP Terraform
+account, with
+CLI authentication
+configured
+CDK for Terraform
+v0.15+
+an
+AWS account
+AWS Credentials
+configured for use with Terraform
+Terraform and CDKTF will use credentials set in your environment or through
+other means as described in the
+Terraform documentation
+.
+You will also need to install a recent version of the programming language you
+will use for this tutorial. We have verified this tutorial works with the
+following language versions.
+Typescript
+v4.4 and
+Node.js
+v16.13
+Initialize a new CDK for Terraform application
+Start by creating a directory named
+learn-cdktf
+for your project.
+$
+mkdir learn-cdktf
+Then navigate into it.
+$
+cd learn-cdktf
+Inside the directory, run
+cdktf init
+, specifying the template for your
+preferred language and Terraform's AWS provider. Select your HCP Terraform
+Organization when prompted, and use the default name
+learn-cdktf
+for your
+HCP Terraform Workspace. CDKTF will also prompt you for other information
+about your project, such as the name and description. Accept the defaults for
+these options.
+Tip
+If you would prefer to keep your state locally, use the
+--local
+flag with
+cdktf init
+.
+$
+cdktf init --template=
+"typescript"
+--providers=
+"aws@~>4.0"
+? Project Name learn-cdktf
+? Project Description A simple getting started project for cdktf.
+Detected Terraform Cloud token.
+We will now set up Terraform Cloud for your project.
+? Terraform Cloud Organization Name <YOUR_ORG>
+We are going to create a new Terraform Cloud Workspace for your project.
+? Terraform Cloud Workspace Name learn-cdktf
+? Do you want to start from a Terraform project? No
+Setting up a Cloud Backend for your project.
+? Do you want to send crash reports to the CDKTF team? See
+https://www.terraform.io/cdktf/create-and-deploy/configuration-file#enable-crash-reporting-for-the-cli for more information Yes
+Generating Terraform Cloud configuration for '<YOUR_ORG>' organization and 'learn-cdktf' workspace.....
+added 2 packages, and audited 57 packages in 1s
+7 packages are looking for funding
+run `npm fund` for details
+found 0 vulnerabilities
+added 301 packages, and audited 358 packages in 8s
+36 packages are looking for funding
+run `npm fund` for details
+found 0 vulnerabilities
+========================================================================================================
+Your cdktf typescript project is ready!
+##...
+========================================================================================================
+Checking whether pre-built provider exists for the following constraints:
+provider: aws
+version : ~>4.0
+language: typescript
+cdktf : 0.15.0
+Found pre-built provider.
+Package installed.
+CDKTF provides packages with prebuilt classes for each supported programming
+language for many common Terraform providers that you can use in your CDKTF
+projects. The
+cdktf init
+command you just ran will find a pre-built AWS
+provider that you will use for this project. For other Terraform providers and
+modules, CDKTF automatically
+generates the appropriate classes for your chosen
+language
+.
+Define your CDK for Terraform Application
+Open the
+main.ts
+file to view your application code. The template creates a
+scaffold with no functionality.
+Replace the contents of
+main.ts
+with the following code for a new TypeScript
+application, which uses the CDK to provision an AWS EC2 instance in
+us-west-1
+,
+and stores its state in HCP Terraform.
+main.ts
+import
+{ Construct }
+from
+"constructs"
+;
+import
+{ App
+,
+TerraformStack
+,
+TerraformOutput }
+from
+"cdktf"
+;
+import
+{ AwsProvider }
+from
+"@cdktf/provider-aws/lib/provider"
+;
+import
+{ Instance }
+from
+"@cdktf/provider-aws/lib/instance"
+;
+class
+MyStack
+extends
+TerraformStack
+{
+constructor
+(scope
+:
+Construct
+,
+id
+:
+string
+) {
+super
+(scope
+,
+id);
+new
+AwsProvider
+(
+this
+,
+"AWS"
+,
+{
+region
+:
+"us-west-1"
+,
+});
+const
+ec2Instance
+=
+new
+Instance
+(
+this
+,
+"compute"
+,
+{
+ami
+:
+"ami-01456a894f71116f2"
+,
+instanceType
+:
+"t2.micro"
+,
+});
+new
+TerraformOutput
+(
+this
+,
+"public_ip"
+,
+{
+value
+:
+ec2Instance
+.publicIp
+,
+});
+}
+}
+const
+app
+=
+new
+App
+();
+const
+stack
+=
+new
+MyStack
+(app
+,
+"aws_instance"
+);
+new
+RemoteBackend
+(stack
+,
+{
+hostname
+:
+"app.terraform.io"
+,
+organization
+:
+"<YOUR_ORG>"
+,
+workspaces
+:
+{
+name
+:
+"learn-cdktf"
+,
+}
+,
+});
+app
+.synth
+();
+Replace
+<YOUR_ORG>
+with the HCP Terraform organization name you chose when
+you ran
+terraform init
+earier. If you chose a different workspace name,
+replace
+learn-cdktf
+with that name.
+Tip
+If you would prefer to store your project's state locally, remove or
+comment out
+new RemoteBackend(stack, { [...] });
+and remove
+RemoteBackend
+from the
+import { [...] } from "cdktf";
+line near the top of the file.
+Examine the code
+Most of the code is similar to concepts found in a traditional Terraform
+configuration written in HCL, but there are a few notable differences. Review
+the code for the programming language you have selected.
+You must explicitly import any classes your TypeScript code uses. For example,
+you will use
+TerraformOutput
+to create a Terraform output value for your EC2
+instance's public IP address.
+import
+{ Construct }
+from
+"constructs"
+;
+import
+{ App
+,
+TerraformStack
+,
+TerraformOutput
+,
+RemoteBackend }
+from
+"cdktf"
+;
+The code imports the
+AwsProvider
+and
+ec2
+classes from the provider you
+installed earlier.
+import
+{ AwsProvider }
+from
+"@cdktf/provider-aws/lib/provider"
+;
+import
+{ Instance }
+from
+"@cdktf/provider-aws/lib/instance"
+;
+The
+MyStack
+class defines a new stack, which contains the code to define your
+provider and all of your resources.
+class
+MyStack
+extends
+TerraformStack
+{
+constructor
+(scope
+:
+Construct
+,
+id
+:
+string
+) {
+super
+(scope
+,
+id);
+The code configures the AWS provider to use the
+us-west-1
+region.
+new
+AwsProvider
+(
+this
+,
+"AWS"
+,
+{
+region
+:
+"us-west-1"
+,
+});
+The
+AwsProvider
+accepts an object with keys and values that map to Terraform
+arguments as listed in the
+AWS provider
+documentation
+.
+The
+ec2.Instance
+class creates a
+t2.micro
+EC2 instance with an AWS ami.
+const
+ec2Instance
+=
+new
+Instance
+(
+this
+,
+"compute"
+,
+{
+ami
+:
+"ami-01456a894f71116f2"
+,
+instanceType
+:
+"t2.micro"
+,
+});
+The
+ec2.instance
+class also accepts object, using camel case for properties
+that correspond to the
+AWS provider
+documentation
+.
+The code stores the instance as a variable so that the
+TerraformOutput
+below
+can reference the instance's
+publicIp
+attribute.
+new
+TerraformOutput
+(
+this
+,
+"public_ip"
+,
+{
+value
+:
+ec2Instance
+.publicIp
+,
+});
+When you write CDKTF code with an IDE, use it view the properties and functions
+of the classes, variables, and packages in your code. This example uses the
+publicIp
+attribute from the
+instance
+variable.
+Finally, your application uses the stack you have defined, configures a remote
+backend to store your project's state in HCP Terraform, and calls
+app.synth()
+to generate Terraform configuration.
+const
+app
+=
+new
+App
+();
+new
+MyStack
+(app
+,
+"aws_instance"
+);
+new
+RemoteBackend
+(stack
+,
+{
+hostname
+:
+"app.terraform.io"
+,
+organization
+:
+"<YOUR_ORG>"
+,
+workspaces
+:
+{
+name
+:
+"learn-cdktf"
+}
+});
+app
+.synth
+();
+Provision infrastructure
+Now that you have initialized the project with the AWS provider and written code
+to provision an instance, it's time to deploy it by running
+cdktf deploy
+.
+When CDKTF asks you to confirm the deploy, respond with a
+yes
+.
+$
+cdktf deploy
+Deploying Stack: aws_instance
+Resources
+✔ AWS_INSTANCE compute aws_instance.compute
+Summary: 1 created, 0 updated, 0 destroyed.
+Output: public_ip = 50.18.17.102
+The
+cdktf deploy
+command runs
+terraform apply
+in the background.
+After the instance is created, visit the
+AWS EC2 Dashboard
+.
+Notice that the CDK deploy command printed out the
+public_ip
+output value,
+which matches the instance's public IPv4 address.
+Change infrastructure by adding the Name tag
+Add a tag to the EC2 instance.
+Update the
+ec2.Instance
+in
+main.ts
+to add a
+Name
+tag.
+main.ts
+const
+ec2Instance
+=
+new
+instance
+.Instance
+(
+this
+,
+"compute"
+,
+{
+ami
+:
+"ami-01456a894f71116f2"
+,
+instanceType
+:
+"t2.micro"
+,
+tags
+:
+{
+Name
+:
+"CDKTF-Demo"
+,
+}
+,
+});
+Deploy your updated application. Confirm your deploy by choosing
+Approve
+.
+$
+cdktf deploy
+aws_instance Initializing the backend...
+aws_instance
+Successfully configured the backend "remote"! Terraform will automatically
+use this backend unless the backend configuration changes.
+aws_instance Initializing provider plugins...
+aws_instance - Finding hashicorp/aws versions matching "4.23.0"...
+aws_instance - Using hashicorp/aws v4.23.0 from the shared cache directory
+##...
+Plan: 1 to add, 0 to change, 0 to destroy.
+Changes to Outputs:
++ public_ip = (known after apply)
+aws_instance
+─────────────────────────────────────────────────────────────────────────────
+Saved the plan to: plan
+To perform exactly these actions, run the following command to apply:
+terraform apply "plan"
+Please review the diff output above for aws_instance
+❯
+Approve Applies the changes outlined
+in
+the plan.
+Dismiss
+Stop
+##...
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+Outputs:
+aws_instance public_ip = "54.219.167.18"
+aws_instance
+public_ip = 54.219.167.18
+Clean up your infrastructure
+Destroy the application by running
+cdktf destroy
+. Confirm your destroy by
+choosing
+Approve
+.
+$
+cdktf destroy
+aws_instance Initializing the backend...
+aws_instance Initializing provider plugins...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+aws_instance - Using previously-installed hashicorp/aws v4.23.0
+##...
+Plan: 0 to add, 0 to change, 1 to destroy.
+Changes to Outputs:
+- public_ip = "54.219.167.18" -> null
+aws_instance
+─────────────────────────────────────────────────────────────────────────────
+Saved the plan to: plan
+To perform exactly these actions, run the following command to apply:
+terraform apply "plan"
+Please review the diff output above for aws_instance
+❯
+Approve Applies the changes outlined
+in
+the plan.
+Dismiss
+Stop
+##...
+Plan: 0 to add, 0 to change, 1 to destroy.
+Changes to Outputs:
+- public_ip = "54.219.167.18" -> null
+aws_instance aws_instance.compute (compute): Destroying... [id=i-0fc8d2e3931b28db3]
+aws_instance aws_instance.compute (compute): Still destroying... [id=i-0fc8d2e3931b28db3, 10s elapsed]
+aws_instance aws_instance.compute (compute): Still destroying... [id=i-0fc8d2e3931b28db3, 20s elapsed]
+aws_instance aws_instance.compute (compute): Still destroying... [id=i-0fc8d2e3931b28db3, 30s elapsed]
+aws_instance aws_instance.compute (compute): Destruction complete after 30s
+aws_instance
+Destroy complete! Resources: 1 destroyed.
+Destroying your CDKTF application will not remove the HCP Terraform workspace
+that stores your project's state. Log into the
+HCP
+Terraform
+application and delete the workspace.
+Next steps
+Now you have deployed, modified, and deleted an AWS EC2 instance using CDKTF!
+CDKTF is capable of much more. For example, you can:
+Use the
+cdktf synth
+command to generate JSON which can be used by the Terraform executable to provision infrastructure using
+terraform apply
+and other Terraform commands.
+Use Terraform providers and modules.
+Use programming language features (like class inheritance) or data from other sources to augment your Terraform configuration.
+Use CDKTF with HCP Terraform for persistent storage of your state file and for team collaboration.
+For other examples, refer to the
+CDKTF documentation
+repository. In particular, check out the:
+CDKTF Architecture
+documentation for an overview of CDKTF's architecture.
+Community
+documentation to learn how to engage with the CDKTF developer community.
+Review
+example code
+in several programming languages.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Install CDKTF
+Next
+Lambda functions
+This tutorial also appears in:
+8 tutorials
+HashiConf Announcements - Terraform 1.0
+Try the features you heard about at HashiConf including CDKTF Golang support, and the HCP Terraform private registry. Version Terraform, state, providers, and HCP Terraform.
+Terraform

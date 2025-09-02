@@ -1,0 +1,213 @@
+You have now created and updated an VCN and subnet on Oracle Cloud Infrastructure (OCI) with Terraform. In this
+tutorial, you will use Terraform to destroy this infrastructure.
+Once you no longer need infrastructure you might want to destroy it to reduce
+your security exposure and ongoing costs. For example you may remove a production
+environment from service, or manage short-lived environments like build or
+test systems. In addition to building and modifying infrastructure, Terraform
+can destroy or recreate the infrastructure it manages.
+Prerequisites
+This tutorial assumes that you are continuing from the previous tutorial, which we highly recommend. If
+not, we've summarized the prerequisites here for your convenience. To follow this tutorial you will need:
+OCI Tenancy
+. Note your region, you will use it throughout the tutorial.
+The
+Terraform CLI
+installed.
+The
+OCI CLI
+installed. Configure the CLI with a token by following the session authentication flow.
+$
+oci session authenticate
+Create a directory named
+learn-terraform-oci
+and paste the
+following configuration into a file named
+main.tf
+.
+terraform
+{
+required_providers
+{
+oci
+=
+{
+source
+=
+"oracle/oci"
+}
+}
+}
+provider
+"oci"
+{
+region
+=
+"us-sanjose-1"
+auth
+=
+"SecurityToken"
+config_file_profile
+=
+"learn-terraform"
+}
+resource
+"oci_core_vcn"
+"internal"
+{
+dns_label
+=
+"internal"
+cidr_block
+=
+"172.16.0.0/20"
+compartment_id
+=
+"<your_compartment_OCID_here>"
+display_name
+=
+"My internal VCN"
+}
+resource
+"oci_core_subnet"
+"dev"
+{
+vcn_id
+=
+oci_core_vcn.internal.id
+cidr_block
+=
+"172.16.0.0/24"
+compartment_id
+=
+"<your_compartment_OCID_here>"
+display_name
+=
+"Dev subnet"
+prohibit_public_ip_on_vnic
+=
+true
+dns_label
+=
+"dev"
+}
+Customize the
+region
+and both instances of
+compartment_id
+to match the ones listed on your OCI tenancy page in the web console.
+Initialize the configuration.
+$
+terraform init
+Apply the configuration. Respond to the confirmation prompt with a
+yes
+.
+$
+terraform apply
+Once you have successfully applied the configuration, you can continue with the
+rest of this tutorial.
+Destroy
+The
+terraform destroy
+command terminates resources defined in your Terraform
+configuration. This command is the reverse of
+terraform apply
+in that it
+terminates all the resources specified by the configuration. It does
+not
+destroy resources running elsewhere that are not described in the current
+configuration.
+Destroy your infrastructure.
+$
+terraform destroy
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+- destroy
+Terraform will perform the following actions:
+# oci_core_subnet.dev will be destroyed
+- resource "oci_core_subnet" "dev" {
+- cidr_block = "172.16.0.0/24" -> null
+- compartment_id = "ocid1.tenancy.oc1...." -> null
+- defined_tags = {
+- "Oracle-Tags.CreatedBy" = "oracleidentitycloudservice/redacted"
+- "Oracle-Tags.CreatedOn" = "2021-04-07T21:41:07.359Z"
+} -> null
+- dhcp_options_id = "ocid1.dhcpoptions.oc1.us-sanjose-1.aaaaaaaa6odqyurw4mf7jmf3jy6ehtw6n32ohyogy4w5c43qoubgewyxr2va" -> null
+- display_name = "Dev subnet" -> null
+- dns_label = "dev" -> null
+- freeform_tags = {} -> null
+- id = "ocid1.subnet.oc1.us-sanjose-1.aaaaaaaa6odfue6ghdgn77o52cfmonms4ja2r74e3sawnf76z7y5sfwkj55q" -> null
+- ipv6cidr_blocks = [] -> null
+- prohibit_internet_ingress = true -> null
+- prohibit_public_ip_on_vnic = true -> null
+- route_table_id = "ocid1.routetable.oc1.us-sanjose-1.aaaaaaaan3n6iazjfubarvwwtszl3v6gdzqvfoccdj555p2ujehbo4tlu7ma" -> null
+- security_list_ids = [
+- "ocid1.securitylist.oc1.us-sanjose-1.aaaaaaaant6vlu2y77pwwzjubmzg6czzvo2laii4h3p5d7w2nqcr4fey5gaa",
+] -> null
+- state = "UPDATING" -> null
+- subnet_domain_name = "dev.internal.oraclevcn.com" -> null
+- time_created = "2021-04-07 21:41:07.377 +0000 UTC" -> null
+- vcn_id = "ocid1.vcn.oc1.us-sanjose-1.amaaaaaapqqlmeyaklull6tpfms534aoijpjwpkzjo25rxqiqhadgdzodnua" -> null
+- virtual_router_ip = "172.16.0.1" -> null
+- virtual_router_mac = "00:00:17:BB:E9:B8" -> null
+}
+# oci_core_vcn.internal will be destroyed
+- resource "oci_core_vcn" "internal" {
+- byoipv6cidr_blocks = [] -> null
+- cidr_block = "172.16.0.0/20" -> null
+- cidr_blocks = [
+- "172.16.0.0/20",
+] -> null
+- compartment_id = "ocid1.tenancy.oc1...." -> null
+- default_dhcp_options_id = "ocid1.dhcpoptions.oc1.us-sanjose-1.aaaaaaaa6odqyurw4mf7jmf3jy6ehtw6n32ohyogy4w5c43qoubgewyxr2va" -> null
+- default_route_table_id = "ocid1.routetable.oc1.us-sanjose-1.aaaaaaaan3n6iazjfubarvwwtszl3v6gdzqvfoccdj555p2ujehbo4tlu7ma" -> null
+- default_security_list_id = "ocid1.securitylist.oc1.us-sanjose-1.aaaaaaaant6vlu2y77pwwzjubmzg6czzvo2laii4h3p5d7w2nqcr4fey5gaa" -> null
+- defined_tags = {
+- "Oracle-Tags.CreatedBy" = "oracleidentitycloudservice/judith@hashicorp.com"
+- "Oracle-Tags.CreatedOn" = "2021-04-07T18:25:06.555Z"
+} -> null
+- display_name = "My internal VCN" -> null
+- dns_label = "internal" -> null
+- freeform_tags = {} -> null
+- id = "ocid1.vcn.oc1.us-sanjose-1.amaaaaaapqqlmeyaklull6tpfms534aoijpjwpkzjo25rxqiqhadgdzodnua" -> null
+- ipv6cidr_blocks = [] -> null
+- ipv6private_cidr_blocks = [] -> null
+- is_ipv6enabled = false -> null
+- state = "AVAILABLE" -> null
+- time_created = "2021-04-07 18:25:06.558 +0000 UTC" -> null
+- vcn_domain_name = "internal.oraclevcn.com" -> null
+}
+Plan: 0 to add, 0 to change, 2 to destroy.
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value:
+The
+-
+prefix indicates that the subnet and VCN will be destroyed. As with apply,
+Terraform shows its execution plan and waits for approval before making any
+changes.
+Answer
+yes
+to execute this plan and destroy the infrastructure.
+Enter a value: yes
+oci_core_vcn.internal: Destroying... [id=ocid1.vcn.oc1.us-sanjose-1.amaaaaaapqqlmeyaklull6tpfms534aoijpjwpkzjo25rxqiqhadgdzodnua]
+oci_core_subnet.dev: Destroying... [id=ocid1.subnet.oc1.us-sanjose-1.aaaaaaaa6odfue6ghdgn77o52cfmonms4ja2r74e3sawnf76z7y5sfwkj55q]
+oci_core_subnet.dev: Destruction complete after 1s
+oci_core_vcn.internal: Destruction complete after 2s
+Destroy complete! Resources: 2 destroyed.
+Just like with
+apply
+, Terraform determines the order in which your resources
+must be destroyed. In this case, Terraform destroyed the subnet, and then the VCN. In more complicated cases with
+multiple resources, Terraform will destroy them in a suitable order to respect
+dependencies.
+Next steps
+You have destroyed your infrastructure on OCI. Learn more about the
+destroy command
+in the Terraform docs, or continue to the next tutorial to continue learning the basics of Terraform with the OCI provider.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Change
+Next
+Variables

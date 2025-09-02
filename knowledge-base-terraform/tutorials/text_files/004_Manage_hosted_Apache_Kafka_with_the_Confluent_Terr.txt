@@ -1,0 +1,727 @@
+Apache Kafka is an event streaming platform that lets applications publish and consume event messages. Confluent Cloud lets you run Kafka on the cloud provider of your choice without having to manage, monitor, and configure Kafka, or its underlying infrastructure. With the Confluent provider you can provision Kafka clusters using Terraform.
+In this tutorial you will use Terraform and the Confluent provider to create a Kafka cluster and topic. You will also create service accounts and grant them fine-grained role-based privileges.
+Prerequisites
+This tutorial assumes some familiarity with Kafka concepts but does not require any existing infrastructure. If you are not familiar with Kafka clusters, topics, and messages, review
+Apache's introduction to event streaming
+.
+You can complete this tutorial using the same workflow with either Terraform
+Community Edition or HCP Terraform. HCP Terraform is a platform that you can use to
+manage and execute your Terraform projects. It includes features like remote
+state and execution, structured plan output, workspace resource summaries, and
+more.
+Select the
+Terraform Community Edition
+tab to complete this tutorial using Terraform Community Edition.
+HCP Terraform
+Terraform Community Edition
+This tutorial assumes that you are familiar with the Terraform and HCP Terraform workflows. If you are new to Terraform, complete the
+Get Started collection
+first. If you are new to HCP Terraform, complete the
+HCP Terraform Get Started tutorials
+first.
+For this tutorial, you will need:
+Terraform v1.2+ installed locally.
+an
+HCP Terraform account
+and organization.
+HCP Terraform
+locally authenticated
+.
+a
+Confluent Cloud
+account. Register for a new account to receive a $400 credit, which covers the resources used in this tutorial.
+This tutorial assumes that you are familiar with the Terraform workflow. If you are new to Terraform, complete the
+Get Started collection
+first.
+For this tutorial, you will need:
+Terraform v1.2+ installed locally.
+a
+Confluent Cloud
+account. Register for a new account to receive a $400 credit, which covers the resources used in this tutorial.
+Configure Confluent Cloud credentials
+To use the Confluent provider to create resources, you must configure it with an API key.
+In your Confluent Cloud account, navigate to
+create API key
+. Select
+Granular
+access, and click
+Next
+.
+You must associate the new API key with a service account. If you have existing service accounts, click
+Create a new one
+. Enter a name for the new service account and click
+Next
+.
+Confluent Cloud will only display your credentials on creation, so save the key and secret in a secure location. You will use these values to configure the Confluent Terraform Provider later.
+Now navigate to
+Service Accounts
+, select the service account you created, then click the
+Access
+tab. Click
+Add role assignment
+, select
+OrganizationAdmin
+, and then click
+Save
+.
+HCP Terraform
+Terraform Community Edition
+Now, create a global HCP Terraform variable set with
+CONFLUENT_CLOUD_API_KEY
+and
+CONFLUENT_CLOUD_API_SECRET
+environment
+variables. Use the
+key
+and
+secret
+values you saved previously and mark them as
+Sensitive
+.
+Tip
+For detailed guidance on creating variable sets, review the
+Create a Credential Variable Set
+tutorial.
+Now, open a terminal and run the following command using the
+key
+value you copied.
+$
+export
+CONFLUENT_CLOUD_API_KEY
+=
+Then run the following command using the
+secret
+value.
+$
+export
+CONFLUENT_CLOUD_API_SECRET
+=
+Note
+You will use this same terminal for all terraform operations. Keep it open after you set the environment variables.
+Clone example repository
+Clone the
+example repository
+for this tutorial, which contains the Terraform configuration for several Confluent Cloud resources.
+$
+git clone https://github.com/hashicorp-education/learn-terraform-confluent-provider
+Change into the repository directory.
+$
+cd learn-terraform-confluent-provider
+Review configuration
+In your code editor, open
+main.tf
+to review the example configuration.
+Review the
+confluent
+provider block. The provider authenticates with Confluent Cloud using the API key and secret environment variables you set earlier.
+main.tf
+provider
+"confluent"
+{
+}
+Confluent Cloud environments allow you to organize and isolate your resources. You must associate Kafka clusters with an environment. The
+confluent_environment
+resource creates a new
+tutorial
+environment for your cluster.
+main.tf
+resource
+"confluent_environment"
+"tutorial"
+{
+display_name
+=
+"tutorial"
+}
+Now review the
+confluent_kafka_cluster
+resource. It defines a
+standard
+type cluster named
+inventory
+in the AWS
+us-east-2
+region. Confluent Cloud will create this cluster in an environment managed by Confluent, and not in your own AWS account.
+main.tf
+resource
+"confluent_kafka_cluster"
+"inventory"
+{
+display_name
+=
+"inventory"
+availability
+=
+"SINGLE_ZONE"
+cloud
+=
+"AWS"
+region
+=
+"us-east-2"
+standard
+{}
+environment
+{
+id
+=
+confluent_environment.tutorial.id
+}
+}
+The
+standard
+cluster type supports Role-Based Access Controls (RBAC). This allows you to control access to an organization, environment, cluster, and granular Kafka resources like topics and consumer groups, using predefined roles. You can use either RBAC or Access Control Lists (ACLs) to manage permissions. In this tutorial, using RBAC requires fewer permission-related Terraform resources than using ACLs would.
+Interacting with a Kafka cluster requires a service account. The configuration defines three
+confluent_service_account
+resources, each with a unique responsibility.
+main.tf
+resource
+"confluent_service_account"
+"admin"
+{
+display_name
+=
+"admin"
+description
+=
+"Cluster management service account"
+}
+resource
+"confluent_service_account"
+"orders_producer"
+{
+display_name
+=
+"orders_producer"
+description
+=
+"Service account that can write messages to the 'orders' topic"
+}
+resource
+"confluent_service_account"
+"orders_consumer"
+{
+display_name
+=
+"orders_consumer"
+description
+=
+"Service account that can read messages from the 'orders' topic"
+}
+Now review the
+confluent_role_binding.admin
+resource.
+main.tf
+resource
+"confluent_role_binding"
+"admin"
+{
+principal
+=
+"User:
+${
+confluent_service_account
+.
+admin
+.
+id
+}
+"
+role_name
+=
+"CloudClusterAdmin"
+crn_pattern
+=
+confluent_kafka_cluster.inventory.rbac_crn
+}
+This resource grants the predefined
+CloudClusterAdmin
+RBAC role to the
+admin
+service account within the
+inventory
+cluster. Visit
+Authorization using Role-Based Access Control
+for a list of predefined roles and for more information about RBAC.
+Now review the
+confluent_role_binding.orders_producer
+resource.
+main.tf
+resource
+"confluent_role_binding"
+"orders_producer_write_to_topic"
+{
+principal
+=
+"User:
+${
+confluent_service_account
+.
+orders_producer
+.
+id
+}
+"
+role_name
+=
+"DeveloperWrite"
+crn_pattern
+=
+"
+${
+confluent_kafka_cluster
+.
+inventory
+.
+rbac_crn
+}
+/kafka=
+${
+confluent_kafka_cluster
+.
+inventory
+.
+id
+}
+/topic=
+${
+confluent_kafka_topic
+.
+orders
+.
+topic_name
+}
+"
+}
+This resource grants the
+orders_producer
+service account permission to write messages to the
+orders
+topic within the cluster. The
+crn_pattern
+contains interpolated cluster and topic name values to constrain the permission to a single topic within the cluster.
+Similarly, the
+confluent_role_binding.orders_consumer
+resource gives the
+orders_consumer
+service account the ability to read messages from the
+orders
+topic within the cluster. Note that the
+principal
+and
+role_name
+values differ from those in the
+orders_consumer
+resource.
+main.tf
+resource
+"confluent_role_binding"
+"orders_consumer_read_from_topic"
+{
+principal
+=
+"User:
+${
+confluent_service_account
+.
+orders_consumer
+.
+id
+}
+"
+role_name
+=
+"DeveloperRead"
+crn_pattern
+=
+"
+${
+confluent_kafka_cluster
+.
+inventory
+.
+rbac_crn
+}
+/kafka=
+${
+confluent_kafka_cluster
+.
+inventory
+.
+id
+}
+/topic=
+${
+confluent_kafka_topic
+.
+orders
+.
+topic_name
+}
+"
+}
+Now review the
+confluent_api_key.admin
+resource. This resource defines an API key for the
+admin
+service account, and associates it with the cluster.
+main.tf
+resource
+"confluent_api_key"
+"admin"
+{
+display_name
+=
+"admin"
+description
+=
+"Kafka API Key owned by the 'admin' service account"
+owner
+{
+id
+=
+confluent_service_account.admin.id
+api_version
+=
+confluent_service_account.admin.api_version
+kind
+=
+confluent_service_account.admin.kind
+}
+managed_resource
+{
+id
+=
+confluent_kafka_cluster.inventory.id
+api_version
+=
+confluent_kafka_cluster.inventory.api_version
+kind
+=
+confluent_kafka_cluster.inventory.kind
+environment
+{
+id
+=
+confluent_environment.tutorial.id
+}
+}
+depends_on
+=
+[
+confluent_role_binding.admin
+]
+}
+The configuration follows a similar pattern for the
+orders_producer
+and
+orders_consumer
+service account API keys.
+Kafka's functionality is built around topics, which are streams of event messages. The
+confluent_kafka_topic
+resource creates an
+orders
+topic within the cluster. Terraform authenticates using the
+admin
+API keys created previously.
+main.tf
+resource
+"confluent_kafka_topic"
+"orders"
+{
+kafka_cluster
+{
+id
+=
+confluent_kafka_cluster.inventory.id
+}
+topic_name
+=
+"orders"
+rest_endpoint
+=
+confluent_kafka_cluster.inventory.rest_endpoint
+credentials
+{
+key
+=
+confluent_api_key.admin.id
+secret
+=
+confluent_api_key.admin.secret
+}
+}
+Create infrastructure
+HCP Terraform
+Terraform Community Edition
+Set the
+TF_CLOUD_ORGANIZATION
+environment variable to your HCP Terraform
+organization name. This will configure your HCP Terraform integration.
+$
+export
+TF_CLOUD_ORGANIZATION
+=
+Initialize your configuration. Terraform will automatically create the
+learn-terraform-confluent-provider
+workspace in your HCP Terraform organization.
+$
+terraform init
+Initializing HCP Terraform...
+Initializing provider plugins...
+- Reusing previous version of confluentinc/confluent from the dependency lock file
+- Using previously-installed confluentinc/confluent v1.1.0
+HCP Terraform has been successfully initialized!
+You may now begin working with HCP Terraform. Try running "terraform plan" to
+see any changes that are required for your infrastructure.
+If you ever set or change modules or Terraform Settings, run "terraform init"
+again to reinitialize your working directory.
+Note
+The next step requires your global variable set of
+Confluent Cloud credentials
+. If you are using a scoped variable set or direct workspace variables, assign them to your new workspace now.
+Open your
+terraform.tf
+file and comment out the
+cloud
+block that configures the HCP Terraform integration.
+terraform.tf
+terraform
+{
+/*
+cloud {
+workspaces {
+name = "learn-terraform-confluent-provider"
+}
+}
+*/
+required_providers
+{
+confluent
+=
+{
+source
+=
+"confluentinc/confluent"
+version
+=
+"1.1.0"
+}
+}
+required_version
+=
+"~> 1.2.0"
+}
+Initialize this configuration.
+$
+terraform init
+Initializing the backend...
+Initializing provider plugins...
+- Reusing previous version of confluentinc/confluent from the dependency lock file
+- Installing confluentinc/confluent v1.1.0...
+- Installed confluentinc/confluent v1.1.0 (signed by a HashiCorp partner, key ID D4A2B1EDB0EC0C8E)
+Partner and community providers are signed by their developers.
+If you'd like to know more about provider signing, you can read about it here:
+https://www.terraform.io/docs/cli/plugins/signing.html
+Terraform has been successfully initialized!
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+Now, apply the configuration to create your Confluent Cloud environment, Kafka cluster, service accounts, and topic. Respond with
+yes
+to the prompt to confirm the operation.
+$
+terraform apply
+Terraform used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
++ create
+Terraform will perform the following actions:
+## ...
+Plan: 12 to add, 0 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+## ...
+Apply complete! Resources: 12 added, 0 changed, 0 destroyed.
+Outputs:
+inventory_cluster_rest_endpoint = "https://pkc-ymrq7.us-east-2.aws.confluent.cloud:443"
+View resources in Confluent Cloud
+In your Confluent Cloud dashboard, review the
+Service Accounts
+created by Terraform.
+Now visit your
+Confluent Cloud overview page
+. Click
+View environments
+, then select the
+tutorial
+environment, and find the Kafka cluster named
+inventory
+.
+Click the
+inventory
+cluster, then click
+Topics
+in the side navigation. Select the
+orders
+topic from the list. The topic is empty but you will populate it in the next section.
+Leave this browser window open. You will use it later in the tutorial.
+Write data to the orders topic
+To test your cluster, you will use Confluent's
+Datagen Source Connector
+to generate sample data and write it to the
+orders
+topic.
+In your text editor, open the empty
+data-source.tf
+file, paste the configuration below, and save the file.
+data-source.tf
+resource
+"confluent_connector"
+"source"
+{
+environment
+{
+id
+=
+confluent_environment.tutorial.id
+}
+kafka_cluster
+{
+id
+=
+confluent_kafka_cluster.inventory.id
+}
+config_sensitive
+=
+{}
+config_nonsensitive
+=
+{
+"connector.class"
+=
+"DatagenSource"
+"name"
+=
+"DatagenSourceConnector_0"
+"kafka.auth.mode"
+=
+"SERVICE_ACCOUNT"
+"kafka.service.account.id"
+=
+confluent_service_account.orders_producer.id
+"kafka.topic"
+=
+confluent_kafka_topic.orders.topic_name
+"output.data.format"
+=
+"JSON"
+"quickstart"
+=
+"ORDERS"
+"tasks.max"
+=
+"1"
+}
+}
+The connector uses the
+orders_producer
+service account to write data. The
+quickstart
+parameter specifies that the source should generate sample messages that mimic order events.
+Apply the configuration to create the data source connector. Respond
+yes
+to confirm the operation. It may take up to 10 minutes for Confluent Cloud to provision the connector.
+$
+terraform apply
+## ...
+Terraform used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
++ create
+Terraform will perform the following actions:
+# confluent_connector.source will be created
++ resource "confluent_connector" "source" {
++ config_nonsensitive = {
++ "connector.class" = "DatagenSource"
++ "kafka.auth.mode" = "SERVICE_ACCOUNT"
++ "kafka.service.account.id" = "sa-vrw1g5"
++ "kafka.topic" = "orders"
++ "name" = "DatagenSourceConnector_0"
++ "output.data.format" = "JSON"
++ "quickstart" = "ORDERS"
++ "tasks.max" = "1"
+}
++ config_sensitive = (sensitive value)
++ id = (known after apply)
++ status = (known after apply)
++ environment {
++ id = "env-xqkvqx"
+}
++ kafka_cluster {
++ id = "lkc-rr16m0"
+}
+}
+Plan: 1 to add, 0 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+## ...
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+Outputs:
+inventory_cluster_rest_endpoint = "https://pkc-ymrq7.us-east-2.aws.confluent.cloud:443"
+View topic messages
+On the
+orders
+topic page that you left open in your web browser, click the
+Messages
+tab. Confluent now displays the sample messages populated by the source connector.
+Recall that the source connector uses the
+orders_producer
+service account, which has permission to write to the
+orders
+topic. An application or user that needs to consume messages from the topic must use the
+orders_consumer
+service account.
+Destroy infrastructure
+Now that you have completed this tutorial, destroy the Confluent Cloud resources you provisioned to avoid incurring unnecessary costs. Respond
+yes
+to confirm the operation.
+$
+terraform destroy
+## ...
+Terraform used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
+- destroy
+Terraform will perform the following actions:
+## ...
+Plan: 0 to add, 0 to change, 13 to destroy.
+Changes to Outputs:
+- inventory_cluster_rest_endpoint = "https://pkc-ymrq7.us-east-2.aws.confluent.cloud:443" -> null
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+## ...
+Destroy complete! Resources: 13 destroyed.
+Next steps
+In this tutorial, you used the Confluent Terraform provider to create a Kafka cluster, service accounts with granular RBAC permissions, and a topic in your Confluent Cloud account. You also created a source connector to generate and write sample data to a topic.
+View the following resources to learn more about Confluent Cloud, Kafka, and Terraform.
+Browse Confluent's
+sample Terraform Confluent Cloud configurations
+for other usage scenarios
+Review the
+Confluent Cloud documentation
+Learn about
+Confluent Cloud Pricing
+Was this tutorial helpful?
+Yes
+No
+Previous
+Deploy applications
+Next
+Monitoring with Datadog

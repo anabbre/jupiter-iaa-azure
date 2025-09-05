@@ -48,6 +48,7 @@ La aplicación cuenta con dos pestañas principales:
 1. **Clona el repositorio**  
 	```bash
 	git clone https://github.com/anabbre/jupiter-iaa-azure.git
+	cd jupiter-iaa-azure
 	```
 
 2. **Instala las dependencias**  
@@ -76,4 +77,3 @@ La aplicación cuenta con dos pestañas principales:
 
 5. **Accede a la interfaz web**  
 	Abre tu navegador y visita la Local URL que te muestra y ya puedes interactuar con el chatbot.
-

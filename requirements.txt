@@ -1,0 +1,9 @@
+streamlit
+python-dotenv
+pymupdf
+pinecone-client
+langchain
+langchain-openai
+langchain-community
+langchain-pinecone
+pandas

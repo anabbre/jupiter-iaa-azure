@@ -1,13 +1,19 @@
 import streamlit as st
 from aux_files import _utils as aux
+import traceback
+
+# Logs
+logger = aux.get_logger(__name__, subdir="chatbot")
 
 def show_chatbot(index_name):
     # Variable para saber si hay datos entrenados
     if "is_trained" not in st.session_state:
         st.session_state.is_trained = False
+        logger.debug("Inicializada variable de sesión 'is_trained' en False")
     # Inicializar variables de sesión necesarias para el chat
     if "chat_histories" not in st.session_state:
         st.session_state.chat_histories = {}
+        logger.debug("Inicializada variable de sesión 'chat_histories'")
     if "message_sources" not in st.session_state:
         st.session_state.message_sources = {}
     if "is_processing" not in st.session_state:
@@ -22,6 +28,7 @@ def show_chatbot(index_name):
         st.session_state.chat_histories[index_name]["chat_answers_history"] = []
         st.session_state.chat_histories[index_name]["chat_history"] = []
         st.session_state.chat_histories[index_name]["used_fragments"] = {}
+        logger.info(f"Se creó historial de chat para índice {index_name}")
 
     # Obtener el estado del chat
     chat_state = st.session_state.chat_histories[index_name]
@@ -31,6 +38,7 @@ def show_chatbot(index_name):
 
     # Botón para reiniciar conversación
     if st.button("➕ Nueva conversación", key="reset_chat"):
+        logger.info(f"Reiniciando conversación del chat para índice: {index_name}")
         chat_state["user_prompt_history"] = []
         chat_state["chat_answers_history"] = []
         chat_state["chat_history"] = []
@@ -97,6 +105,8 @@ def show_chatbot(index_name):
 
         # Mostrar mensaje en procesamiento (si aplica)
         if st.session_state.is_processing and st.session_state.current_prompt:
+            user_query = st.session_state.current_prompt
+            logger.info(f"Procesando nueva consulta: {user_query}")
             st.chat_message("user").write(st.session_state.current_prompt)
             with st.chat_message("assistant"):
                 with st.spinner("Pensando..."):
@@ -110,6 +120,8 @@ def show_chatbot(index_name):
                         # Validar respuesta
                         if not generated_response or "result" not in generated_response or not generated_response["result"]:
                             raise ValueError("Respuesta inválida del asistente")
+                        logger.info(f"Respuesta generada '{user_query}': {generated_response['result']}")
+                        
                         # Crear un ID para este mensaje
                         message_id = f"msg_{len(chat_state['user_prompt_history'])}"
                         st.session_state.message_sources[message_id] = {}
@@ -131,6 +143,8 @@ def show_chatbot(index_name):
                                         "content": doc.page_content,
                                         "metadata": doc.metadata
                                     }
+                            logger.info(f"Se guardaron {len(st.session_state.message_sources[message_id])} fuentes para el mensaje {message_id}")
+                            
                         # Actualizar historial
                         chat_state["user_prompt_history"].append(st.session_state.current_prompt)
                         chat_state["chat_answers_history"].append(generated_response['result'])
@@ -138,6 +152,7 @@ def show_chatbot(index_name):
                         chat_state["chat_history"].append(("ai", generated_response["result"]))
                     except Exception:
                         # Si hay error, mostrar mensaje amigable
+                        logger.error("Error al procesar la consulta '{user_query}'", exc_info=True)
                         error_msg = "El asistente no puede contestar en este momento. Por favor, inténtalo más tarde."
                         chat_state["user_prompt_history"].append(st.session_state.current_prompt)
                         chat_state["chat_answers_history"].append(error_msg)
@@ -152,6 +167,7 @@ def show_chatbot(index_name):
     # Input para nuevos mensajes
     prompt = st.chat_input("Pregunta lo que quieras...")
     if prompt and not st.session_state.is_processing:
+        logger.info(f"Nueva consulta del usuario: {prompt}")
         # Iniciar procesamiento
         st.session_state.is_processing = True
         st.session_state.current_prompt = prompt

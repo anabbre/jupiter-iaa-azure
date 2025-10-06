@@ -33,21 +33,46 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_ENV = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")  # valor por defecto
 
-# Configuración de Logs
-LOG_FILE = os.path.join(os.path.dirname(__file__), '..', 'chatbot.log')
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
 # Embeddings de OpenAI
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+def get_logger(name: str,subdir:str = None) -> logging.Logger :
+    """
+        Devolvemos un logger configurado para la aplicación.
+        Los guardaremos en la carpeta logs/
+        Cada dia se creará un nuevo archivo de log.
+    """    
+    
+    log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')
+    
+    if subdir:
+        log_dir = os.path.join(log_dir, subdir)
+        
+    os.makedirs(log_dir, exist_ok=True)
+    
+    from datetime import datetime
+    
+    logs_file = os.path.join(log_dir, f"{datetime.now().strftime('%Y-%m-%d')}.log")
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    
+    # Evitar agregar múltiples handlers si el logger ya tiene handlers
+    if not logger.hasHandlers():
+        file_handler = logging.FileHandler(logs_file, encoding='utf-8')
+        file_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        
+        # También agregar un StreamHandler para salida en consola
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+    
+    return logger
+
+logger = get_logger("app")
 
 def save_file_with_content_check(output_dir, filename, content):
     """

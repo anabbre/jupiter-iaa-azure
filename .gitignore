@@ -93,3 +93,10 @@ data/
 
 # --- Additional files to ignore ---
 Curso/sesion_01/
+
+# --- Logs ---
+logs/
+logs/*
+*.log
+
+

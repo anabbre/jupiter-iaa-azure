@@ -2,9 +2,13 @@ import os
 from aux_files import _utils as aux
 import pandas as pd
 import streamlit as st
+from aux_files import _utils as aux
+
+logger = aux.get_logger(__name__, subdir="app")
 
 def main():
     """Función principal que despliega el proyecto"""
+    logger.info("🚀 Aplicación iniciada")
     st.set_page_config(layout="wide")
 
     # Nombre fijo del asistente

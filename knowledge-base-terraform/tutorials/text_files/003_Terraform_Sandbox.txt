@@ -1,0 +1,8 @@
+Terraform Sandbox
+Experiment with Terraform using a pre-configured environment.
+1 tutorial
+1min
+Terraform Sandbox
+This sandbox contains preinstalled tools and services for you to experiment with Terraform.
+Terraform
+Interactive

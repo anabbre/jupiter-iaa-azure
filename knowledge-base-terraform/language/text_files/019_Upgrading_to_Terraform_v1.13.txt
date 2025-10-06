@@ -1,0 +1,14 @@
+Upgrading to Terraform v1.13
+Tip:
+Use the version selector to view the upgrade guides for older Terraform versions.
+Terraform v1.13 is a minor release in the stable Terraform v1.0 series.
+Terraform v1.13 honors the
+Terraform v1.0 Compatibility Promises
+.
+See
+the full changelog
+for more details. If you encounter any problems during upgrading which are not
+covered this guide, please start a new topic in
+the Terraform community forum
+to discuss it.
+Edit this page on GitHub

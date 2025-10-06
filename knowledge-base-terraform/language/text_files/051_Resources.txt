@@ -1,0 +1,39 @@
+Resources
+Hands-on:
+Try the
+Terraform: Get Started
+tutorials.
+Resources
+are the most important element in the Terraform language.
+Each resource block describes one or more infrastructure objects, such
+as virtual networks, compute instances, or higher-level components such
+as DNS records.
+Resource Blocks
+documents
+the syntax for declaring resources.
+Resource Behavior
+explains in
+more detail how Terraform handles resource declarations when applying a
+configuration.
+The Meta-Arguments section documents special arguments that can be used with
+every resource type, including
+depends_on
+,
+count
+,
+for_each
+,
+provider
+,
+and
+lifecycle
+.
+Provisioners
+documents configuring post-creation actions for a resource using the
+provisioner
+and
+connection
+blocks. Since provisioners are non-declarative
+and potentially unpredictable, we strongly recommend that you treat them as a
+last resort.
+Edit this page on GitHub

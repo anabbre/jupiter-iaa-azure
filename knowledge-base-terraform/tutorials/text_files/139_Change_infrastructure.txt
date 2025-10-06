@@ -1,0 +1,241 @@
+In the last tutorial, you created your first infrastructure with Terraform: a
+single Virtual Cloud Network (VCN) on OCI. In this tutorial, you will modify that resource, and
+learn how to apply changes to your Terraform projects.
+Infrastructure is continuously evolving and Terraform helps you
+manage that change. As you change Terraform configurations, Terraform builds an
+execution plan that only modifies what is necessary to reach your desired state.
+When using Terraform in production, we recommend that you use a version control
+system to manage your configuration files, and store your state in a remote
+backend such as HCP Terraform or Terraform Enterprise.
+Prerequisites
+This tutorial assumes that you are continuing from the previous tutorial, which we highly recommend. If
+not, we've summarized the prerequisites here for your convenience. To follow this tutorial you will need:
+OCI Tenancy
+. Note your region, you will use it throughout the tutorial.
+The
+Terraform CLI
+installed.
+The
+OCI CLI
+installed. Configure the CLI with a token by following the session authentication flow.
+$
+oci session authenticate
+Create a directory named
+learn-terraform-oci
+and paste the
+following configuration into a file named
+main.tf
+.
+terraform
+{
+required_providers
+{
+oci
+=
+{
+source
+=
+"oracle/oci"
+}
+}
+}
+provider
+"oci"
+{
+region
+=
+"us-sanjose-1"
+auth
+=
+"SecurityToken"
+config_file_profile
+=
+"learn-terraform"
+}
+resource
+"oci_core_vcn"
+"internal"
+{
+dns_label
+=
+"internal"
+cidr_block
+=
+"172.16.0.0/20"
+compartment_id
+=
+"<your_compartment_OCID_here>"
+display_name
+=
+"My internal VCN"
+}
+Customize the
+region
+and
+compartment_id
+to match the ones listed on your OCI tenancy page in the web console.
+Initialize the configuration.
+$
+terraform init
+Apply the configuration. Respond to the confirmation prompt with a
+yes
+.
+$
+terraform apply
+Once you have successfully applied the configuration, you can continue with the
+rest of this tutorial.
+Add a resource
+Now you will add a subnet to your VCN. Open
+main.tf
+in your text editor and add the following configuration under the VCN resource block.
+resource
+"oci_core_subnet"
+"dev"
+{
+vcn_id
+=
+oci_core_vcn.internal.id
+cidr_block
+=
+"172.16.0.0/24"
+compartment_id
+=
+"<your_compartment_OCID_here>"
+display_name
+=
+"Dev subnet 1"
+prohibit_public_ip_on_vnic
+=
+true
+dns_label
+=
+"dev"
+}
+Customize the value of
+compartment_id
+with your own OCID and save the file.
+After changing the configuration, run
+terraform apply
+again to see how
+Terraform will apply this change to the existing resources.
+$
+terraform apply
+oci_core_vcn.internal: Refreshing state... [id=ocid1.vcn.oc1.us-sanjose-1.amaaaaaapqqlmeyaklull6tpfms534aoijpjwpkzjo25rxqiqhadgdzodnua]
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
++ create
+Terraform will perform the following actions:
+# oci_core_subnet.dev will be created
++ resource "oci_core_subnet" "dev" {
++ availability_domain = (known after apply)
++ cidr_block = "172.16.0.0/24"
++ compartment_id = "ocid1.tenancy.oc1...."
++ defined_tags = (known after apply)
++ dhcp_options_id = (known after apply)
++ display_name = "Dev subnet 1"
++ dns_label = "dev"
++ freeform_tags = (known after apply)
++ id = (known after apply)
++ ipv6cidr_block = (known after apply)
++ ipv6cidr_blocks = (known after apply)
++ ipv6virtual_router_ip = (known after apply)
++ prohibit_internet_ingress = (known after apply)
++ prohibit_public_ip_on_vnic = true
++ route_table_id = (known after apply)
++ security_list_ids = (known after apply)
++ state = (known after apply)
++ subnet_domain_name = (known after apply)
++ time_created = (known after apply)
++ vcn_id = "ocid1.vcn.oc1.us-sanjose-1.amaaaaaapqqlmeyaklull6tpfms534aoijpjwpkzjo25rxqiqhadgdzodnua"
++ virtual_router_ip = (known after apply)
++ virtual_router_mac = (known after apply)
+}
+Plan: 1 to add, 0 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value:
+Not the
++
+next to the OCI core subnet and its attributes, indicating that Terraform will add the subnet to the existing VCN. The VCN will not change because Terraform already knows it exists and has its information stored in the state file.
+Once again, Terraform prompts for approval of the execution plan before
+proceeding. Answer
+yes
+to execute the planned steps.
+Enter a value: yes
+oci_core_subnet.dev: Creating...
+oci_core_subnet.dev: Creation complete after 2s [id=ocid1.subnet.oc1.us-sanjose-1.aaaaaaaa6odfue6ghdgn77o52cfmonms4ja2r74e3sawnf76z7y5sfwkj55q]
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+Verify that OCI created your subnet by visiting the OCI Console's
+VCN page
+in your region and clicking on "My internal VCN". On the page for your VCN, the OCI Console lists subnets, including "Dev subnet 1".
+Modify a resource
+Terraform can modify existing resources as well as creating new ones. Modify the new subnet by changing it's display name from
+Dev subnet 1
+to
+Dev subnet
+. Then save the file.
+Tip
+The below snippet is formatted as a diff to give you context about
+which parts of your configuration you need to change. Replace the content
+displayed in red with the content displayed in green, leaving out the leading
++
+and
+-
+signs.
+resource "oci_core_subnet" "dev" {
+vcn_id = oci_core_vcn.internal.id
+cidr_block = "172.16.0.0/24"
+compartment_id = "<your_compartment_OCID_here>"
+-
+display_name = "Dev subnet 1"
++
+display_name = "Dev subnet"
+prohibit_public_ip_on_vnic = true
+dns_label = "dev"
+}
+After changing the configuration, run
+terraform apply
+again to see how Terraform will apply this change to the existing resources.
+$
+terraform apply
+oci_core_vcn.internal: Refreshing state... [id=ocid1.vcn.oc1.us-sanjose-1.amaaaaaapqqlmeyaklull6tpfms534aoijpjwpkzjo25rxqiqhadgdzodnua]
+oci_core_subnet.dev: Refreshing state... [id=ocid1.subnet.oc1.us-sanjose-1.aaaaaaaa6odfue6ghdgn77o52cfmonms4ja2r74e3sawnf76z7y5sfwkj55q]
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+~ update in-place
+Terraform will perform the following actions:
+# oci_core_subnet.dev will be updated in-place
+~ resource "oci_core_subnet" "dev" {
+~ display_name = "Dev subnet 1" -> "Dev subnet"
+id = "ocid1.subnet.oc1.us-sanjose-1.aaaaaaaa6odfue6ghdgn77o52cfmonms4ja2r74e3sawnf76z7y5sfwkj55q"
+# (17 unchanged attributes hidden)
+}
+Plan: 0 to add, 1 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value:
+Notice the
+~
+prefix next to the subnet and its display name, indicating that Terraform can change this attribute of the resource. It also prints how many resources it will change, create, or destroy in the output.
+Terraform can update some resources and attributes in-place, but others it can't change without destroying the resource. The prefix
+-/+
+would mean that Terraform planned to destroy and recreate the resource, rather than updating it in-place. Terraform handles these details for you, and the execution plan displays what Terraform will do.
+Approve the change with a
+yes
+.
+Enter a value: yes
+oci_core_subnet.dev: Modifying... [id=ocid1.subnet.oc1.us-sanjose-1.aaaaaaaa6odfue6ghdgn77o52cfmonms4ja2r74e3sawnf76z7y5sfwkj55q]
+oci_core_subnet.dev: Modifications complete after 1s [id=ocid1.subnet.oc1.us-sanjose-1.aaaaaaaa6odfue6ghdgn77o52cfmonms4ja2r74e3sawnf76z7y5sfwkj55q]
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+Check the OCI Console networking page for your internal VCN and note that the displayed name is now "Dev subnet".
+Next Steps
+You have now added a resource to your Terraform configuration, and updated a resource in place. Learn more about OCI subnets in the
+subnet resource documentation
+.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Build
+Next
+Destroy

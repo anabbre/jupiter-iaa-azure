@@ -1,0 +1,46 @@
+Reuse Configuration with Modules
+Create and use Terraform modules to organize your configuration. Host a static website in AWS using two modules: one from the Terraform Registry and one you will build yourself. Organize configuration using directories and workspaces.
+10 tutorials
+7min
+Modules overview
+Read about how Terraform modules make configuration easier to organize, understand, reuse, and share. Learn about the directory structure of a module, and how to call them.
+Terraform
+12min
+Use registry modules in configuration
+Use modules from the public Terraform Registry to define an Amazon VPC containing two EC2 instances. Select module and root input and output variables, install the modules, and apply the configuration.
+Terraform
+Interactive
+15min
+Build and use a local module
+Write a local module to create an Amazon S3 bucket hosting a static website. Create a module directory, write the module configuration, variables, and outputs, and call the module from a root configuration.
+Terraform
+Interactive
+17min
+Customize modules with object attributes
+Refactor a local module to organize related attributes with objects and make some attributes optional for module users.
+Terraform
+7min
+Share modules in the private registry
+Import modules to share securely in HCP Terraform's free private registry. Fork an example module, tag a version-controlled release, deploy the module into the registry, and use it in a configuration.
+Terraform
+5min
+Add public providers and modules to your private registry
+Curate modules and providers for your organization using a private registry. Track approved modules and providers for your organization's use.
+Terraform
+18min
+Refactor monolithic Terraform configuration
+Deploy development and production versions of an S3-hosted static website. Separate their configuration into files, directories, and workspaces, and explore the architectural trade-offs of each approach.
+Terraform
+Interactive
+17min
+Module creation - recommended pattern
+Learn the architectural recommendations for module creation distilled from engagements with large enterprises using Terraform. Use Terraform module best practices to scope, build, improve and consume Terraform modules.
+Terraform
+14min
+Use configuration to move resources
+Use the configuration-driven workflow to change Terraform resource IDs. Refactor configuration to move resources into modules using the `moved` block.
+Terraform
+14min
+Create and use no-code modules
+Use HCP Terraform no-code modules to let users deploy resources without writing Terraform configuration.
+Terraform

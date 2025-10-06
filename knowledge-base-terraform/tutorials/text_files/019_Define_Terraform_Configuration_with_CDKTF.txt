@@ -1,0 +1,21 @@
+Define Terraform Configuration with CDKTF
+Manage infrastructure with your preferred programming language, including TypeScript, Python, Go, C#, and Java with the Cloud Development Kit for Terraform (CDKTF).
+4 tutorials
+10min
+Install CDK for Terraform and run a quick start demo
+Install CDK for Terraform (CDKTF) to develop Terraform configuration in other languages, set up your environment and run a local Docker demo.
+Terraform
+Video
+15min
+Build AWS infrastructure with CDK for Terraform
+Use CDK for Terraform (CDKTF) to write infrastructure as code configurations in TypeScript, Python, Go, C#, or Java. Initialize a new CDKTF project, then provision an EC2 instance on AWS using CDKTF.
+Terraform
+12min
+Deploy Lambda functions with TypeScript and CDK for Terraform
+Provision multiple AWS Lambda functions, S3 Buckets, and IAM roles that share the same TypeScript code in stacks, using CDK for Terraform (CDKTF).
+Terraform
+20min
+Deploy an application with CDK for Terraform
+Deploy an application on Kubernetes with CDK for Terraform (CDKTF). Write TypeScript code to define your application infrastructure. Refactor your application using CDKTF constructs. Deploy another instance of your application as a separate CDKTF stack.
+Terraform
+Interactive

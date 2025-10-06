@@ -1,0 +1,377 @@
+import requests
+from bs4 import BeautifulSoup
+import time
+import os
+from urllib.parse import urljoin, urlparse
+import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Set, List, Dict
+import re
+
+class CompleteTerraformScraper:
+    def __init__(self, base_url: str = "https://developer.hashicorp.com/terraform"):
+        self.base_url = base_url
+        self.visited_urls: Set[str] = set()
+        self.scraped_data: List[Dict] = []
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        })
+
+    def is_valid_terraform_url(self, url: str) -> bool:
+        """Verifica si la URL pertenece a cualquier sección de Terraform"""
+        valid_patterns = [
+            "https://developer.hashicorp.com/terraform/docs",
+            "https://developer.hashicorp.com/terraform/tutorials",
+            "https://developer.hashicorp.com/terraform/language",
+            "https://developer.hashicorp.com/terraform/language/providers",
+            "https://developer.hashicorp.com/terraform/cli",
+            "https://developer.hashicorp.com/terraform/docs/partnerships",
+            "https://developer.hashicorp.com/terraform/cdktf",
+            "https://developer.hashicorp.com/terraform/cloud-docs",
+            "https://developer.hashicorp.com/terraform/enterprise",
+            "https://developer.hashicorp.com/terraform/plugin",
+            "https://developer.hashicorp.com/terraform/registry",
+            "https://developer.hashicorp.com/terraform/internals",
+            "https://developer.hashicorp.com/terraform/migrate",
+            "https://developer.hashicorp.com/terraform/intro",
+            "https://developer.hashicorp.com/terraform/configuration"
+        ]
+
+        # Verificar que la URL comience con el dominio de Terraform
+        if not url.startswith("https://developer.hashicorp.com/terraform"):
+            return False
+
+        # Excluir URLs no deseadas
+        excluded_patterns = [
+            "/api/",
+            "/downloads",
+            "/install",
+            "github.com",
+            "mailto:",
+            ".zip",
+            ".tar.gz",
+            "#"
+        ]
+
+        for pattern in excluded_patterns:
+            if pattern in url:
+                return False
+
+        return True
+
+    def get_main_sections(self) -> Set[str]:
+        """Obtiene todas las secciones principales de Terraform"""
+        main_sections = {
+            "https://developer.hashicorp.com/terraform/docs",
+            "https://developer.hashicorp.com/terraform/tutorials",
+            "https://developer.hashicorp.com/terraform/language",
+            "https://developer.hashicorp.com/terraform/language/providers",
+            "https://developer.hashicorp.com/terraform/cli",
+            "https://developer.hashicorp.com/terraform/docs/partnerships",
+            "https://developer.hashicorp.com/terraform/cdktf",
+            "https://developer.hashicorp.com/terraform/cloud-docs",
+            "https://developer.hashicorp.com/terraform/enterprise",
+            "https://developer.hashicorp.com/terraform/plugin",
+            "https://developer.hashicorp.com/terraform/registry",
+            "https://developer.hashicorp.com/terraform/internals",
+            "https://developer.hashicorp.com/terraform/migrate",
+            "https://developer.hashicorp.com/terraform/intro",
+            "https://developer.hashicorp.com/terraform/configuration"
+        }
+
+        # También obtener enlaces dinámicamente de la página principal
+        try:
+            response = self.session.get(self.base_url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.content, 'html.parser')
+
+            for link in soup.find_all('a', href=True):
+                absolute_url = urljoin(self.base_url, link['href'])
+                clean_url = absolute_url.split('#')[0].split('?')[0]
+
+                if self.is_valid_terraform_url(clean_url):
+                    main_sections.add(clean_url)
+
+        except Exception as e:
+            print(f"Error obteniendo secciones principales: {str(e)}")
+
+        return main_sections
+
+    def get_all_links(self, url: str) -> Set[str]:
+        """Extrae todos los enlaces de una página"""
+        try:
+            response = self.session.get(url, timeout=15)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.content, 'html.parser')
+
+            links = set()
+
+            # Buscar enlaces en navegación y contenido
+            for link in soup.find_all('a', href=True):
+                absolute_url = urljoin(url, link['href'])
+                clean_url = absolute_url.split('#')[0].split('?')[0]
+
+                if self.is_valid_terraform_url(clean_url):
+                    links.add(clean_url)
+
+            # Buscar enlaces específicos en sidebars y menús
+            nav_selectors = [
+                'nav a[href]',
+                '.sidebar a[href]',
+                '.navigation a[href]',
+                '.menu a[href]',
+                '.docs-nav a[href]',
+                '[data-testid="sidebar"] a[href]'
+            ]
+
+            for selector in nav_selectors:
+                for link in soup.select(selector):
+                    if link.get('href'):
+                        absolute_url = urljoin(url, link['href'])
+                        clean_url = absolute_url.split('#')[0].split('?')[0]
+
+                        if self.is_valid_terraform_url(clean_url):
+                            links.add(clean_url)
+
+            return links
+
+        except Exception as e:
+            print(f"Error obteniendo enlaces de {url}: {str(e)}")
+            return set()
+
+    def scrape_page_content(self, url: str) -> Dict:
+        """Extrae el contenido principal de una página"""
+        try:
+            response = self.session.get(url, timeout=15)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.content, 'html.parser')
+
+            # Extraer título
+            title = ""
+            title_selectors = ['h1', 'title', '.page-title', '.content-title']
+            for selector in title_selectors:
+                title_elem = soup.select_one(selector)
+                if title_elem:
+                    title = title_elem.get_text(strip=True)
+                    break
+
+            # Extraer contenido principal con múltiples selectores
+            content = ""
+            content_selectors = [
+                'main',
+                'article',
+                '.content',
+                '.main-content',
+                '.page-content',
+                '.docs-content',
+                '.tutorial-content',
+                '[role="main"]'
+            ]
+
+            main_content = None
+            for selector in content_selectors:
+                main_content = soup.select_one(selector)
+                if main_content:
+                    break
+
+            # Si no encuentra selectores específicos, usar el body
+            if not main_content:
+                main_content = soup.find('body')
+
+            if main_content:
+                # Remover elementos no deseados
+                for element in main_content.find_all([
+                    'script', 'style', 'nav', 'footer', 'header',
+                    '.advertisement', '.ads', '.sidebar', '.navigation',
+                    '[data-testid="sidebar"]', '.breadcrumb'
+                ]):
+                    element.decompose()
+
+                # Extraer texto
+                content = main_content.get_text(separator='\n', strip=True)
+                # Limpiar texto
+                content = re.sub(r'\n{3,}', '\n\n', content)
+                content = re.sub(r'[ \t]+', ' ', content)
+
+            # Extraer metadatos
+            meta_description = ""
+            meta_elem = soup.find('meta', attrs={'name': 'description'})
+            if meta_elem:
+                meta_description = meta_elem.get('content', '')
+
+            # Extraer sección/categoría de la URL
+            url_parts = url.replace(self.base_url, '').strip('/').split('/')
+            section = url_parts[0] if url_parts and url_parts[0] else 'main'
+
+            return {
+                'url': url,
+                'title': title,
+                'content': content,
+                'meta_description': meta_description,
+                'section': section,
+                'subsection': '/'.join(url_parts[1:]) if len(url_parts) > 1 else '',
+                'word_count': len(content.split()),
+                'scraped_at': time.strftime('%Y-%m-%d %H:%M:%S')
+            }
+
+        except Exception as e:
+            print(f"Error scrapeando {url}: {str(e)}")
+            return None
+
+    def discover_all_urls(self, max_depth: int = 4) -> Set[str]:
+        """Descubre todas las URLs de todas las secciones de Terraform"""
+        # Comenzar con las secciones principales
+        initial_urls = self.get_main_sections()
+        print(f"Secciones principales encontradas: {len(initial_urls)}")
+
+        urls_to_visit = initial_urls.copy()
+        all_urls = set()
+
+        for depth in range(max_depth):
+            print(f"Descubriendo URLs - Profundidad {depth + 1}/{max_depth}")
+            print(f"URLs por visitar en esta profundidad: {len(urls_to_visit)}")
+
+            new_urls = set()
+
+            for url in urls_to_visit:
+                if url not in all_urls:
+                    print(f"Explorando: {url}")
+                    links = self.get_all_links(url)
+                    new_urls.update(links)
+                    all_urls.add(url)
+                    time.sleep(0.3)  # Pausa más corta
+
+            urls_to_visit = new_urls - all_urls
+            print(f"Nuevas URLs encontradas: {len(new_urls)}")
+
+            if not urls_to_visit:
+                print("No hay más URLs por descubrir")
+                break
+
+        print(f"Total de URLs descubiertas: {len(all_urls)}")
+        return all_urls
+
+    def scrape_all_pages(self, urls: Set[str], max_workers: int = 4):
+        """Scrapea todas las páginas usando threading"""
+        print(f"Iniciando scraping de {len(urls)} páginas...")
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_url = {executor.submit(self.scrape_page_content, url): url for url in urls}
+
+            for i, future in enumerate(as_completed(future_to_url), 1):
+                url = future_to_url[future]
+                try:
+                    page_data = future.result()
+                    if page_data and page_data['content'] and len(page_data['content']) > 100:
+                        self.scraped_data.append(page_data)
+                        print(f"Progreso: {i}/{len(urls)} - {page_data['section']} - {page_data['title'][:50]}...")
+
+                except Exception as e:
+                    print(f"Error procesando {url}: {str(e)}")
+
+                time.sleep(0.1)
+
+    def save_to_files(self, output_dir: str = "terraform_complete"):
+        """Guarda los datos extraídos organizados por sección"""
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # Guardar JSON completo
+        json_file = os.path.join(output_dir, "terraform_complete.json")
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(self.scraped_data, f, indent=2, ensure_ascii=False)
+
+        # Organizar por secciones
+        sections = {}
+        for page in self.scraped_data:
+            section = page['section']
+            if section not in sections:
+                sections[section] = []
+            sections[section].append(page)
+
+        # Crear archivos por sección
+        for section, pages in sections.items():
+            section_dir = os.path.join(output_dir, section)
+            if not os.path.exists(section_dir):
+                os.makedirs(section_dir)
+
+            # JSON por sección
+            section_json = os.path.join(section_dir, f"{section}.json")
+            with open(section_json, 'w', encoding='utf-8') as f:
+                json.dump(pages, f, indent=2, ensure_ascii=False)
+
+            # Archivos de texto individuales
+            text_dir = os.path.join(section_dir, "text_files")
+            if not os.path.exists(text_dir):
+                os.makedirs(text_dir)
+
+            for i, page in enumerate(pages):
+                filename = re.sub(r'[^\w\-_.]', '_', page['title'])[:50]
+                filename = f"{i:03d}_{filename}.txt"
+
+                file_path = os.path.join(text_dir, filename)
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(f"URL: {page['url']}\n")
+                    f.write(f"Sección: {page['section']}\n")
+                    f.write(f"Subsección: {page['subsection']}\n")
+                    f.write(f"Título: {page['title']}\n")
+                    f.write(f"Descripción: {page['meta_description']}\n")
+                    f.write(f"Palabras: {page['word_count']}\n")
+                    f.write(f"Fecha: {page['scraped_at']}\n")
+                    f.write("=" * 50 + "\n\n")
+                    f.write(page['content'])
+
+        # Estadísticas por sección
+        stats_file = os.path.join(output_dir, "estadisticas.txt")
+        with open(stats_file, 'w', encoding='utf-8') as f:
+            f.write("ESTADÍSTICAS COMPLETAS DE TERRAFORM\n")
+            f.write("=" * 50 + "\n\n")
+
+            total_pages = len(self.scraped_data)
+            total_words = sum(page['word_count'] for page in self.scraped_data)
+
+            f.write(f"Total de páginas: {total_pages}\n")
+            f.write(f"Total de palabras: {total_words}\n")
+            f.write(f"Promedio de palabras por página: {total_words // total_pages if total_pages else 0}\n\n")
+
+            f.write("PÁGINAS POR SECCIÓN:\n")
+            f.write("-" * 30 + "\n")
+            for section, pages in sections.items():
+                section_words = sum(page['word_count'] for page in pages)
+                f.write(f"{section}: {len(pages)} páginas, {section_words} palabras\n")
+
+        print(f"Datos guardados en {output_dir}")
+        print(f"Total de páginas: {len(self.scraped_data)}")
+        print(f"Secciones encontradas: {list(sections.keys())}")
+
+def main():
+    # Crear el scraper
+    scraper = CompleteTerraformScraper()
+
+    # Descubrir todas las URLs de todas las secciones
+    all_urls = scraper.discover_all_urls(max_depth=2)
+
+    # Scrapear todas las páginas
+    scraper.scrape_all_pages(all_urls, max_workers=3)
+
+    # Guardar los resultados organizados
+    scraper.save_to_files("knowledge-base/terraform_complete")
+
+    # Mostrar estadísticas finales
+    if scraper.scraped_data:
+        sections = {}
+        for page in scraper.scraped_data:
+            section = page['section']
+            sections[section] = sections.get(section, 0) + 1
+
+        total_words = sum(page['word_count'] for page in scraper.scraped_data)
+        print(f"\nEstadísticas finales:")
+        print(f"Páginas scrapeadas: {len(scraper.scraped_data)}")
+        print(f"Total de palabras: {total_words}")
+        print(f"Secciones cubiertas: {list(sections.keys())}")
+        for section, count in sections.items():
+            print(f"  {section}: {count} páginas")
+
+if __name__ == "__main__":
+        main()

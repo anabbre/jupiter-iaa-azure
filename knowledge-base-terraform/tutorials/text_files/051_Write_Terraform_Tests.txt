@@ -1,0 +1,853 @@
+Terraform tests let you validate your module configuration without impacting your existing state file or resources. Testing is a separate operation that is not part of a plan or apply workflow, but instead builds ephemeral infrastructure and tests your assertions against in-memory state for those short-lived resources. This lets you safely verify changes to your module without affecting your infrastructure.
+In this tutorial, you will review the syntax for tests and how to use helper modules to validate your configuration. The example module creates an S3 bucket and uploads files to host a static website. The tests use a helper module to generate a random bucket name as a test input for the bucket module.
+After running the test workflow with the provided tests, you will write your own test and helper module. The helper module will create an
+http
+data source, which you will use to test that the static website is running. You will then publish the module to your HCP Terraform private module registry and use the Terraform CLI locally to trigger remote testing in HCP Terraform.
+Finally, you will use test mocking to allow Terraform to run your tests without creating unnecessary resources.
+Prerequisites
+This tutorial assumes that you are familiar with the Terraform workflow. If you are new to Terraform, complete the
+Get Started tutorials
+first.
+In order to complete this tutorial, you will need the following:
+Terraform v1.7+
+installed locally
+An
+AWS account
+with local credentials
+configured for use with
+Terraform
+A GitHub account
+An
+HCP Terraform account
+Create example repository
+Navigate to the
+template
+repository
+for this tutorial. Click the
+Use this template
+button and select
+Create a
+new repository
+. Choose a GitHub account to create the repository in and
+name the new repository
+terraform-aws-s3-website-tests
+. Leave the rest of
+the settings at their default values.
+Tip
+You will publish this module to your
+Terraform registry
+, so the repository name must match the format
+terraform-<PROVIDER>-<NAME>
+, where
+<NAME>
+can contain extra hyphens.
+Clone your example repository, replacing
+USER
+with your own GitHub username.
+$
+git clone https://github.com/USER/terraform-aws-s3-website-tests
+Change to the repository directory.
+$
+cd terraform-aws-s3-website-tests
+Review example configuration
+Explore the example configuration to review how to organize your configuration and test files.
+$
+tree
+.
+├── LICENSE
+├── README.md
+├── main.tf
+├── outputs.tf
+├── terraform.tf
+├── tests
+│ ├── setup
+│ │ ├── main.tf
+│ └── website.tftest.hcl
+├── variables.tf
+└── www
+├── error.html
+└── index.html
+The root directory's
+main.tf
+file defines a publicly-accessible S3 bucket and resources to upload files to the bucket. The
+www
+directory contains the source files for Terramino, a Terraform-skinned Tetris application.
+Terraform tests consist of two parts:
+Test files that end with the
+.tftest.hcl
+file extension
+Optional helper modules, which you can use to create test-specific resources and data sources outside of your main configuration
+By default when you run the
+terraform test
+command, Terraform looks for
+.tftest.hcl
+files in both the root directory and in the
+tests
+directory. You can tell Terraform to look in a different directory with the
+-test-directory
+flag. In this example, the
+tests
+directory contains all of the tests for the module. The
+tests/website.tftest.hcl
+file contains the configuration for the tests.
+You can define optional helper modules to create test-specific resources or data sources. For example, if the module that you are testing creates a compute instance, a helper module can create the required networking infrastructure. In this example, there is a helper module in the
+tests/setup
+directory to generate a globally unique bucket name using the
+random
+provider that it exposes as an output.
+Open the
+tests/setup/main.tf
+file to review the helper module.
+tests/setup/main.tf
+terraform
+{
+required_providers
+{
+random
+=
+{
+source
+=
+"hashicorp/random"
+version
+=
+"3.5.1"
+}
+}
+}
+resource
+"random_pet"
+"bucket_prefix"
+{
+length
+=
+4
+}
+output
+"bucket_prefix"
+{
+value
+=
+random_pet.bucket_prefix.id
+}
+Next, open the
+tests/website.tftest.hcl
+file. This file defines the test assertions for the configuration and consists of a series of
+run
+blocks, which Terraform executes sequentially. The first run block, named "setup_tests", runs a
+terraform apply
+command on the
+setup
+helper module to create the random bucket prefix. Each run block requires a unique name.
+tests/website.tftest.hcl
+run
+"setup_tests"
+{
+module
+{
+source
+=
+"./tests/setup"
+}
+}
+The second run block runs a
+terraform apply
+command to create the S3 bucket. The test sets the required
+bucket_name
+variable by referencing the output of the previous run block,
+run.setup_tests.bucket_prefix
+. The block must reference the
+setup_tests
+run block since that is where the state of the
+bucket_prefix
+output exists. The run block then defines three assertions. The
+condition
+of each assert block must evaluate to true, otherwise the test will fail and display the
+error_message
+.
+tests/website.tftest.hcl
+run
+"create_bucket"
+{
+command
+=
+apply
+variables
+{
+bucket_name
+=
+"
+${
+run
+.
+setup_tests
+.
+bucket_prefix
+}
+-aws-s3-website-test"
+}
+# Check that the bucket name is correct
+assert
+{
+condition
+=
+aws_s3_bucket
+.
+s3_bucket
+.
+bucket
+== "${run.setup_tests.bucket_prefix}
+-
+aws
+-
+s3
+-
+website
+-
+test
+"
+error_message = "
+Invalid bucket name
+"
+}
+# Check index.html hash matches
+assert {
+condition = aws_s3_object.index.etag == filemd5("
+.
+/
+www
+/
+index.html
+")
+error_message = "
+Invalid eTag for index.html
+"
+}
+# Check error.html hash matches
+assert {
+condition = aws_s3_object.error.etag == filemd5("
+.
+/
+www
+/
+error.html
+")
+error_message = "
+Invalid eTag for error.html
+"
+}
+}
+A run block may contain multiple
+assert
+blocks, but every
+assert
+block must evaluate to true for the run block to pass. Your decision to split multiple
+assert
+blocks into separate
+run
+blocks should be based on what is most clear to the module developers. Remember that every
+run
+block performs either a
+terraform plan
+or
+terraform apply
+. In general, a
+run
+block can be thought of as a step in a test, and each
+assert
+block validates that step.
+Run the tests
+Initialize the Terraform configuration to install the required providers. Any time you add a new provider or module to your configuration or tests, you must run the
+terraform init
+command.
+$
+terraform init
+Initializing the backend...
+Initializing modules...
+- test.tests.website.setup in tests/setup
+Initializing provider plugins...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+- Reusing previous version of hashicorp/random from the dependency lock file
+- Installing hashicorp/aws v5.0.1...
+- Installed hashicorp/aws v5.0.1 (signed by HashiCorp)
+- Installing hashicorp/random v3.5.1...
+- Installed hashicorp/random v3.5.1 (signed by HashiCorp)
+Terraform has been successfully initialized!
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+Run
+terraform test
+. Terraform authenticates the AWS provider defined in your tests using your provider credentials the same way it does for your regular configuration.
+$
+terraform test
+tests/website.tftest.hcl... pass
+run "setup_tests"... pass
+run "create_bucket"... pass
+tests/website.tftest.hcl... tearing down
+tests/website.tftest.hcl... pass
+Success! 2 passed, 0 failed.
+When you ran the tests, Terraform performed the following actions:
+Ran an apply on the
+setup
+helper module to create a
+random_pet
+resource.
+Applied your main module to create the S3 bucket and upload the website files.
+Ran the three assertions to check the bucket name and the hashes of the
+index.html
+and
+error.html
+files.
+Destroyed the test-specific S3 resources it created from the main configuration.
+Destroyed the helper module resources.
+Create a new helper module
+Now that you ran the existing tests, you will create your own test and helper module to verify that the static website is running and responding to requests. Your helper module will use the
+http
+data source
+to make a request to the site and access its response.
+Create a new directory for the helper module named
+final
+.
+$
+mkdir tests/final
+Create a new file at
+tests/final/main.tf
+and add the following configuration to it.
+tests/final/main.tf
+terraform
+{
+required_providers
+{
+http
+=
+{
+source
+=
+"hashicorp/http"
+version
+=
+"3.4.0"
+}
+}
+}
+variable
+"endpoint"
+{
+type
+=
+string
+}
+data
+"http"
+"index"
+{
+url
+=
+var.endpoint
+method
+=
+"GET"
+}
+This helper module creates an
+http
+data source and performs an HTTP GET request to the URL specified by the
+endpoint
+variable.
+Add a new test
+Add the following run block to the end of the
+tests/website.tftest.hcl
+file.
+tests/website.tftest.hcl
+run
+"website_is_running"
+{
+command
+=
+plan
+module
+{
+source
+=
+"./tests/final"
+}
+variables
+{
+endpoint
+=
+run.create_bucket.website_endpoint
+}
+assert
+{
+condition
+=
+data.http.index.status_code
+==
+200
+error_message
+=
+"Website responded with HTTP status
+${
+data
+.
+http
+.
+index
+.
+status_code
+}
+"
+}
+}
+This test uses the
+final
+helper module and references the
+website_endpoint
+output from the main module for the
+endpoint
+variable. It also defines one assert block to check that the HTTP GET request responds with a 200 status code, indicating that the website is running properly.
+Next, run the
+terraform init
+command to initialize your new
+final
+module.
+$
+terraform init
+Initializing the backend...
+Initializing modules...
+- test.tests.website.website_is_running in tests/final
+Initializing provider plugins...
+- Finding hashicorp/http versions matching "3.4.0"...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+- Reusing previous version of hashicorp/random from the dependency lock file
+- Installing hashicorp/http v3.4.0...
+- Installed hashicorp/http v3.4.0 (signed by HashiCorp)
+- Using previously-installed hashicorp/aws v5.0.1
+- Using previously-installed hashicorp/random v3.5.1
+Terraform has made some changes to the provider dependency selections recorded
+in the .terraform.lock.hcl file. Review those changes and commit them to your
+version control system if they represent changes you intended to make.
+Terraform has been successfully initialized!
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+Next, rerun the tests.
+$
+terraform test
+tests/website.tftest.hcl... pass
+run "setup_tests"... pass
+run "create_bucket"... pass
+run "website_is_running"... pass
+tests/website.tftest.hcl... tearing down
+tests/website.tftest.hcl... pass
+Terraform ran the new test and verified that the website is running as expected.
+As your module configuration evolves, you can use tests to confirm your assumptions and ensure predictability for your module consumers.
+Push these changes to your GitHub repository. First, stage your changes.
+$
+git add tests/final
+Then, commit the changes to your local main branch.
+$
+git commit -a -m
+"Add website_is_running test"
+Finally, push the changes to the remote main branch.
+$
+git push origin main
+Publish the module
+To publish your module, navigate to your organization's HCP Terraform registry, click
+Publish
+, then select
+Module
+.
+Select your version control provider, then select your
+terraform-aws-s3-website-tests
+repository.
+On the
+Add Module
+screen, choose
+Branch
+for the module publish type and provide the following values.
+Field
+Value
+Module Publish Type
+Branch
+Branch Name
+"main"
+Module Version
+"1.0.0"
+Check
+Enable testing for Module
+, then click
+Publish module
+When you publish a module using the branch-based workflow, HCP Terraform displays a
+Branch-Based
+badge next to the module name, as well as the branch and commit SHA that your module version references.
+Configure the module tests
+Since the tests for this module deploy resources to AWS, you must provide credentials for the tests to use. To configure environment variables for the test, click
+Configure Tests
+.
+Under
+Module variables
+, click
++ Add variable
+and add the following environment variables.
+Key
+Value
+Sensitive
+AWS_ACCESS_KEY_ID
+Your AWS IAM Key ID
+True
+AWS_SECRET_ACCESS_KEY
+Your AWS IAM Key Secret
+True
+AWS_REGION
+us-east-2
+False
+Click
+Module overview
+to return to the module.
+Update the module
+Tests help you avoid introducing breaking changes to your modules. In this example, you will verify that it is safe to update your module's provider version.
+Open the
+terraform.tf
+file and update the AWS provider version to
+5.16.0
+.
+terraform.tf
+terraform
+{
+required_providers
+{
+aws
+=
+{
+source
+=
+"hashicorp/aws"
+version
+=
+"~> 5.16.0"
+}
+}
+required_version
+=
+"~> 1.2"
+}
+Reinitialize your configuration with the
+-upgrade
+flag to update your Terraform lock file with the new provider version.
+$
+terraform init -upgrade
+If your module uses branch-based publishing and the module source code contains tests, HCP Terraform will automatically run them for every push to the configured branch and for any pull requests against that branch.
+Commit the changes to your local
+main
+branch.
+$
+git commit -a -m
+"Update AWS module version to 5.16.0"
+Push the changes to the remote
+main
+branch.
+$
+git push origin main
+On your module's overview page, HCP Terraform reports your module's running tests a few moments after you push your changes.
+Click
+View all tests
+. Here, HCP Terraform shows the history of all test runs, starting with the latest run.
+Click the latest test run to view the details of the tests for your changes. Click the
+File: tests/website.tftest.hcl
+dropdown to see the status of each test step. If any of your tests fail, HCP Terraform will include the detailed output of that test so can troubleshoot the issue.
+Run tests in HCP Terraform from the CLI
+You can also run tests remotely in HCP Terraform from the CLI without committing your changes to source control. When you run tests remotely, HCP Terraform will use the environment variables that you have configured for your module, which helps secure your test runs and removes the need to store cloud credentials on your local machine. To test this local workflow, open the
+website.tftest.hcl
+file and update the
+condition
+of the
+website_is_running
+test to check for a
+404
+status code rather than
+200
+. This will force the test to fail.
+tests/website.tftest.hcl
+run
+"website_is_running"
+{
+command
+=
+plan
+module
+{
+source
+=
+"./tests/final"
+}
+variables
+{
+endpoint
+=
+run.create_bucket.website_endpoint
+}
+assert
+{
+condition
+=
+data.http.index.status_code
+==
+404
+error_message
+=
+"Website responded with HTTP status
+${
+data
+.
+http
+.
+index
+.
+status_code
+}
+"
+}
+}
+Next, run the
+terraform test
+command with the
+cloud-run
+flag. This flag tells Terraform to use your local configuration but execute your tests remotely. The
+cloud-run
+flag is the path of the module in your private registry. Replace
+ORG
+with your HCP Terraform organization.
+$
+terraform test -cloud-run=app.terraform.io/ORG/s3-website-tests/aws
+Waiting for the tests to start... (0s elapsed)
+Terraform v1.6.0
+on linux_amd64
+Initializing plugins and modules...
+tests/website.tftest.hcl... in progress
+setup_tests... pass
+create_bucket... pass
+website_is_running... fail
+╷
+│ Error: Test assertion failed
+│
+│ on tests/website.tftest.hcl line 45, in run "website_is_running":
+│ 45: condition = data.http.index.status_code == 404
+│ ├────────────────
+│ │ data.http.index.status_code is 200
+│
+│ Website responded with HTTP status 200
+╵
+tests/website.tftest.hcl... tearing down
+tests/website.tftest.hcl... fail
+Failure! 2 passed, 1 failed.
+Visit your module overview page in HCP Terraform and to confirm that your test status now shows
+Tests failed
+. Click
+View all tests
+, then click the latest test run to review the same test results that Terraform displayed in your terminal.
+Mock tests
+Terraform also lets you mock providers, resources, and data sources for your tests. This lets you simulate any resources and their attributes that your configuration depends on without actually creating ephemeral infrastructure for testing. When you use test mocking, Terraform automatically generates values for every computed field of your resources and data sources.
+First, update your configuration in
+main.tf
+to declare new resources.
+main.tf
+# Backend API
+data
+"aws_ami"
+"ubuntu"
+{
+most_recent
+=
+true
+filter
+{
+name
+=
+"name"
+values
+=
+[
+"ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"
+]
+}
+filter
+{
+name
+=
+"virtualization-type"
+values
+=
+[
+"hvm"
+]
+}
+owners
+=
+[
+"099720109477"
+]
+# Canonical
+}
+resource
+"aws_instance"
+"backend_api"
+{
+ami
+=
+data.aws_ami.ubuntu.id
+instance_type
+=
+"t3.micro"
+tags
+=
+{
+Name
+=
+"backend"
+}
+}
+resource
+"aws_db_instance"
+"backend_api"
+{
+allocated_storage
+=
+10
+db_name
+=
+"backend_api"
+engine
+=
+"mysql"
+engine_version
+=
+"5.7"
+instance_class
+=
+"db.t3.micro"
+username
+=
+"foo"
+password
+=
+"foobarbaz"
+parameter_group_name
+=
+"default.mysql5.7"
+skip_final_snapshot
+=
+true
+}
+This configuration creates an EC2 instance and RDS database to support a backend API for your application. These resources can have long provision times, which can slow down your tests. Since your tests do not test these resources directly, you can using mocking to access their attributes without having to create them.
+Open the
+website.tftest.hcl
+file and add the following
+override_resource
+blocks.
+tests/website.tftest.hcl
+override_resource
+{
+target
+=
+aws_instance.backend_api
+}
+override_resource
+{
+target
+=
+aws_db_instance.backend_api
+}
+The
+override_resource
+blocks instruct Terraform to mock the resources at the address defined in the
+target
+attribute. In this case, Terraform will mock the EC2 instance and RDS database instead of provisioning them in AWS.
+Next, add the following
+run
+block to your
+website.tftest.hcl
+file.
+tests/website.tftest.hcl
+run
+"check_backend_api"
+{
+assert
+{
+condition
+=
+aws_instance.backend_api.tags.Name
+==
+"backend"
+error_message
+=
+"Invalid name tag"
+}
+assert
+{
+condition
+=
+aws_db_instance.backend_api.username
+==
+"foo"
+error_message
+=
+"Invalid database username"
+}
+}
+Finally, run the tests.
+$
+terraform test
+tests/website.tftest.hcl... in progress
+run "setup_tests"... pass
+run "create_bucket"... pass
+run "website_is_running"... pass
+run "check_backend_api"... pass
+tests/website.tftest.hcl... tearing down
+tests/website.tftest.hcl... pass
+Success! 4 passed, 0 failed.
+Without mocking, your tests would take several minutes to complete because Terraform would need to wait for AWS to create the RDS database and EC2 instance. Since you enabled mocking using the
+override_resource
+blocks, Terraform completed the tests quickly.
+You can also use mocking for data sources. For example, your organization may have separate teams to manage networking and to deploy applications. In this scenario, the application team could use the
+tfe_outputs
+data source to reference the infrastructure created by the networking team. For your tests, you can use the
+override_data
+block
+to mock the values of the
+tfe_outputs
+data source.
+Review testing and validation
+Tests differ from validation methods such as variable validation, preconditions, postconditions, and check blocks. These features focus on verifying the infrastructure deployed by your configuration, while tests validate the behavior and logic of your configuration itself.
+Validation is like error checking for your Terraform configuration. When validation fails, the module consumer is responsible for resolving the issue. For example, a module author can define a precondition that prevents the user from using an invalid subnet CIDR block for a server. In this case, it is the consumers responsibility to provide the correct subnet.
+Tests let module authors verify the behavior of the configuration and ensure that updates do not introduce breaking changes. They are comparable to unit and integration testing, and are a core part of the development cycle.
+Next steps
+In this tutorial, you learned how to write and run Terraform tests. You also learned two ways to run tests in HCP Terraform, keeping your test runs secure by centralizing your cloud credentials. Refer to the following resources to learn more about testing and validation.
+Read the
+Testing Terraform overview
+for more details about how to write tests.
+Learn more about the
+Terraform test syntax
+.
+Reference the
+test-integrated module documentation
+to learn more about running tests in HCP Terraform.
+Learn about
+custom Terraform conditions
+.
+Review the
+test mocks documentation
+.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Check blocks
+Next
+Manage providers

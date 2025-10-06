@@ -1,0 +1,1321 @@
+Terraform is a cloud-agnostic infrastructure provisioning tool. You can use
+Terraform's collection of providers to provision and compose resources from
+multiple cloud providers using the same infrastructure-as-code workflow. This
+allows you to create multi-cloud architectures without needing to manage
+cloud-specific implementations and tools.
+In this tutorial, you will provision Kubernetes clusters in both Azure and AWS
+environments using their respective providers, configure Consul federation with
+mesh gateways across the two clusters using the Helm provider, and deploy
+microservices across the two clusters to verify federation, all using the same
+Terraform workflow.
+Prerequisites
+This tutorial assumes that you are familiar with the standard Terraform
+workflow. If you are new to Terraform, complete the
+Get Started
+tutorials
+first.
+For this tutorial, you will need:
+Terraform 0.14+
+installed locally
+an
+AWS account
+with credentials
+configured for Terraform
+the
+AWS CLI
+an
+Azure account
+the
+Azure CLI
+kubectl
+Note
+Some of the infrastructure in this tutorial may not qualify for the
+AWS
+or
+Azure
+free tiers. Destroy the infrastructure at the end of the guide to avoid unnecessary charges. We are not responsible for any charges that you incur.
+Clone example configuration
+Clone the
+example
+repository
+containing the example configuration.
+$
+git clone https://github.com/hashicorp-education/learn-terraform-multicloud-kubernetes
+Change into the repository directory.
+$
+cd learn-terraform-multicloud-kubernetes
+This repository has 4 subdirectories:
+eks
+contains configuration for an AWS EKS cluster.
+aks
+contains configuration for an Azure AKS cluster.
+consul
+contains configuration for Kubernetes deployments of federated Consul datacenters.
+counting-service
+contains configuration for a two-tier Kubernetes application to verify Consul federation.
+Provision an EKS Cluster
+The AWS EKS service offers a managed control plane for Kubernetes clusters, so
+all you need to do is provision the worker nodes for your cluster. Using EKS
+enables you to easily scale and manage a Kubernetes cluster without the
+operational cost of managing the control plane components that respond to and
+coordinate events within the cluster.
+Change into the
+eks
+subdirectory.
+$
+cd eks
+The configuration in this directory creates a designated network to place your
+EKS resource. It also provisions an EKS cluster and an autoscaling group of
+workers to run the workloads.
+Open the
+main.tf
+file in your code editor to review the configuration. It contains definitions for:
+The AWS provider, configured for the
+us-east-2
+region.
+A random string (
+random_string.suffix
+) to ensure you are creating uniquely named resources.
+An instance of the
+AWS VPC module
+(
+module.vpc
+) to provision a VPC, NAT and Internet gateways, and public and private subnets for your cluster.
+An instance of the
+AWS EKS module
+(
+module.eks
+) to provision an EKS cluster and worker nodes within the VPC created by
+module.vpc
+.
+The Kubernetes provider, which is required by the EKS module to load AWS authentication configuration into your cluster.
+Now open the
+outputs.tf
+file and review the contents. The Helm and Kubernetes
+providers in other configurations in this tutorial use the declared outputs to
+authenticate against the EKS cluster.
+Run
+terraform init
+to initialize your Terraform directory and download the providers for your configuration.
+$
+terraform init
+Initializing the backend...
+Initializing modules...
+Downloading registry.terraform.io/terraform-aws-modules/eks/aws 19.15.3 for eks...
+- eks in .terraform/modules/eks
+- eks.eks_managed_node_group in .terraform/modules/eks/modules/eks-managed-node-group
+- eks.eks_managed_node_group.user_data in .terraform/modules/eks/modules/_user_data
+- eks.fargate_profile in .terraform/modules/eks/modules/fargate-profile
+Downloading registry.terraform.io/terraform-aws-modules/kms/aws 1.1.0 for eks.kms...
+- eks.kms in .terraform/modules/eks.kms
+- eks.self_managed_node_group in .terraform/modules/eks/modules/self-managed-node-group
+- eks.self_managed_node_group.user_data in .terraform/modules/eks/modules/_user_data
+Downloading registry.terraform.io/terraform-aws-modules/iam/aws 4.7.0 for irsa-ebs-csi...
+- irsa-ebs-csi in .terraform/modules/irsa-ebs-csi/modules/iam-assumable-role-with-oidc
+Downloading registry.terraform.io/terraform-aws-modules/vpc/aws 5.1.1 for vpc...
+- vpc in .terraform/modules/vpc
+##...
+Now, run
+terraform apply
+to provision your resources, responding
+yes
+to the prompt.
+$
+terraform apply
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
++ create
+<= read (data resources)
+Terraform will perform the following actions:
+##...
+Plan: 59 to add, 0 to change, 0 to destroy.
+Changes to Outputs:
++ cluster_id = (known after apply)
++ cluster_name = (known after apply)
++ region = "us-east-2"
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 59 added, 0 changed, 0 destroyed.
+Outputs:
+##...
+It may take up to 15 minutes to provision the cluster. Leave this terminal open
+and proceed to provisioning the AKS cluster while this completes.
+Tip
+For a detailed walk-through of the steps involved in provisioning an EKS cluster, review the
+Provision an EKS Cluster tutorial
+.
+Provision an AKS Cluster
+AKS is Azure's managed Kubernetes offering. Similarly to EKS, you need to
+supply the worker nodes for the cluster, but Azure manages the control plane
+components for you.
+In a new terminal, change into the
+aks
+subdirectory.
+$
+cd ../aks
+The configuration in this directory provisions an AKS cluster. Open the
+main.tf
+file in your code editor to review the configuration. It contains definitions for:
+The Azure provider.
+A random string (
+random_string.suffix
+) to ensure you are creating uniquely named resources.
+An instance of the
+azurerm_resource_group
+, a container for logically-related resources. Azure requires a resource group for provisioning an AKS cluster.
+An instance of an
+azurerm_kubernetes_cluster
+, associated with the resource group and configured to run 3 worker nodes.
+Similarly to the EKS configuration, this configuration also outputs cluster
+attributes for Helm and Kubernetes provider authentication. Open the
+outputs.tf
+file to review them
+Once you have reviewed the configuration, log in to Azure using the Azure CLI.
+It will open a browser window and prompt you to log in there and display
+credentials in your terminal when complete.
+$
+az login
+The default web browser has been opened at https://login.microsoftonline.com/common/oauth2/authorize. Please continue the login in the web browser. If no web browser is available or if the web browser fails to open, use device code flow with `az login --use-device-code`.
+You have logged in. Now let us find all the subscriptions to which you have access...
+##...
+Next, create an Active Directory service principal account. You will use this
+AD service principal account to authenticate the Azure provider. This is one
+method to authenticate the provider
+.
+$
+az ad sp create-for-rbac --skip-assignment
+{
+"appId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+"displayName": "azure-cli-2021-04-22-17-52-06",
+"name": "http://azure-cli-2021-04-22-17-52-06",
+"password": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+"tenant": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+}
+Rename the
+terraform.tfvars.example
+file to
+terraform.tfvars
+.
+$
+mv terraform.tfvars.example terraform.tfvars
+Note
+The
+.gitignore
+file in this repository includes any
+.tfvars
+files to prevent you from accidentally committing your credentials to version control.
+Open the
+terraform.tfvars
+file and replace the
+appId
+and
+password
+values with those displayed in your output from the previous command.
+aks/terraform.tfvars
+appId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+password = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+Now, initialize your Terraform directory.
+$
+terraform init
+Initializing the backend...
+Initializing provider plugins...
+- Reusing previous version of hashicorp/random from the dependency lock file
+- Reusing previous version of hashicorp/azurerm from the dependency lock file
+- Installing hashicorp/random v3.5.1...
+- Installed hashicorp/random v3.5.1 (signed by HashiCorp)
+- Installing hashicorp/azurerm v3.63.0...
+- Installed hashicorp/azurerm v3.63.0 (signed by HashiCorp)
+Terraform has been successfully initialized!
+##...
+Run
+terraform apply
+to provision your resources, responding
+yes
+to the prompt.
+$
+terraform apply
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
++ create
+Terraform will perform the following actions:
+##...
+Plan: 3 to add, 0 to change, 0 to destroy.
+Changes to Outputs:
++ kubernetes_cluster_name = (known after apply)
++ resource_group_name = (known after apply)
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+Outputs:
+kubernetes_cluster_name = "tops-cattle-aks"
+resource_group_name = "tops-cattle-rg"
+It may take a few minutes to provision the cluster. Leave this terminal window
+open while it completes.
+Tip
+For a detailed walk-through of the steps involved in provisioning an AKS cluster, review the
+Provision an AKS Cluster tutorial
+.
+Using the same Terraform workflow, you have created Kubernetes clusters in two
+different clouds. Though you could have created both clusters in the same
+Terraform configuration with a shared state file, it is best practice to scope
+your configuration to logically-related components.
+While you wait for cluster provisioning to complete, you can
+read the next section on cluster federation.
+Review Consul federation configuration
+To allow services across your two clusters to communicate, you will set up Consul
+datacenters in both Kubernetes clusters then federate them. Consul enables
+a secure multi-cloud infrastructure by creating a secure service mesh that
+facilitates encrypted communication between your services.
+In this section, you will review the Terraform resource configuration to
+federate Consul datacenters. The example configuration will deploy
+Consul to both your EKS and AKS clusters using the Consul Helm chart and
+designate the EKS Consul datacenter as the primary. It also uses the
+Kubernetes provider to share the federation secret across the clusters and to
+provision the ProxyDefaults configuration as a custom resource.
+To continue with the tutorial, skip to the
+next section
+once Terraform provisions your clusters.
+In a new terminal, change into the
+consul
+subdirectory.
+$
+cd ../consul
+Open the
+main.tf
+file. First, review the configuration for the providers
+used.
+The configuration uses the
+terraform_remote_state
+data
+source to access the contents of your AKS and EKS workspace's state files,
+which include the cluster ID outputs.
+Tip
+We recommend using provider-specific data sources when convenient.
+terraform_remote_state
+is more flexible, but requires access to the whole Terraform state.
+consul/main.tf
+data
+"terraform_remote_state"
+"eks"
+{
+backend
+=
+"local"
+config
+=
+{
+path
+=
+"../eks/terraform.tfstate"
+}
+}
+The Terraform configuration uses the cluster IDs from the
+terraform_remote_state
+data source to retrieve data sources for each of your
+clusters using the Azure and AWS providers,
+consul/main.tf
+provider
+"aws"
+{
+region
+=
+data.terraform_remote_state.eks.outputs.region
+}
+data
+"aws_eks_cluster"
+"cluster"
+{
+name
+=
+data.terraform_remote_state.eks.outputs.cluster_name
+}
+It then passes the authentication attributes from the data sources to the Helm
+and Kubernetes providers. This allows you to authenticate the providers against
+your clusters while outputting minimal cluster information. The providers use an
+alias to create unique provider instances for each cluster.
+Note
+The
+experiments
+attribute in the
+kubernetes
+provider block enables the beta
+kubernetes_manifest
+resource.
+consul/main.tf
+provider
+"kubernetes"
+{
+alias
+=
+"eks"
+host
+=
+data.aws_eks_cluster.cluster.endpoint
+cluster_ca_certificate
+=
+base64decode(data
+.
+aws_eks_cluster
+.
+cluster
+.
+certificate_authority
+.
+0
+.
+data)
+exec
+{
+api_version
+=
+"client.authentication.k8s.io/v1beta1"
+args
+=
+[
+"eks"
+,
+"get-token"
+,
+"--cluster-name"
+,
+data.aws_eks_cluster.cluster.name]
+command
+=
+"aws"
+}
+experiments
+{
+manifest_resource
+=
+true
+}
+}
+We have listed the resources defined in the rest of
+main.tf
+in the
+order that Terraform provisions them. Terraform determines the interdependency
+between the resources in this configuration based on either the resource
+references or the
+depends_on
+meta-argument.
+The
+consul_dc1
+Helm release
+The
+consul_dc1
+resource deploys a Consul datacenter to the EKS cluster
+using the
+hashicorp/consul
+Helm chart. This is the primary Consul datacenter
+in this tutorial and the one in which you generate the federation secret.
+This resource uses the
+dc1.yaml
+file to configure the Consul datacenter. Open
+dc1.yaml
+to review the configuration.
+Warning
+This Consul configuration disables ACLs and does not use gossip encryption. Do not use it in production environments.
+consul/dc1.yaml
+global
+:
+name
+:
+consul
+datacenter
+:
+dc1
+tls
+:
+enabled
+:
+true
+federation
+:
+enabled
+:
+true
+createFederationSecret
+:
+true
+acls
+:
+manageSystemACLs
+:
+false
+createReplicationToken
+:
+false
+meshGateway
+:
+enabled
+:
+true
+replicas
+:
+1
+connectInject
+:
+enabled
+:
+true
+default
+:
+true
+controller
+:
+enabled
+:
+true
+server
+:
+replicas
+:
+1
+This is the minimal configuration needed to enable federation using mesh gateways. Take note of the following fields:
+The
+federation
+field enables federation and the
+createFederationSecret
+field instructs Consul to create the federation secret in this
+datacenter. When federating multiple Consul datacenters, you must designate one
+as the primary. The primary Consul datacenter generates the federation secret,
+including the certificate authority that signs certificates used to encrypt
+inter-cluster traffic. The secondary clusters then import the secret to
+enable federation.
+The
+meshGateway
+field enables mesh gateways in the datacenter, which can
+route traffic between different Consul datacenters. Consul's multi-cluster
+federation via mesh gateways feature abstracts away the complexity of managing
+networking configuration and discoverability across clusters, allowing for
+secure communication using mTLS.
+The
+connectInject
+field configures your cluster with a mutating admission
+webhook that adds sidecar proxies to pods. The sidecars can then route traffic
+to upstream services located in other datacenters using the mesh gateways.
+Since the feature is enabled as a default, all pods will have sidecar proxies
+unless they have the
+consul.hashicorp.com/connect-inject
+annotation set to
+false.
+The
+eks_federation_secret
+data source
+The Kubernetes
+eks_federation_secret
+data source accesses the federation
+secret created in the primary Consul datacenter in your EKS cluster. The
+depends_on
+meta-argument explicitly defines the dependency.
+consul/main.tf
+data
+"kubernetes_secret"
+"eks_federation_secret"
+{
+provider
+=
+kubernetes.eks
+metadata
+{
+name
+=
+"consul-federation"
+}
+depends_on
+=
+[helm_release.consul_dc1]
+}
+The
+aks_federation_secret
+resource
+The Kuberenetes
+aks_federation_secret
+resource uses the Kubernetes provider
+authenticated against your AKS cluster to load the federation secret from your
+EKS cluster into your AKS cluster. The resource dependency is implicit since
+it references the
+eks_federation_secret
+data source from the EKS cluster.
+consul/main.tf
+resource
+"kubernetes_secret"
+"aks_federation_secret"
+{
+provider
+=
+kubernetes.aks
+metadata
+{
+name
+=
+"consul-federation"
+}
+data
+=
+data.kubernetes_secret.eks_federation_secret.data
+}
+The
+consul_dc2
+Helm release
+The
+consul_dc2
+Helm release deploys the secondary Consul datacenter to your
+AKS cluster. The configuration is similar to that of the primary, but rather
+than generating the federation secret, the configuration for the secondary
+datacenter references values from the
+consul-federation
+secret you imported.
+The
+helm_release.consul_dc2
+resource uses the
+dc2.yaml
+file to configure the Consul datacenter. Open
+dc2.yaml
+to review the configuration.
+consul/dc2.yaml
+global
+:
+name
+:
+consul
+datacenter
+:
+dc2
+tls
+:
+enabled
+:
+true
+caCert
+:
+secretName
+:
+consul-federation
+secretKey
+:
+caCert
+caKey
+:
+secretName
+:
+consul-federation
+secretKey
+:
+caKey
+federation
+:
+enabled
+:
+true
+connectInject
+:
+enabled
+:
+true
+controller
+:
+enabled
+:
+true
+meshGateway
+:
+enabled
+:
+true
+server
+:
+extraVolumes
+:
+-
+type
+:
+secret
+name
+:
+consul-federation
+items
+:
+-
+key
+:
+serverConfigJSON
+path
+:
+config.json
+load
+:
+true
+This configuration leverages Terraform's resource dependency graph to ensure that your resources are created in proper order.
+The
+eks_proxy_defaults
+and
+aks_proxy_defaults
+Kubernetes manifests
+Next, open the
+proxy_defaults.tf
+file to review the configuration there. The
+configuration in this file is commented out because you must apply it after
+Terraform creates the resources defined in
+main.tf
+.
+The
+eks_proxy_defaults
+and
+aks_proxy_defaults
+resources use Kubernetes custom
+resources to create Consul
+ProxyDefaults
+for each datacenter. The Consul Helm release creates the CRDs the ProxyDefaults use, so you must provision these resources as a separate step.
+You can use the
+kubernetes_manifest
+resource to manage Kubernetes custom resources.
+Note
+The
+kubernetes_manifest
+resource type is in beta. You should not
+use it in production environments.
+consul/proxy_defaults.tf
+resource
+"kubernetes_manifest"
+"eks_proxy_defaults"
+{
+provider
+=
+kubernetes.eks
+manifest
+=
+{
+"apiVersion"
+=
+"consul.hashicorp.com/v1alpha1"
+"kind"
+=
+"ProxyDefaults"
+"metadata"
+=
+{
+"name"
+=
+"global"
+"namespace"
+=
+"default"
+}
+"spec"
+=
+{
+"meshGateway"
+=
+{
+"mode"
+=
+"local"
+}
+}
+}
+}
+Configure kubectl
+Once Terraform provisions both of your clusters, use
+kubectl
+to verify their respective Consul datacenters.
+Navigate to your
+eks
+subdirectory.
+$
+cd ../eks
+Run the following command to add the
+eks
+context to your
+~/.kube/config
+file, allowing you to access the EKS cluster. Notice that this command
+uses your Terraform outputs to construct the query.
+$
+aws eks --region
+$(
+terraform
+output -raw region)
+update-kubeconfig --name
+$(
+terraform
+output -raw cluster_name)
+--alias eks
+Added new context eks to /Users/<USER>/.kube/config
+In the terminal window in which you provisioned the Consul datacenters, navigate to the
+aks
+subdirectory.
+$
+cd ../aks
+Run the following command to add the
+aks
+context to your
+~/.kube/config
+file, allowing you to access the AKS cluster.
+$
+az aks get-credentials --resource-group
+$(
+terraform
+output -raw resource_group_name)
+--name
+$(
+terraform
+output -raw kubernetes_cluster_name)
+--context aks
+Merged "aks" as current context in /Users/<USER>/.kube/config
+Deploy Consul and configure cluster federation
+Once Terraform finishes provisioning both your clusters, apply the configuration to:
+Deploy the primary Consul datacenter and proxy defaults to EKS
+Load the federation secret into the AKS cluster
+Deploy the secondary Consul cluster
+Navigate back to your
+consul
+subdirectory.
+$
+cd ../consul
+Initialize your Terraform directory to download the providers for your configuration.
+$
+terraform init
+Initializing the backend...
+Initializing provider plugins...
+- terraform.io/builtin/terraform is built in to Terraform
+- Reusing previous version of hashicorp/kubernetes from the dependency lock file
+- Reusing previous version of hashicorp/helm from the dependency lock file
+- Reusing previous version of hashicorp/aws from the dependency lock file
+- Reusing previous version of hashicorp/azurerm from the dependency lock file
+- Using previously-installed hashicorp/azurerm v3.67.0
+- Using previously-installed hashicorp/kubernetes v2.22.0
+- Using previously-installed hashicorp/helm v2.10.1
+- Using previously-installed hashicorp/aws v5.10.0
+Terraform has created a lock file .terraform.lock.hcl to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.
+Terraform has been successfully initialized!
+##...
+Run
+terraform apply
+to provision your resources, responding
+yes
+to the
+prompt. Since the resources in this configuration need to be created
+sequentially, this may take about 5 minutes.
+$
+terraform apply
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
++ create
+<= read (data resources)
+Terraform will perform the following actions:
+##...
+Plan: 3 to add, 0 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+Deploy ProxyDefaults
+Next, open the
+proxy_defaults.tf
+file and uncomment all of the contents by
+removing the
+/*
+from the second line in the file and the
+*/
+from the end of
+the file. The ProxyDefaults use Custom Resource Definitions and
+you must created them after deploying the Consul datacenters.
+Tip
+The below snippet is formatted as a diff to give you context about what in your configuration should change. Remove the content in red (excluding the leading
+-
+sign).
+consul/proxy_defaults.tf
+-
+/*
+resource "kubernetes_manifest" "eks_proxy_defaults" {
+provider = kubernetes.eks
+manifest = {
+"apiVersion" = "consul.hashicorp.com/v1alpha1"
+"kind" = "ProxyDefaults"
+"metadata" = {
+"name" = "global"
+"namespace" = "default"
+"finalizers" = ["finalizers.consul.hashicorp.com"]
+}
+"spec" = {
+"meshGateway" = {
+"mode" = "local"
+}
+}
+}
+}
+resource "kubernetes_manifest" "aks_proxy_defaults" {
+provider = kubernetes.aks
+manifest = {
+"apiVersion" = "consul.hashicorp.com/v1alpha1"
+"kind" = "ProxyDefaults"
+"metadata" = {
+"name" = "global"
+"namespace" = "default"
+"finalizers" = ["finalizers.consul.hashicorp.com"]
+}
+"spec" = {
+"meshGateway" = {
+"mode" = "local"
+}
+}
+}
+}
+-
+*/
+Now, apply the configuration to create the ProxyDefaults in both clusters. Be sure to respond
+yes
+to the prompt.
+$
+terraform apply
+helm_release.consul_dc1: Refreshing state... [id=consul]
+kubernetes_secret.aks_federation_secret: Refreshing state... [id=default/consul-federation]
+helm_release.consul_dc2: Refreshing state... [id=consul]
+##...
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
++ create
+Terraform will perform the following actions:
+##...
+Plan: 2 to add, 0 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+kubernetes_manifest.aks_proxy_defaults: Creating...
+kubernetes_manifest.aks_proxy_defaults: Creation complete after 0s
+kubernetes_manifest.eks_proxy_defaults: Creating...
+kubernetes_manifest.eks_proxy_defaults: Creation complete after 0s
+Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+Verify cluster federation
+Once Terraform provisions your resources, verify the deployment.
+List the pods in the
+default
+namespace in the EKS cluster to confirm that the Consul pods are running.
+$
+kubectl get pods --context eks
+NAME READY STATUS RESTARTS AGE
+NAME READY STATUS RESTARTS AGE
+consul-connect-injector-556d9789cc-mbvfl 1/1 Running 0 5m18s
+consul-mesh-gateway-c77f4bfcb-5wf5k 1/1 Running 0 5m18s
+consul-server-0 1/1 Running 0 5m18s
+consul-webhook-cert-manager-656f4db796-4bv46 1/1 Running 0 5m18s
+Now, verify that Terraform applied the proxy defaults.
+$
+kubectl get proxydefaults --context eks
+NAME SYNCED LAST SYNCED AGE
+global True 11m 11m
+Now, list the pods in the
+default
+namespace in the AKS namespace to confirm that the Consul pods are running.
+$
+kubectl get pods --context aks
+NAME READY STATUS RESTARTS AGE
+consul-connect-injector-598b66778b-dfbct 1/1 Running 0 7m3s
+consul-mesh-gateway-654d6b76b7-5qdxw 1/1 Running 0 7m3s
+consul-server-0 1/1 Running 0 7m3s
+consul-webhook-cert-manager-844bd5dd64-2vsjv 1/1 Running 0 7m3s
+Next, verify that Terraform applied the proxy defaults.
+$
+kubectl get proxydefaults --context aks
+NAME SYNCED LAST SYNCED AGE
+global False 7m14s 7m14s
+Warning
+The ProxyDefaults may show as
+False
+due to an open issue in the
+Kubernetes provider
+kubernetes_manifest
+resource. This will not interfere with the
+function of the tutorial, but would prevent you from making changes to the
+ProxyDefaults on successive applies. Do not use this configuration in production.
+It may take a few minutes for the proxy defaults to show as synced.
+Finally, verify that the clusters are federated by listing the servers in Consul's Wide Area Network (WAN).
+$
+kubectl exec statefulset/consul-server --context aks -- consul members -wan
+Node Address Status Type Build Protocol DC Segment
+consul-server-0.dc1 10.0.3.129:8302 alive server 1.9.4 2 dc1 <all>
+consul-server-0.dc2 10.244.1.5:8302 alive server 1.9.4 2 dc2 <all>
+The Consul members list includes nodes from both the
+dc1
+and
+dc2
+centers, confirming datacenter federation.
+Using a single Terraform invocation, you created resources in
+multiple cloud providers. The configuration deployed Helm releases and managed
+Kubernetes resources across two clusters, each in a different cloud.
+Terraform's provider aliasing allowed you to configure multiple instances of
+each provider, and Terraform's dependency graph enforced the appropriate order for resource creation.
+Deploy an application
+Now you will deploy a two-tier application that communicates across the
+Kubernetes clusters using the federated Consul datacenters. The application
+counts how many times a user accesses it and consists of:
+a backend service named
+counting
+that increments a counter, deployed to your AKS cluster
+a frontend service named
+dashboard
+that calls the counting service and displays the counter value, deployed to your EKS cluster
+Navigate out of your
+counting-service
+subdirectory.
+$
+cd ../counting-service
+Open the
+main.tf
+file to review the configuration.
+Similarly to the Consul configuration from the previous section, this
+configuration uses the
+terraform_remote_state
+data source to access the
+contents of your AKS and EKS workspace's state files. The configuration passes the
+attributes to the Kubernetes providers to authenticate against each cluster.
+The counting service consists of a pod that Terraform
+deploys to your AKS cluster by referencing the
+aks
+aliased provider.
+counting-service/main.tf
+resource
+"kubernetes_pod"
+"counting"
+{
+provider
+=
+kubernetes.aks
+metadata
+{
+name
+=
+"counting"
+labels
+=
+{
+"app"
+=
+"counting"
+}
+}
+spec
+{
+container
+{
+image
+=
+"hashicorp/counting-service:0.0.2"
+name
+=
+"counting"
+port
+{
+container_port
+=
+9001
+name
+=
+"http"
+}
+}
+}
+}
+resource
+"kubernetes_service"
+"counting"
+{
+provider
+=
+kubernetes.aks
+metadata
+{
+name
+=
+"counting"
+namespace
+=
+"default"
+labels
+=
+{
+"app"
+=
+"counting"
+}
+}
+spec
+{
+selector
+=
+{
+"app"
+=
+"counting"
+}
+port
+{
+name
+=
+"http"
+port
+=
+9001
+target_port
+=
+9001
+protocol
+=
+"TCP"
+}
+type
+=
+"ClusterIP"
+}
+}
+The dashboard service consists of a pod and service that Terraform deploys to
+your EKS cluster by referencing the
+eks
+aliased provider. This pod has the
+consul.hashicorp.com/connect-service-upstreams
+annotation to configure the
+service dependency on the counting service in the other Consul datacenter.
+counting-service/main.tf
+resource
+"kubernetes_pod"
+"dashboard"
+{
+provider
+=
+kubernetes.eks
+metadata
+{
+name
+=
+"dashboard"
+annotations
+=
+{
+"consul.hashicorp.com/connect-service-upstreams"
+=
+"counting:9001:dc2"
+}
+labels
+=
+{
+"app"
+=
+"dashboard"
+}
+}
+##...
+}
+Initialize your Terraform directory.
+$
+terraform init
+Initializing the backend...
+Initializing provider plugins...
+- terraform.io/builtin/terraform is built in to Terraform
+- Reusing previous version of hashicorp/kubernetes from the dependency lock file
+- Reusing previous version of hashicorp/azurerm from the dependency lock file
+- Reusing previous version of hashicorp/aws from the dependency lock file
+- Installing hashicorp/kubernetes v2.22.0...
+- Installed hashicorp/kubernetes v2.22.0 (signed by HashiCorp)
+- Installing hashicorp/azurerm v3.67.0...
+- Installed hashicorp/azurerm v3.67.0 (signed by HashiCorp)
+- Installing hashicorp/aws v5.10.0...
+- Installed hashicorp/aws v5.10.0 (signed by HashiCorp)
+Terraform has created a lock file .terraform.lock.hcl to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.
+Terraform has been successfully initialized!
+##...
+Now, run
+terraform apply
+to provision your resources, responding
+yes
+to the prompt.
+$
+terraform apply
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
++ create
+<= read (data resources)
+Terraform will perform the following actions:
+##...
+Plan: 4 to add, 0 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+Once Terraform deploys the resources to your clusters, visit the dashboard to
+verify the configuration. Enable port forwarding for the EKS cluster's
+dashboard pod to access the dashboard locally.
+$
+kubectl port-forward dashboard 9002:9002 --context eks
+Navigate to
+http://localhost:9002/
+in your browser. The dashboard should
+display a positive number, confirming that the dashboard service can reach the
+counting service.
+Clean up resources
+Now that you have completed the tutorial, clean up the resources you
+provisioned to avoid incurring unnecessary costs.
+Destroy application resources
+First, use
+<Ctrl-C>
+to cancel the port-forward command running in your terminal.
+Next, working in your
+counting-service
+directory, run
+terraform destroy
+to destroy the microservice Kubernetes
+resources. Respond
+yes
+to the prompt to confirm the operation.
+$
+terraform destroy
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+- destroy
+Terraform will perform the following actions:
+##...
+Plan: 0 to add, 0 to change, 4 to destroy.
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+##...
+Destroy complete! Resources: 4 destroyed.
+Destroy Consul resources
+Navigate to your
+consul
+subdirectory.
+$
+cd ../consul
+Run
+terraform destroy
+to destroy the Consul Helm and Kubernetes resources.
+Respond
+yes
+to the prompt to confirm the operation.
+$
+terraform destroy
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+- destroy
+Terraform will perform the following actions:
+##...
+Plan: 0 to add, 0 to change, 5 to destroy.
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+##...
+Destroy complete! Resources: 5 destroyed.
+Destroy Kubernetes clusters
+Navigate to your
+aks
+directory.
+$
+cd ../aks
+Run
+terraform destroy
+to deprovision the AKS cluster. Respond
+yes
+to the prompt to confirm the operation.
+$
+terraform destroy
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+- destroy
+Terraform will perform the following actions:
+##...
+Plan: 0 to add, 0 to change, 3 to destroy.
+Changes to Outputs:
+- kubernetes_cluster_name = "rapid-ewe-aks" -> null
+- resource_group_name = "rapid-ewe-aks" -> null
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+##...
+Leave this terminal window open while Terraform completes the destroy step.
+Open another terminal window. Navigate to your
+eks
+directory.
+$
+cd ../eks
+Run
+terraform destroy
+to deprovision the EKS cluster. Respond
+yes
+to the prompt to confirm the operation.
+$
+terraform destroy
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+- destroy
+Terraform will perform the following actions:
+##...
+Plan: 0 to add, 0 to change, 59 to destroy.
+Changes to Outputs:
+- cluster_name = "education-eks-XOiouzBN" -> null
+- region = "us-east-2" -> null
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+Next steps
+You have used Terraform to create a multi-cloud, multi-cluster Kubernetes
+configuration that uses Consul federation to enable communication across the
+clusters. You used a consistent workflow to provision resources across
+different cloud providers and to deploy application configuration and services.
+For more information about how you can use Terraform and Consul to configure multi-cloud environments, visit the following resources:
+Learn more about
+managing Custom Resource Definitions with the Kubernetes provider
+.
+Learn how to share data about resources across your configuration with
+data sources
+.
+Learn how to
+deploy Consul and Vault to Kubernetes using HCP Terraform Run Triggers
+.
+Follow the
+tutorial on best practices for running Consul with Kubernetes
+.
+Learn more about managing multiple provider configurations for different environments and clouds using
+provider aliasing
+.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Heroku applications
+Next
+Deploy applications
+This tutorial also appears in:
+5 tutorials
+Manage Azure Services
+Use the Azure provider to manage Azure services with Terraform.
+Terraform
+12 tutorials
+Use Cases for Terraform
+Use Terraform to perform common operations with other technologies, including Consul, Vault, Packer, and Kubernetes.
+Terraform
+3 tutorials
+Network Applications with Terraform
+Use Terraform to control your Networking infrastructure, or interact with Networking tools like HashiCorp Consul. Update firewall rules based on Consul service registration. Use Terraform to register services.
+Terraform
+12 tutorials
+Manage Kubernetes with Terraform
+Provision and manage Kubernetes clusters with Terraform. Follow these guides to provision managed Kubernetes on AWS, Azure, or GCP, and interact with your cluster using the Kubernetes Terraform provider.
+Terraform

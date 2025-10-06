@@ -1,0 +1,622 @@
+The Terraform migrate CLI lets you migrate Terraform state to HCP Terraform or Terraform Enterprise. The CLI allows you to migrate multiple files in a single operation.
+In this tutorial, you will provision resources using multiple Terraform CLI workspaces, with state stored in AWS S3. You will then use the
+tf-migrate
+CLI tool to migrate those state files to HCP Terraform.
+Prerequisites
+This tutorial assumes that you are familiar with the Terraform and HCP Terraform workflows. If you are new to Terraform, complete the
+Get Started collection
+first. If you are new to HCP Terraform, complete the
+HCP Terraform Get Started collection
+first.
+For this tutorial, you will need:
+Terraform migrate
+installed locally.
+An
+HCP Terraform account
+.
+Terraform v1.2+
+installed locally and logged in to HCP Terraform.
+A
+GitHub account
+.
+The
+git CLI
+installed locally.
+An
+AWS account
+with
+credentials configured for Terraform
+.
+The
+AWS CLI
+installed locally.
+Create example repository
+Navigate to the
+template repository
+for this tutorial. Click the
+Use this template
+button and select
+Create a new repository
+. Choose a GitHub account to create the repository in and name the new repository
+learn-terraform-migrate
+. Leave the rest of the settings at their default values.
+Clone your example repository, replacing
+USER
+with your own GitHub username.
+$
+git clone https://github.com/USER/learn-terraform-migrate
+Change to the repository directory.
+$
+cd learn-terraform-migrate
+Review the example configuration
+The example configuration in this repository creates state files for you to use to test
+tf-migrate
+. Explore the example configuration.
+.
+├── example
+│ ├── backend.config
+│ ├── compute
+│ │ ├── main.tf
+│ │ ├── outputs.tf
+│ │ └── variables.tf
+│ └── storage
+│ ├── main.tf
+│ ├── outputs.tf
+│ └── variables.tf
+└── s3
+├── main.tf
+├── outputs.tf
+└── terraform.tf
+The configuration in each of the
+compute
+and
+storage
+directories generates random strings. Both of these root modules use the shared
+backend.config
+file to configure the S3 backend.
+The
+s3
+directory contains Terraform configuration to create an AWS S3 bucket. You will use this S3 bucket to store the state that you create.
+Create the S3 backend
+Navigate to the
+s3
+directory.
+$
+cd s3
+The configuration in this directory creates an AWS S3 bucket, enables versioning on the bucket, and creates the DynamoDB table. You will use this bucket to store your configuration's state.
+Initialize the configuration.
+$
+terraform init
+Next, apply the configuration. Respond with
+yes
+when Terraform prompts you to confirm your changes.
+$
+terraform apply
+## …
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+Outputs:
+backend_name = "learn-terraform-migrate-ee83uysoydtyn0io"
+You will reference the
+backend_name
+output value later in this tutorial.
+Create example state
+Next, navigate to the
+example
+directory to create the example state.
+$
+cd ../example
+The configuration in this tutorial uses a shared configuration file to configure the S3 state backend. Refer to the
+partial configuration documentation
+to review how Terraform overlays backend configuration.
+Open the
+backend.config
+file and set both the
+bucket
+and
+dynamodb_table
+values to the
+backend_name
+output from the previous step.
+example/backend.config
+bucket
+=
+"REPLACE_ME"
+dynamodb_table
+=
+"REPLACE_ME"
+region
+=
+"us-east-2"
+Next, navigate to the
+storage
+directory.
+$
+cd storage
+Review the
+main.tf
+file.
+example/storage/main.tf
+terraform
+{
+required_providers
+{
+random
+=
+{
+source
+=
+"hashicorp/random"
+version
+=
+"3.6.3"
+}
+}
+backend
+"s3"
+{
+key
+=
+"learn-terraform-migrate/example/storage/terraform.tfstate"
+}
+}
+resource
+"random_string"
+"this"
+{
+count
+=
+var.string_count
+length
+=
+var.string_length
+}
+This configuration uses the
+random
+provider to create multiple
+random_string
+resources. Next, review the
+variables.tf
+file.
+example/storage/variables.tf
+variable
+"string_count"
+{
+type
+=
+number
+description
+=
+"Number of strings to create"
+default
+=
+3
+}
+variable
+"string_length"
+{
+type
+=
+number
+description
+=
+"Length of each string"
+default
+=
+32
+}
+This configuration defines two variables, one named
+string_count
+and one named
+string_length
+.
+Next, initialize your configuration and provide the path to your
+backend.config
+file.
+$
+terraform init --backend-config ../backend.config
+Then apply your configuration. Respond with
+yes
+when Terraform asks you to confirm your changes.
+$
+terraform apply
+##...
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+Outputs:
+strings = [
+"m:xpV{*zb@?d<!O!RXJ<(@vv%p8iaj$t",
+"JTW{GBf0425nOB2U+@TFu0p3_d{ZsmSy",
+"xmr+:}S(kwJp$$yMtWj{TSu:1oQ0!h_O",
+]
+Next, navigate to the
+compute
+directory.
+$
+cd ../compute
+The configuration in this directory matches the configuration in the
+storage
+directory. It creates multiple
+random_string
+resources and defines the same two variables.
+Initialize the configuration, passing the path to the
+backend.config
+file.
+$
+terraform init --backend-config ../backend.config
+Next, apply the configuration. Respond with
+yes
+when Terraform asks you to confirm your changes.
+$
+terraform apply
+##...
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+Outputs:
+strings = [
+"]6+-EMu&q<nqxbDo&Y54u$:5Q4uG>Z]j",
+"HH}a{]i=7yQ2jLMHe{hF:?uZu6s*?Btl",
+"bf70A]szQx(PG<yAJ7(D#cW1FJ]yoyZm",
+]
+Next, create a new local workspace for the compute configuration to isolate the state data.
+$
+terraform workspace new testing
+Created and switched to workspace "testing"!
+You're now on a new, empty workspace. Workspaces isolate their state,
+so if you run "terraform plan" Terraform will not see any existing state
+for this configuration.
+Run
+terraform apply
+again to create state in your new local workspace. Respond with
+yes
+when Terraform asks you to confirm your changes.
+$
+terraform apply
+##...
+Do you want to perform these actions in workspace "testing"?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+##...
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+Outputs:
+strings = [
+":fI[%NL>Jrr>Y$kXOkvYXt6G-C1c)>rX",
+"LH[jN<S49!@@y1qN#H&2vY1{urf&K%H:",
+"Ck#UP1HkjlrR?VUwK#Cw]c)UJe[D9Bng",
+]
+Navigate back to the top-level directory of your repository.
+$
+cd ../..
+You can use the
+aws
+CLI to see the three state files that you created in your S3 bucket.
+$
+aws s3 ls s3://
+$(
+terraform
+output -state s3/terraform.tfstate -raw backend_name)
+--recursive
+2025-02-27 15:27:32 2566 env:/testing/learn-terraform-migrate/compute/frontend/terraform.tfstate
+2025-02-27 15:27:26 2536 learn-terraform-migrate/compute/frontend/terraform.tfstate
+2025-02-27 15:27:12 2536 learn-terraform-migrate/example/storage/terraform.tfstate
+Configure Terraform migrate
+The
+tf-migrate
+CLI updates your state storage configuration and automatically opens a pull request to push the changes to version control. Migrating state to HCP Terraform using the
+tf-migrate
+CLI requires an HCP Terraform API token and a GitHub personal access token to create a pull request with the configuration changes.
+Log in to HCP Terraform
+By default,
+tf-migrate
+uses the same HCP Terraform API token that the Terraform CLI uses. If you have not previously logged in to HCP Terraform from the Terraform CLI, run the
+terraform login
+command. Respond
+yes
+to the prompt to confirm that you want to authenticate.
+$
+terraform login
+Terraform will request an API token for app.terraform.io using your browser.
+If login is successful, Terraform will store the token in plain text in
+the following file for use by subsequent commands:
+/Users/user/.terraform.d/credentials.tfrc.json
+Do you want to proceed?
+Only 'yes' will be accepted to confirm.
+Enter a value: yes
+Terraform automatically opens a browser window to the HCP Terraform login screen. Enter a token name in the web UI, or leave the default name,
+terraform login
+. Leave the default
+Expiration
+as "30 days".
+Tip
+If your browser does not open automatically, navigate to the URL output in your terminal or
+click here
+to go to the token creation UI.
+Click
+Generate Token
+to generate the authentication token, then copy it to your clipboard.
+In your terminal, paste the user token exactly once. Terraform will hide the token for security when you paste it into your terminal. Press
+Enter
+to complete the authentication process.
+Create a GitHub personal access token
+Follow the instructions in
+GitHub's documentation
+to create a classic personal access token. To complete this tutorial, your personal access token must have the
+repo
+OAuth scope.
+After you generate your personal access token, copy it to your clipboard. In your terminal, set the
+TF_GIT_PAT_TOKEN
+environment variable to the token.
+$
+export
+TF_GIT_PAT_TOKEN
+=
+Prepare the migration
+Using the
+tf-migrate
+CLI to migrate state requires two steps. The
+prepare
+step scans your current directory for Terraform configuration and state, generates Terraform configuration to perform the migration, and prompts to open a pull request against the code to capture the changes in version control. The
+execute
+step implements the changes.
+Terraform migrate requires that you first commit all local changes to source control before you run the
+tf-migrate prepare
+command. Use the
+git commit
+command to commit your backend changes to source control.
+$
+git commit example/backend.config -m
+"Update S3 backend configuration"
+Push your changes to your GitHub repository.
+$
+git push origin main
+Next, run the
+tf-migrate prepare
+command with the
+skip-dir
+flag to skip the
+s3
+configuration that contains your state bucket. Enter the name of the HCP Terraform organization that you would like to migrate your state to when prompted.
+$
+tf-migrate prepare -skip-dir=
+"s3"
+✓ Current working directory: /tmp/learn-terraform-migrate
+✓ Environment readiness checks completed
+✓ Found 1 HCP Terraform organization
+┌────────────────────────────┐
+│ Available Orgs │
+├────────────────────────────┤
+│ hashicorp-education │
+└────────────────────────────┘
+Enter the name of the HCP Terraform organization to migrate to: hashicorp-education
+The
+tf-migrate prepare
+command generates Terraform configuration to migrate your state, including resource definitions for new HCP Terraform workspaces and projects, and updates your configuration to replace the
+backend
+block with the
+cloud
+block. When prompted to create a new local branch for this configuration, respond with
+yes
+.
+✓ You have selected organization hashicorp-education for migration
+✓ Found 3 directories with Terraform files
+┌────────────────────────────┐
+│ Terraform File Directories │
+├────────────────────────────┤
+│ example/compute │
+│ example/storage │
+│ s3 │
+└────────────────────────────┘
+The following 1 directories were skipped:
+• s3
+as they either have no backend, no supported backend to migrate or were excluded based on user-specified skip-dir arguments.
+Create a local branch named hcp-migrate-main from the current branch main ... ?
+Only 'yes' or 'no' will be accepted as input.
+Type 'yes' to approve the step
+Type 'no' to skip
+Enter a value: yes
+Terraform migrate then asks if you want to create a pull request in GitHub with your configuration changes. When prompted, respond with
+yes
+.
+✓ Successfully created branch hcp-migrate-main
+Do you want to open a pull request from hcp-migrate-main ... ?
+Only 'yes' or 'no' will be accepted as input.
+Type 'yes' to approve the step
+Type 'no' to skip
+Enter a value: yes
+✓ Migration config generation completed
+✓ Successfully updated .gitignore
+Terraform migrate finishes the
+prepare
+step by generating the configuration to migrate your state and store it in the
+_hcp-migrate-configs
+directory. At this point, Terraform migrate only generates the configuration to perform the migration, it has not moved your state or modified your code.
+Review the generated configuration
+Navigate to the
+_hcp-migrate-configs
+directory.
+$
+cd _hcp-migrate-configs
+Review the configuration that
+tf-migrate
+generated.
+.
+├── main.tf
+├── output.tf
+├── variables.tf
+└── workspace_variables_module
+├── main.tf
+├── output.tf
+└── variable.tf
+This configuration creates the HCP Terraform projects, workspaces, and workspace variables for your configuration. It also commits the changes
+tf-migrate
+made to your configuration, and opens the pull request in GitHub.
+Open the
+variables.tf
+file. This file contains all of the information specific to your migration, including the workspaces and variables to migrate. If you need to customize your migration, you can modify this file as needed. For this tutorial, leave the values that Terraform migrate generated.
+Execute the migration
+The
+tf-migrate execute
+command runs the Terraform configuration that the
+tf-migrate prepare
+command generated. This configuration changes updates the state storage location for your configuration, creates the pull request with those changes, migrates your state, and creates the workspace variables in HCP Terraform.
+Navigate back to the top-level directory.
+$
+cd ..
+Next, run the
+tf-migrate execute
+command to run the migration.
+$
+tf-migrate execute
+✓ Init command ran successfully
+✓ Plan command ran successfully and changes are detected
+✓ Apply command ran successfully
+Apply complete! Resources: 20 added, 0 changed, 0 destroyed.
+Migration Summary
+┌───────────────────────────────┬───────┐
+│ Metric │ Count │
+├───────────────────────────────┼───────┤
+│ Number of Projects Migrated │ 2 │
+│ Number of Directories Skipped │ 1 │
+│ Number of New Workspaces │ 3 │
+│ Number of Variables Migrated │ 6 │
+└───────────────────────────────┴───────┘
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│ Workspace URLs │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│ https://app.terraform.io/app/hashicorp-education/workspaces/example_compute_default │
+│ https://app.terraform.io/app/hashicorp-education/workspaces/example_compute_testing │
+│ https://app.terraform.io/app/hashicorp-education/workspaces/example_storage_default │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│ Pull Request Link │
+├───────────────────────────────────────────────────────────────────────┤
+│ https://github.com/hashicorp-education/learn-terraform-migrate/pull/1 │
+└───────────────────────────────────────────────────────────────────────┘
+The
+tf-migrate
+command output displays a summary of its operation. In this example,
+tf-migrate
+created two projects, three workspaces, and migrated six variables. The summary also contains a link to all three workspaces and the GitHub pull request.
+Review the migrated state
+Navigate to your HCP Terraform organization. Terraform migrate created two projects, one named
+example_compute
+and
+example_storage
+. Notice that the
+Description
+field of each project records the repository that
+tf-migrate
+created it from.
+Open the
+example_compute
+project and note that
+tf-migrate
+created two workspaces in this project, one named
+example_compute_default
+and the other named
+example_compute_testing
+. These match the two local CLI workspaces you created earlier.
+Navigate to the
+example_compute_default
+workspace, then scroll down to the
+Resources
+table. This table contains a list of the three
+random_string
+resources that were in your local state. Next, click
+Variables
+in the left navigation menu. Notice that
+tf-migrate
+created the two workspace variables from your configuration.
+Finally, navigate to the
+example_storage
+project and notice that
+tf-migrate
+only created one workspace in this project. Click the
+example_storage_default
+workspace. This workspace also contains three
+random_string
+resources from your local state, as well as the two variables that your configuration defined.
+Open the repository you created earlier in GitHub and notice that you have one new pull request named "HCP Migration of Workspaces in USER/learn-terraform-migrate repository". You can merge this pull request to bring your repository's main branch up to date with the changes Terraform migrate made to your configuration.
+Now that Terraform migrate has complete the migration, all future Terraform commands that you run against your configuration will run in HCP Terraform.
+Clean up resources
+Delete the workspaces you created in this tutorial.
+In HCP Terraform, navigate to the "example_storage" project and open the
+example_storage_default
+workspace. Navigate to
+Settings > Destruction and Deletion
+, then click the
+Force delete from HCP Terraform
+button. Since the only resources this workspace manages are random strings, you can safely delete the state without first running a destroy plan. Follow the prompts to delete the workspace.
+Follow the same steps to delete the
+example_compute_default
+and
+example_compute_testing
+workspaces.
+Next, delete the two projects that Terraform migrate created. Navigate to the
+example_storage
+project, click
+Settings
+, then click the
+Delete
+button. Follow the prompts to delete the project.
+Follow the same steps to delete the
+example_compute
+project.
+Finally, delete the AWS S3 bucket. In your terminal, navigate to the
+s3
+directory.
+$
+cd s3
+Run
+terraform destroy
+to delete your resources. Respond with
+yes
+when Terraform prompts you to confirm.
+$
+terraform destroy
+##...
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+##...
+Destroy complete! Resources: 4 destroyed.
+Next Steps
+In this tutorial, you used
+tf-migrate
+to automate migrating multiple state files to HCP Terraform, and reviewed how the CLI updates your configuration. You created three example state files using multiple directories and local workspaces. Then, you used Terraform migrate to migrate all of your state files to HCP Terraform automatically.
+With your state in migrate, you can start using the feature that HCP Terraform provides to improve your infrastructure management lifecycle such as policy checks, drift detection, dynamic credentials, permission controls, and more.
+To learn more about managing and migrating Terraform state, refer to the following resources:
+Read the
+Migrate Terraform state to HCP Terraform or Terraform Enterprise documentation
+.
+Read the
+Terraform migrate documentation
+.
+Learn how to
+manually migrate Terraform state
+.
+Detect infrastructure drift and enforce policies
+in HCP Terraform.
+Enable self-service workflows with Vault-backed dynamic credentials
+with HCP Terraform.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Drift and policies
+Next Collection
+Modules

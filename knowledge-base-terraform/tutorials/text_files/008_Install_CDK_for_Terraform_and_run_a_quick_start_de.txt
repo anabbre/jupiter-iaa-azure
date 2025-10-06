@@ -1,0 +1,523 @@
+The Cloud Development Kit for Terraform (CDKTF) generates JSON Terraform configuration from code in C#, Python, TypeScript, Java,
+or Go, and creates infrastructure using Terraform. With CDKTF, you can use hundreds of
+providers and thousands of module definitions provided by HashiCorp and the
+Terraform community. By using your programming language of choice, you can take
+advantage of the features and development workflows you are familiar with.
+CDKTF uses the Cloud Development Kit from AWS, which provides a set of language-native frameworks for defining infrastructure, and adapters that let underlying provisioning tools use those definitions.
+CDK for
+Terraform
+generates Terraform
+configuration to provision infrastructure with Terraform. The adapter works with
+existing Terraform providers and modules, and integrates with HCP
+Terraform and Terraform Enterprise. CDKTF uses the core Terraform workflow,
+including planning and applying your infrastructure changes.
+Follow this tutorial to install CDKTF and try a quick start example that provisions a Docker container.
+Prerequisites
+In order to use CDKTF, you need:
+The
+Terraform
+CLI
+(1.2+).
+Node.js
+and npm v16+.
+To follow the quickstart, you also need:
+Docker
+.
+a recent version of the programming language prefer. Select a tab below to follow this tutorial with the version of your preferred language that we have tested.
+TypeScript
+v4.4 and
+Node.js
+v16.13
+Install CDKTF
+You can install CDKTF with
+npm
+on most operating systems. You can also install
+CDKTF with Homebrew on MacOS.
+npm - Stable Release
+npm - Development Release
+Homebrew - Stable release
+To install the most recent stable release of CDKTF, use
+npm install
+with the
+@latest
+tag.
+$
+npm install --global cdktf-cli@latest
+To install the development release of CDKTF, use
+npm install
+with the
+@next
+tag.
+$
+npm install --global cdktf-cli@next
+You can also use the
+Homebrew package manager
+to install
+CDKTF on MacOS systems.
+$
+brew install cdktf
+Verify the installation
+Verify that you have CDKTF installed by running the
+cdktf help
+command to show
+the available subcommands.
+$
+cdktf help
+cdktf
+Commands:
+cdktf init Create a new cdktf project from a template.
+cdktf get Generate CDK Constructs for Terraform providers and
+modules.
+cdktf convert Converts a single file of HCL configuration to CDK
+for Terraform. Takes the file to be converted on
+stdin.
+cdktf deploy [stacks...] Deploy the given stacks [aliases: apply]
+cdktf destroy [stacks..] Destroy the given stacks
+cdktf diff [stack] Perform a diff (terraform plan) for the given stack
+[aliases: plan]
+cdktf list List stacks in app.
+cdktf login Retrieves an API token to connect to Terraform Cloud
+or Terraform Enterprise.
+cdktf synth Synthesizes Terraform code for the given app in a
+directory. [aliases: synthesize]
+cdktf watch [stacks..] [experimental] Watch for file changes and
+automatically trigger a deploy
+cdktf output [stacks..] Prints the output of stacks [aliases: outputs]
+cdktf debug Get debug information about the current project and
+environment
+cdktf provider A set of subcommands that facilitates provider
+management
+cdktf completion generate completion script
+Options:
+--version Show version number [boolean]
+--disable-plugin-cache-env Dont set TF_PLUGIN_CACHE_DIR automatically.
+This is useful when the plugin cache is
+configured differently. Supported using the
+env CDKTF_DISABLE_PLUGIN_CACHE_ENV.
+[boolean] [default: false]
+--log-level Which log level should be written. Only
+supported via setting the env CDKTF_LOG_LEVEL
+[string]
+-h, --help Show help [boolean]
+Options can be specified via environment variables with the "CDKTF_" prefix
+(e.g. "CDKTF_OUTPUT")
+Add
+--help
+to any subcommand to learn more about what it does and available options.
+$
+cdktf init --help
+cdktf init
+Create a new cdktf project from a template.
+Options:
+--version Show version number [boolean]
+--disable-plugin-cache-env Dont set TF_PLUGIN_CACHE_DIR automatically.
+This is useful when the plugin cache is
+configured differently. Supported using the
+env CDKTF_DISABLE_PLUGIN_CACHE_ENV.
+[boolean] [default: false]
+--log-level Which log level should be written. Only
+supported via setting the env CDKTF_LOG_LEVEL
+[string]
+--template The template to be used to create a new
+project. Either URL to zip file or one of the
+built-in templates: ["csharp", "go", "java",
+"python", "python-pip", "typescript"] [string]
+--project-name The name of the project. [string]
+--project-description The description of the project. [string]
+--dist Install dependencies from a "dist" directory
+(for development) [string]
+--local Use local state storage for generated
+Terraform. [boolean] [default: false]
+--cdktf-version The cdktf version to use while creating a new
+project. [string] [default: "0.13.0"]
+--from-terraform-project Use a terraform project as the basis, CDK
+constructs will be generated based on the .tf
+files in the path [string]
+--enable-crash-reporting Enable crash reporting for the CLI, refer to
+https://cdk.tf/crash-reporting for more
+details [boolean]
+-h, --help Show help [boolean]
+Quick start tutorial
+Now that you've installed
+cdktf
+, write code that will provision an
+NGINX server using
+Docker
+Desktop
+on Mac, Windows, or
+Linux.
+Start Docker Desktop if it is not already running.
+Create and initialize the project
+Start by creating a directory named
+learn-cdktf-docker
+for the project.
+$
+mkdir learn-cdktf-docker
+Then, navigate into it.
+$
+cd learn-cdktf-docker
+Inside the directory, initialize CDKTF with the appropriate template for your
+chosen language. Also specify that your project will use the Docker provider,
+and include the
+--local
+flag to prevent CDKTF from using
+HCP
+Terraform
+.
+CDKTF will prompt you for information about your project, such as the name and
+description. Accept the defaults for these options.
+$
+cdktf init --template=typescript --providers=kreuzwerker/docker --local
+Note: By supplying '--local' option you have chosen local storage mode for storing the state of your stack.
+This means that your Terraform state file will be stored locally on disk in a file 'terraform.<STACK NAME>.tfstate' in the root of your project.
+? Project Name learn-cdktf-docker
+? Project Description A simple getting started project for cdktf.
+? Do you want to start from an existing Terraform project? No
+? Do you want to send crash reports to the CDKTF team? See
+https://www.terraform.io/cdktf/create-and-deploy/configuration-file#enable-crash-reporting-for-the-cli for more
+information Yes
+added 2 packages, and audited 57 packages in 5s
+7 packages are looking for funding
+run `npm fund` for details
+found 0 vulnerabilities
+added 301 packages, and audited 358 packages in 6s
+36 packages are looking for funding
+run `npm fund` for details
+found 0 vulnerabilities
+========================================================================================================
+Your cdktf typescript project is ready!
+cat help Print this message
+Compile:
+npm run get Import/update Terraform providers and modules (you should check-in this directory)
+npm run compile Compile typescript code to javascript (or "npm run watch")
+npm run watch Watch for changes and compile typescript in the background
+npm run build Compile typescript
+Synthesize:
+cdktf synth [stack] Synthesize Terraform resources from stacks to cdktf.out/ (ready for 'terraform apply')
+Diff:
+cdktf diff [stack] Perform a diff (terraform plan) for the given stack
+Deploy:
+cdktf deploy [stack] Deploy the given stack
+Destroy:
+cdktf destroy [stack] Destroy the stack
+Test:
+npm run test Runs unit tests (edit __tests__/main-test.ts to add your own tests)
+npm run test:watch Watches the tests and reruns them on change
+Upgrades:
+npm run upgrade Upgrade cdktf modules to latest version
+npm run upgrade:next Upgrade cdktf modules to latest "@next" version (last commit)
+Use Providers:
+You can add prebuilt providers (if available) or locally generated ones using the add command:
+cdktf provider add "aws@~>3.0" null kreuzwerker/docker
+You can find all prebuilt providers on npm: https://www.npmjs.com/search?q=keywords:cdktf
+You can also install these providers directly through npm:
+npm install @cdktf/provider-aws
+npm install @cdktf/provider-google
+npm install @cdktf/provider-azurerm
+npm install @cdktf/provider-docker
+npm install @cdktf/provider-github
+npm install @cdktf/provider-null
+You can also build any module or provider locally. Learn more https://cdk.tf/modules-and-providers
+========================================================================================================
+Checking whether pre-built provider exists for the following constraints:
+provider: kreuzwerker/docker
+version : latest
+language: typescript
+cdktf : 0.15.0
+Found pre-built provider.
+Package installed.
+Edit the code
+Update your project's code to create a Docker container from the latest NGINX
+image.
+Delete the contents of
+main.ts
+and paste the following TypeScript code into
+it.
+main.ts
+import
+{ Construct }
+from
+"constructs"
+;
+import
+{ App
+,
+TerraformStack }
+from
+"cdktf"
+;
+import
+{ DockerProvider }
+from
+"@cdktf/provider-docker/lib/provider"
+;
+import
+{ Image }
+from
+"@cdktf/provider-docker/lib/image"
+;
+import
+{ Container }
+from
+"@cdktf/provider-docker/lib/container"
+;
+class
+MyStack
+extends
+TerraformStack
+{
+constructor
+(scope
+:
+Construct
+,
+name
+:
+string
+) {
+super
+(scope
+,
+name);
+new
+DockerProvider
+(
+this
+,
+"docker"
+,
+{});
+const
+dockerImage
+=
+new
+Image
+(
+this
+,
+"nginxImage"
+,
+{
+name
+:
+"nginx:latest"
+,
+keepLocally
+:
+false
+,
+});
+new
+Container
+(
+this
+,
+"nginxContainer"
+,
+{
+name
+:
+"tutorial"
+,
+image
+:
+dockerImage
+.name
+,
+ports
+:
+[
+{
+internal
+:
+80
+,
+external
+:
+8000
+,
+}
+,
+]
+,
+});
+}
+}
+const
+app
+=
+new
+App
+();
+new
+MyStack
+(app
+,
+"learn-cdktf-docker"
+);
+app
+.synth
+();
+The CDKTF code above is equivalent to the following HCL configuration.
+resource
+"docker_image"
+"nginx"
+{
+name
+=
+"nginx:latest"
+keep_locally
+=
+false
+}
+resource
+"docker_container"
+"nginx"
+{
+image
+=
+docker_image.nginx.name
+name
+=
+"tutorial"
+ports
+{
+internal
+=
+80
+external
+=
+8000
+}
+}
+Deploy container
+Now run
+cdktf deploy
+to compile the code and provision the NGINX Docker
+container. CDKTF will print out a report of the changes that Terraform will make
+to your infrastructure. Choose
+Approve
+to apply these changes.
+$
+cdktf deploy
+learn-cdktf-docker Initializing the backend...
+learn-cdktf-docker
+Successfully configured the backend "local"! Terraform will automatically
+use this backend unless the backend configuration changes.
+learn-cdktf-docker Initializing provider plugins...
+Terraform has been successfully initialized!
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+typescript-docker Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
++ create
+Terraform will perform the following actions:
+typescript-docker # docker_container.nginxContainer (nginxContainer) will be created
++ resource "docker_container" "nginxContainer" {
++ attach = false
+##...
+}
+# docker_image.nginxImage (nginxImage) will be created
++ resource "docker_image" "nginxImage" {
++ id = (known after apply)
++ keep_locally = false
++ latest = (known after apply)
++ name = "nginx:latest"
++ output = (known after apply)
++ repo_digest = (known after apply)
+}
+Plan: 2 to add, 0 to change, 0 to destroy.
+─────────────────────────────────────────────────────────────────────────────
+Saved the plan to: plan
+To perform exactly these actions, run the following command to apply:
+terraform apply "plan"
+Please review the diff output above for typescript-docker
+❯
+Approve Applies the changes outlined
+in
+the plan.
+Dismiss
+Stop
+Verify the NGINX container exists by visiting
+localhost:8000
+in your web browser or running
+docker
+ps
+to find the container.
+$
+docker ps
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+86ff19f506f4 c316d5a335a5 "/docker-entrypoint.…" 16 seconds ago Up 15 seconds 0.0.0.0:8000->80/tcp tutorial
+Destroy the container
+To remove the container and image, run
+cdktf destroy
+. Select
+Approve
+to
+approve the removal of your container.
+$
+cdktf destroy
+typescript-docker Initializing the backend...
+typescript-docker Initializing provider plugins...
+- Reusing previous version of kreuzwerker/docker from the dependency lock file
+typescript-docker - Using previously-installed kreuzwerker/docker v2.16.0
+typescript-docker Terraform has been successfully initialized!
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+typescript-docker docker_image.nginxImage (nginxImage): Refreshing state... [id=sha256:c316d5a335a5cf324b0dc83b3da82d7608724769f6454f6d9a621f3ec2534a5anginx:latest]
+typescript-docker docker_container.nginxContainer (nginxContainer): Refreshing state... [id=86ff19f506f470a0ddead8d77d2dc8e6cc8eaeca34358cd1a2df7372567caea3]
+typescript-docker Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+- destroy
+Terraform will perform the following actions:
+typescript-docker # docker_container.nginxContainer (nginxContainer) will be destroyed
+- resource "docker_container" "nginxContainer" {
+- attach = false -> null
+- command = [
+##...
+}
+# docker_image.nginxImage (nginxImage) will be destroyed
+- resource "docker_image" "nginxImage" {
+- id = "sha256:c316d5a335a5cf324b0dc83b3da82d7608724769f6454f6d9a621f3ec2534a5anginx:latest" -> null
+- keep_locally = false -> null
+- latest = "sha256:c316d5a335a5cf324b0dc83b3da82d7608724769f6454f6d9a621f3ec2534a5a" -> null
+- name = "nginx:latest" -> null
+- repo_digest = "nginx@sha256:2834dc507516af02784808c5f48b7cbe38b8ed5d0f4837f16e78d00deb7e7767" -> null
+}
+Plan: 0 to add, 0 to change, 2 to destroy.
+─────────────────────────────────────────────────────────────────────────────
+Saved the plan to: plan
+To perform exactly these actions, run the following command to apply:
+terraform apply "plan"
+Please review the diff output above for typescript-docker
+❯
+Approve Applies the changes outlined
+in
+the plan.
+Dismiss
+Stop
+You have now provisioned and destroyed an NGINX webserver with CDKTF.
+Next steps
+Now that you have installed CDKTF, learn how to use it to manage your resources
+in your preferred programming language.
+Follow our
+AWS tutorial
+with TypeScript, Python, Go, C#, and Java.
+Read the
+CDKTF Documentation
+.
+Was this tutorial helpful?
+Yes
+No
+Collection Overview
+CDK for Terraform
+Next
+Build infrastructure

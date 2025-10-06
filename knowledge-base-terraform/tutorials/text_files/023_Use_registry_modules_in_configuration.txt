@@ -1,0 +1,643 @@
+In the previous tutorial, you learned when and why to use Terraform modules. In
+this tutorial, you will use modules from the public
+Terraform
+Registry
+to provision an example environment on
+AWS by referencing the modules in Terraform configuration. The concepts you use
+in this tutorial will apply to any modules from any source.
+Prerequisites
+You can complete this tutorial using the same workflow with either Terraform
+Community Edition or HCP Terraform. HCP Terraform is a platform that you can use to
+manage and execute your Terraform projects. It includes features like remote
+state and execution, structured plan output, workspace resource summaries, and
+more.
+Launch Terminal
+This tutorial includes a free interactive command-line lab that lets you follow along on actual cloud infrastructure.
+Start interactive lab
+Use the Terraform Registry
+Open the
+Terraform Registry page for the VPC
+module
+.
+This page displays information about the module and a link to the source repository.
+The page also has a dropdown interface to select the
+module version, module usage metrics, and example configuration.
+The example configuration sets two arguments:
+source
+and
+version
+.
+The
+source
+argument is required when you use a Terraform module. In the
+example configuration, Terraform will search for a module in the Terraform
+Registry that matches the given string. You could also use a URL or local
+module. Refer to the
+Terraform
+documentation
+for
+a full list of possible module sources.
+The
+version
+argument is not required, but we highly recommend you include it
+when using a Terraform module. For supported sources, this argument specifies
+the module version Terraform will load. Without the version argument, Terraform will load the latest version of the module. In this tutorial, you will specify an
+exact version number for the modules you use. Refer to the
+module
+documentation
+for more methods to specify module versions.
+Terraform treats other arguments in the module blocks as input variables for the
+module.
+Clone the example configuration
+Clone the
+example
+repository
+. The
+configuration in this repository uses modules to create an example AWS
+environment using a Virtual Private Cloud (VPC) and two EC2 instances.
+$
+git clone https://github.com/hashicorp-education/learn-terraform-modules-use
+Change to the repository directory.
+$
+cd learn-terraform-modules-use
+Review configuration
+Open
+terraform.tf
+. This file defines the
+terraform
+block, which Terraform
+uses to configures itself. This block specifies this Terraform configuration
+must use the
+aws
+provider that is within the v4.49.0 minor release. It also requires that you use
+a Terraform version greater than v1.1.0.
+terraform.tf
+terraform
+{
+/* Uncomment this block to use HCP Terraform for this tutorial
+cloud {
+organization = "organization-name"
+workspaces {
+name = "learn-terraform-module-use"
+}
+}
+*/
+required_providers
+{
+aws
+=
+{
+source
+=
+"hashicorp/aws"
+version
+=
+"~> 4.49.0"
+}
+}
+required_version
+=
+">= 1.1.0"
+}
+Open
+main.tf
+. This file contains the resource configuration.
+main.tf
+provider
+"aws"
+{
+region
+=
+"us-west-2"
+default_tags
+{
+tags
+=
+{
+hashicorp-learn
+=
+"module-use"
+}
+}
+}
+module
+"vpc"
+{
+source
+=
+"terraform-aws-modules/vpc/aws"
+version
+=
+"3.18.1"
+name
+=
+var.vpc_name
+cidr
+=
+var.vpc_cidr
+azs
+=
+var.vpc_azs
+private_subnets
+=
+var.vpc_private_subnets
+public_subnets
+=
+var.vpc_public_subnets
+enable_nat_gateway
+=
+var.vpc_enable_nat_gateway
+tags
+=
+var.vpc_tags
+}
+module
+"ec2_instances"
+{
+source
+=
+"terraform-aws-modules/ec2-instance/aws"
+version
+=
+"4.3.0"
+count
+=
+2
+name
+=
+"my-ec2-cluster-
+${
+count
+.
+index
+}
+"
+ami
+=
+"ami-0c5204531f799e0c6"
+instance_type
+=
+"t2.micro"
+vpc_security_group_ids
+=
+[module.vpc.default_security_group_id]
+subnet_id
+=
+module.vpc.public_subnets[
+0
+]
+tags
+=
+{
+Terraform
+=
+"true"
+Environment
+=
+"dev"
+}
+}
+This configuration includes three blocks:
+The
+provider "aws"
+block configures the AWS provider. Depending on the
+authentication
+method
+you use, you may need to include additional arguments in the provider block.
+The
+module "vpc"
+block configures a Virtual Private Cloud (VPC) module, which provisions
+networking resources such as a VPC, subnets, and internet and NAT gateways based on the arguments provided.
+The
+module "ec2_instances"
+block defines two EC2 instances provisioned within the VPC created by the module.
+Set values for module input variables
+Modules can contain both required and optional arguments. You must specify all
+required arguments to use the module. Most module arguments correspond to the
+module's input variables. Optional inputs will use the module's default values if
+not explicitly defined.
+On the Terraform Registry page for the AWS VPC module, click on the
+Inputs
+tab to find the
+input
+arguments
+that the module supports.
+Review each argument defined in the
+module "vpc"
+block.
+main.tf
+module
+"vpc"
+{
+source
+=
+"terraform-aws-modules/vpc/aws"
+version
+=
+"3.18.1"
+name
+=
+var.vpc_name
+cidr
+=
+var.vpc_cidr
+azs
+=
+var.vpc_azs
+private_subnets
+=
+var.vpc_private_subnets
+public_subnets
+=
+var.vpc_public_subnets
+enable_nat_gateway
+=
+var.vpc_enable_nat_gateway
+tags
+=
+var.vpc_tags
+}
+Next, review the
+module "ec2_instances"
+block.
+main.tf
+module
+"ec2_instances"
+{
+source
+=
+"terraform-aws-modules/ec2-instance/aws"
+version
+=
+"4.3.0"
+count
+=
+2
+name
+=
+"my-ec2-cluster-
+${
+count
+.
+index
+}
+"
+ami
+=
+"ami-0c5204531f799e0c6"
+instance_type
+=
+"t2.micro"
+vpc_security_group_ids
+=
+[module.vpc.default_security_group_id]
+subnet_id
+=
+module.vpc.public_subnets[
+0
+]
+tags
+=
+{
+Terraform
+=
+"true"
+Environment
+=
+"dev"
+}
+}
+The
+count
+meta-argument defines two EC2 instances. For a full list of module
+meta-arguments, refer to the
+module
+documentation
+.
+The required
+vpc_security_group_ids
+and
+subnet_id
+arguments reference resources created by the
+vpc
+module. The
+Terraform Registry module
+page
+contains the full list of arguments for the
+ec2-instance
+module.
+Review root input variables
+Using input variables with modules is similar to using variables in any
+Terraform configuration. A common pattern is to identify which module arguments
+you may want to change in the future, and create matching variables in your
+configuration's
+variables.tf
+file with sensible default values. You can pass
+the variables to the module block as arguments.
+You do not need to set all module input variables with variables. For example,
+if your organization requires NAT gateway enabled for all VPCs, you should not
+use a variable to set the
+enable_nat_gateway
+argument.
+Open
+variables.tf
+to review the input variable declarations and definitions.
+variables.tf
+variable
+"vpc_name"
+{
+description
+=
+"Name of VPC"
+type
+=
+string
+default
+=
+"example-vpc"
+}
+variable
+"vpc_cidr"
+{
+description
+=
+"CIDR block for VPC"
+type
+=
+string
+default
+=
+"10.0.0.0/16"
+}
+variable
+"vpc_azs"
+{
+description
+=
+"Availability zones for VPC"
+type
+=
+list
+(
+string
+)
+default
+=
+[
+"us-west-2a"
+,
+"us-west-2b"
+,
+"us-west-2c"
+]
+}
+variable
+"vpc_private_subnets"
+{
+description
+=
+"Private subnets for VPC"
+type
+=
+list
+(
+string
+)
+default
+=
+[
+"10.0.1.0/24"
+,
+"10.0.2.0/24"
+]
+}
+variable
+"vpc_public_subnets"
+{
+description
+=
+"Public subnets for VPC"
+type
+=
+list
+(
+string
+)
+default
+=
+[
+"10.0.101.0/24"
+,
+"10.0.102.0/24"
+]
+}
+variable
+"vpc_enable_nat_gateway"
+{
+description
+=
+"Enable NAT gateway for VPC"
+type
+=
+bool
+default
+=
+true
+}
+variable
+"vpc_tags"
+{
+description
+=
+"Tags to apply to resources created by VPC module"
+type
+=
+map
+(
+string
+)
+default
+=
+{
+Terraform
+=
+"true"
+Environment
+=
+"dev"
+}
+}
+Review root output values
+Modules also have output values. You can reference them with the
+module.MODULE_NAME.OUTPUT_NAME
+naming convention. In the Terraform Registry
+for the module, click on the
+Outputs
+tab to find
+all
+outputs
+for the module.
+You can reference module outputs in other parts of your configuration. Terraform
+will not display module outputs by default. You must create a corresponding
+output in your root module and set it to the module's output. This tutorial
+shows both cases.
+Open
+outputs.tf
+to find the module outputs.
+outputs.tf
+output
+"vpc_public_subnets"
+{
+description
+=
+"IDs of the VPC's public subnets"
+value
+=
+module.vpc.public_subnets
+}
+output
+"ec2_instance_public_ips"
+{
+description
+=
+"Public IP addresses of EC2 instances"
+value
+=
+module.ec2_instances[
+*
+].public_ip
+}
+In this example, the
+vpc_public_subnets
+output references the
+vpc
+module's
+public_subnets
+output, and
+ec2_instance_public_ips
+references the public IP addresses for both EC2 instances created by the module.
+Provision infrastructure
+Now, apply your configuration to create your VPC and EC2 instances. Respond to
+the prompt with
+yes
+to apply the changes. The
+vpc
+and
+ec2
+modules define
+more resources than just the VPC and EC2 instances.
+$
+terraform apply
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
++ create
+## ...
+Plan: 22 to add, 0 to change, 0 to destroy.
+## ...
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+## ...
+Apply complete! Resources: 22 added, 0 changed, 0 destroyed.
+Outputs:
+ec2_instance_public_ips = [
+"54.245.140.252",
+"34.219.48.47",
+]
+vpc_public_subnets = [
+"subnet-0cb9ff659ba66a7dd",
+"subnet-0c2788b6ffb0611c0",
+]
+Once Terraform completes, it will display the configuration outputs.
+Tip
+This tutorial shows the output for Terraform commands run with Terraform Community Edition. If you are following the HCP Terraform workflow, the output may differ slightly but the results will be the same.
+If you use HCP Terraform to provision your resources, your workspace now displays the list of all of the resources it manages.
+Understand how modules work
+When using a new module for the first time, you must run either
+terraform init
+or
+terraform get
+to install the module. When you run these commands, Terraform
+will install any new modules in the
+.terraform/modules
+directory within your
+configuration's working directory. For local modules, Terraform will create a
+symlink to the module's directory. Because of this, any changes to local modules
+will be effective immediately, without having to reinitialize or re-run
+terraform get
+.
+After following this tutorial, your
+.terraform/modules
+directory will look
+like the following.
+.terraform/modules/
+├── ec2_instances
+├── modules.json
+└── vpc
+Clean up your infrastructure
+Before moving on to the next tutorial, destroy the infrastructure you created.
+Respond to the confirmation prompt with a
+yes
+.
+$
+terraform destroy
+## ...
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+- destroy
+## ...
+Plan: 0 to add, 0 to change, 22 to destroy.
+Changes to Outputs:
+- ec2_instance_public_ips = [
+- "54.245.140.252",
+- "34.219.48.47",
+] -> null
+- vpc_public_subnets = [
+- "subnet-0cb9ff659ba66a7dd",
+- "subnet-0c2788b6ffb0611c0",
+] -> null
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+## ...
+Destroy complete! Resources: 22 destroyed.
+If you used HCP Terraform for this tutorial, after destroying your resources,
+delete the
+learn-terraform-module-use
+workspace from your HCP Terraform
+organization.
+Next steps
+In this tutorial, you learned how to use modules in your Terraform
+configuration, manage module versions, configure module input variables, and use
+module output values.
+HCP Terraform
+Plus
+Edition lets you add modules to the private
+registry that
+users can deploy without writing configuration. Follow the
+Create
+and Use No-Code Modules
+tutorial to
+create a no-code ready module.
+In the next tutorial, you will create a module for configuration that hosts a website in an S3 bucket.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Terraform modules
+Next
+Create a module
+This tutorial also appears in:
+10 tutorials
+Reuse Configuration with Modules
+Create and use Terraform modules to organize your configuration. Host a static website in AWS using two modules: one from the Terraform Registry and one you will build yourself. Organize configuration using directories and workspaces.
+Terraform
+Stay Informed
+Sign up to be notified with updates to the HashiCorp Product Certifications program and to receive news and information about HashiCorp products.
+Email
+*
+Send me news about HashiCorp products, releases and events.
+By submitting this form, you acknowledge and agree that HashiCorp will process your personal information in accordance with the
+Privacy Policy
+.
+Submit

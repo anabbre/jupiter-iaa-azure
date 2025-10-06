@@ -6,7 +6,6 @@ from typing import List
 from dotenv import load_dotenv
 load_dotenv()
 
-
 from pinecone import Pinecone
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from langchain import hub
@@ -14,10 +13,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain_pinecone import PineconeVectorStore
-from langchain_community.document_loaders import (
-    TextLoader,
-    UnstructuredMarkdownLoader
-)
+from langchain_community.document_loaders import TextLoader
 from langchain.tools import Tool
 from langchain.agents import initialize_agent, AgentType
 from langchain.agents import create_openai_functions_agent, AgentExecutor
@@ -49,6 +45,7 @@ logger = logging.getLogger(__name__)
 # Embeddings de OpenAI
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
+
 def save_file_with_content_check(output_dir, filename, content):
     """
     Guarda un archivo en output_dir comprobando si ya existe uno con el mismo nombre.
@@ -57,6 +54,7 @@ def save_file_with_content_check(output_dir, filename, content):
     Devuelve el nombre final del archivo guardado.
     """
     import hashlib
+
     def get_hash(data):
         return hashlib.md5(data).hexdigest()
 
@@ -69,10 +67,8 @@ def save_file_with_content_check(output_dir, filename, content):
         with open(path, "rb") as f:
             existing_hash = get_hash(f.read())
         if existing_hash == content_hash:
-            # Mismo contenido, sobreescribir
-            break
+            break  # mismo contenido → sobreescribe
         else:
-            # Diferente, buscar siguiente nombre
             candidate = f"{base}_{i}{ext}"
             path = os.path.join(output_dir, candidate)
             i += 1
@@ -92,6 +88,7 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
         if not os.path.exists(index_dir):
             os.makedirs(index_dir)
             logger.info(f"Carpeta '{index_dir}' creada")
+
         # Inicializar cliente de Pinecone
         pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
 
@@ -100,18 +97,15 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
         index_exists = index_name in existing_indexes
 
         if not index_exists:
-            # Crear el índice si no existe
             logger.info(f"Creando nuevo índice: {index_name}")
             pc.create_index(
                 name=index_name,
-                dimension=1536,  # Dimensión para text-embedding-3-small
+                dimension=1536,  # para text-embedding-3-small
                 metric="cosine",
                 spec={
-                    # "replicas": 1,
-                    # "shard_size": 1000,
                     "serverless": {
                         "cloud": "aws",
-                        "region": PINECONE_ENV   # configurable desde .env
+                        "region": PINECONE_ENV  # configurable desde .env
                     }
                 }
             )
@@ -120,16 +114,13 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
 
         # Procesar cada archivo subido
         for uploaded_file in uploaded_files:
-            # Crear un archivo temporal para guardarlo
             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as temp_file:
                 temp_file.write(uploaded_file.getvalue())
                 temp_path = temp_file.name
 
-            # Procesar el archivo después de cerrar el bloque 'with'
             try:
                 file_documents = []
                 if uploaded_file.name.endswith('.pdf'):
-                    # Extraer texto y enlaces del PDF
                     pdf_doc = fitz.open(temp_path)
                     full_text = ""
                     for page_num in range(pdf_doc.page_count):
@@ -141,7 +132,6 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
                             uri = link.get('uri')
                             if uri:
                                 links.append(uri)
-                        # Crear documento con texto y enlaces en metadatos
                         file_documents.append(type('Doc', (), {
                             'page_content': text,
                             'metadata': {
@@ -152,39 +142,37 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
                                 'links': links
                             }
                         }))
-                    # Guardar el texto completo en docs/{index_name}/{filename}.txt
                     output_dir = os.path.join("docs", index_name)
                     os.makedirs(output_dir, exist_ok=True)
                     output_path = os.path.join(output_dir, f"{os.path.splitext(uploaded_file.name)[0]}.txt")
                     with open(output_path, "w", encoding="utf-8") as f:
                         f.write(full_text)
                     pdf_doc.close()
+
                 elif uploaded_file.name.endswith('.md'):
+                    # Evitamos 'unstructured': usamos TextLoader para .md
                     loader = TextLoader(temp_path, encoding="utf-8")
                     file_documents = loader.load()
 
                 elif uploaded_file.name.endswith(('.docx', '.txt', '.html', '.tf')):
                     loader = TextLoader(temp_path, encoding="utf-8")
                     file_documents = loader.load()
+
                 else:
                     logger.warning(f"Tipo de archivo no soportado: {uploaded_file.name}")
                     continue
 
                 logger.info(f"Cargados {len(file_documents)} documentos de {uploaded_file.name}")
 
-                # Guardar el archivo en docs/{index_name}
                 output_dir = os.path.join("docs", index_name)
                 os.makedirs(output_dir, exist_ok=True)
-                # Guardar el archivo usando la función de comprobación de contenido
                 final_filename = save_file_with_content_check(
                     output_dir,
                     uploaded_file.name,
                     uploaded_file.getvalue()
                 )
-                logger.info(f"Archivo guardado en: {output_dir}, nombre: {uploaded_file.name}, final: {final_filename}")
+                logger.info(f"Archivo guardado en: {output_dir}, nombre original: {uploaded_file.name}, final: {final_filename}")
 
-                logger.info(f"Archivo guardado como: {final_filename}")
-                # Añadir metadatos del archivo original (solo para los que no son PDF)
                 if not uploaded_file.name.endswith('.pdf'):
                     for doc in file_documents:
                         doc.metadata.update({
@@ -196,15 +184,12 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
                 all_documents.extend(file_documents)
 
             finally:
-                # Asegurar la eliminación del archivo temporal
                 os.unlink(temp_path)
 
-        # Salir si no hay documentos
         if not all_documents:
             logger.warning("No se pudieron cargar documentos válidos")
             return
 
-        # Dividir en chunks
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
@@ -213,35 +198,24 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
         documents = text_splitter.split_documents(all_documents)
         logger.info(f"Dividido en {len(documents)} chunks")
 
-        # Definir tamaño del lote
         batch_size = 100
         total_batches = (len(documents) + batch_size - 1) // batch_size
 
-        # Inicializar vectorstore con el índice existente
         vectorstore = PineconeVectorStore(index_name=index_name, embedding=embeddings)
 
-        # Si se indica que se deben eliminar archivos existentes
         if delete_existing_files:
-            # Obtener nombres de archivos a insertar
             filenames = [doc.metadata["filename"] for doc in all_documents if "filename" in doc.metadata]
-            filenames = list(set(filenames))  # Eliminar duplicados
-
+            filenames = list(set(filenames))
             if filenames:
-                # Eliminar vectores con estos nombres de archivo
-                vectorstore.delete(
-                    filter={"filename": {"$in": filenames}}
-                )
-                logger.info(f"Eliminados documentos anteriores para los archivos: {', '.join(filenames)}")
+                vectorstore.delete(filter={"filename": {"$in": filenames}})
+                logger.info(f"Eliminados documentos anteriores para: {', '.join(filenames)}")
 
         logger.info(f'Agregando {len(documents)} documentos a Pinecone en {total_batches} lotes')
 
-        # Procesar por lotes
         for i in range(0, len(documents), batch_size):
-            batch = documents[i:i+batch_size]
-            end_idx = min(i+batch_size, len(documents))
-            logger.info(f"Procesando lote {i//batch_size + 1}/{total_batches} (documentos {i+1}-{end_idx})")
-
-            # Añadir documentos al índice existente
+            batch = documents[i:i + batch_size]
+            end_idx = min(i + batch_size, len(documents))
+            logger.info(f"Lote {i // batch_size + 1}/{total_batches} (docs {i + 1}-{end_idx})")
             vectorstore.add_documents(batch)
 
         logger.info("****Carga en el índice vectorial completada****")
@@ -252,23 +226,15 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
         return False
 
 
-def get_docs_by_index(index_name: str, limit: int = 7, chunked = False):
+def get_docs_by_index(index_name: str, limit: int = 7, chunked: bool = False):
     """
     Obtiene documentos de un índice específico en Pinecone.
-
-    Args:
-        index_name (str): Nombre del índice del cual obtener los documentos.
-        limit (int): Número máximo de documentos a recuperar.
-        chunked (bool): True si queremos los documentos fragmentados, False si no.
-
-    Returns:
-        list: Lista de documentos recuperados del índice.
     """
     try:
         pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
         vectorstore = PineconeVectorStore(index_name=index_name, embedding=embeddings)
 
-        # Búsqueda robusta (consulta neutra + fallback MMR)
+        # Búsqueda robusta: consulta neutra + fallback MMR
         docs = vectorstore.similarity_search("terraform", k=limit)
         if not docs:
             docs = vectorstore.max_marginal_relevance_search("terraform", k=limit)
@@ -289,20 +255,17 @@ def run_llm_on_index(query: str, chat_history: list, index_name: str):
     """
     try:
         logger.info(f"[AGENTE] Nueva consulta recibida: '{query}' | Historial: {chat_history} | Índice: {index_name}")
-        # Conexión al índice específico
         vectorstore = PineconeVectorStore(index_name=index_name, embedding=embeddings)
 
-        # Configurar el LLM
         chat = ChatOpenAI(
             verbose=True,
             temperature=0.15,
             top_p=0.85,
-            model='gpt-4o-mini', 
+            model='gpt-4o-mini',
             max_tokens=4096
         )
         logger.info(f"[AGENTE] Parámetros del modelo: temperature={chat.temperature}, top_p={chat.top_p}, max_tokens={chat.max_tokens}")
 
-        # Usar un prompt personalizado con instrucciones
         custom_prompt = PromptTemplate(
             input_variables=["context", "input"],
             template="""
@@ -319,7 +282,6 @@ def run_llm_on_index(query: str, chat_history: list, index_name: str):
 
         stuff_documents_chain = create_stuff_documents_chain(chat, custom_prompt)
 
-        # Crear un retriever consciente del historial
         logger.info("[AGENTE] Descargando prompt de rephrase y configurando retriever...")
         rephrase_prompt = hub.pull("langchain-ai/chat-langchain-rephrase")
         history_aware_retriever = create_history_aware_retriever(
@@ -328,23 +290,19 @@ def run_llm_on_index(query: str, chat_history: list, index_name: str):
             prompt=rephrase_prompt
         )
 
-        # Crear la cadena de recuperación
         qa = create_retrieval_chain(
             retriever=history_aware_retriever,
             combine_docs_chain=stuff_documents_chain
         )
 
-        # Ejecutar la consulta
         logger.info("[AGENTE] Obteniendo respuesta final...")
         result = qa.invoke({"input": query, "chat_history": chat_history})
 
-        # Ejecutar el retriever_tool para obtener los documentos consultados
         logger.info(f"[AGENTE] Documentos consultados: {result}")
         context_docs = result.get('context', []) if isinstance(result, dict) else []
 
         logger.info(f"[AGENTE] Respuesta final del agente: {result['answer']}")
 
-        # Formatear el resultado
         return {
             "query": result['input'],
             "result": result['answer'],
@@ -356,19 +314,13 @@ def run_llm_on_index(query: str, chat_history: list, index_name: str):
 
 
 def create_sources_string(source_urls):
-    """
-    Formatea las URLs de las fuentes para mostrarlas en la interfaz.
-    """
     if not source_urls:
         return ""
-
-    sources_list = list(set(source_urls))  # Eliminar duplicados
+    sources_list = list(set(source_urls))
     sources_list.sort()
     sources_string = "Fuentes:\n"
-
     for i, source in enumerate(sources_list):
         sources_string += f"{i + 1}. {source}\n"
-
     return sources_string
 
 

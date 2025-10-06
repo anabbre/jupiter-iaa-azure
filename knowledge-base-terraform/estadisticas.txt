@@ -1,0 +1,22 @@
+ESTADÍSTICAS COMPLETAS DE TERRAFORM
+==================================================
+
+Total de páginas: 389
+Total de palabras: 408987
+Promedio de palabras por página: 1051
+
+PÁGINAS POR SECCIÓN:
+------------------------------
+cdktf: 24 páginas, 25234 palabras
+tutorials: 150 páginas, 237360 palabras
+internals: 26 páginas, 21124 palabras
+plugin: 11 páginas, 7122 palabras
+intro: 29 páginas, 16893 palabras
+cli: 17 páginas, 6229 palabras
+registry: 10 páginas, 10870 palabras
+language: 53 páginas, 54651 palabras
+cloud-docs: 7 páginas, 6482 palabras
+enterprise: 53 páginas, 12094 palabras
+docs: 3 páginas, 8650 palabras
+migrate: 5 páginas, 1896 palabras
+main: 1 páginas, 382 palabras

@@ -1,0 +1,35 @@
+Get Started - OCI
+Build, change, and destroy a virtual cloud network and subnet on Oracle Cloud Infrastructure (OCI) using Terraform. Step-by-step, command-line tutorials will walk you through the Terraform basics for the first time.
+Start
+7 tutorials
+3min
+What is Infrastructure as Code with Terraform?
+Learn how infrastructure as code lets you safely build, change, and manage infrastructure. Try Terraform.
+Terraform
+Interactive
+Video
+7min
+Install Terraform
+Install Terraform on Mac, Linux, or Windows by downloading the binary or using a package manager (Homebrew or Chocolatey). Then create a Docker container locally by following a quick-start tutorial to check that Terraform installed correctly.
+Terraform
+Video
+13min
+Build infrastructure
+Authenticate to Oracle Cloud Infrastructure, and create a Virtual Cloud Network. Write, format and validate a Terraform configuration. Plan and apply the configuration to create an VCN OCI resource.
+Terraform
+6min
+Change infrastructure
+Add a subnet to your Oracle Cloud Infrastructure (OCI) VCN. Modify the subnet display name and plan changes to update the resource in place. Learn how Terraform handles infrastructure change management.
+Terraform
+5min
+Destroy infrastructure
+Destroy the Oracle Cloud Infrastructure (OCI) Virtual Cloud Network (VCN) and subnet you created in the previous tutorials. Evaluate the plan and confirm the destruction.
+Terraform
+6min
+Define input variables
+Declare your OCI region and compartment ID as variables. Reference the variable in Terraform configuration. Define variables using .tfvars files or default values.
+Terraform
+5min
+Query data with outputs
+Declare output values to display the status and CIDR block of your OCI VCN. Display all outputs and query specific outputs. Define what data stored in Terraform state is relevant to the operator or end user.
+Terraform

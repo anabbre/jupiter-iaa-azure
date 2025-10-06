@@ -1,0 +1,25 @@
+Prepare for the Terraform Associate (003) Certification Exam
+Prepare for your Terraform Associate certification exam. Choose to follow an in-depth guide or to review select exam topics depending on the kind of preparation support you need. Then review sample questions to learn what to expect on exam day.
+Start
+3 tutorials
+6min
+Learning Path - Terraform Associate (003)
+Follow an in-depth guide through learning content curated for all exam topics.
+Terraform
+6min
+Exam Content List - Terraform Associate (003)
+Choose specific topics to review before your exam.
+Terraform
+4min
+Sample Questions - Terraform Associate (003)
+Familiarize yourself with exam question format, type, and structure.
+Terraform
+Stay Informed
+Sign up to be notified with updates to the HashiCorp Product Certifications program and to receive news and information about HashiCorp products.
+Email
+*
+Send me news about HashiCorp products, releases and events.
+By submitting this form, you acknowledge and agree that HashiCorp will process your personal information in accordance with the
+Privacy Policy
+.
+Submit

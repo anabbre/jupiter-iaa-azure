@@ -1,6 +1,3 @@
-import os
-from aux_files import _utils as aux
-import pandas as pd
 import streamlit as st
 from aux_files import _utils as aux
 

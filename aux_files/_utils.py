@@ -1,11 +1,9 @@
-import tempfile
 import os
-import fitz
+import tempfile
 import logging
+import fitz
 from typing import List
 from dotenv import load_dotenv
-load_dotenv()
-
 from pinecone import Pinecone
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from langchain import hub
@@ -14,15 +12,13 @@ from langchain_openai import OpenAIEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain_pinecone import PineconeVectorStore
 from langchain_community.document_loaders import TextLoader
-from langchain.tools import Tool
-from langchain.agents import initialize_agent, AgentType
-from langchain.agents import create_openai_functions_agent, AgentExecutor
-from langchain.tools import StructuredTool
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
 from langchain.chains.retrieval import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
+
+load_dotenv()
 
 # Variables desde .env
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

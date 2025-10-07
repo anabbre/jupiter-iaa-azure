@@ -1,8 +1,4 @@
-import os
 from typing import TypedDict, Annotated, List, Dict
-from operator import add
-from datetime import datetime
-
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -10,6 +6,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_chroma import Chroma
+from langchain.prompts import ChatPromptTemplate
 try:
     from langchain.schema import BaseMessage, HumanMessage, AIMessage
 except ImportError:

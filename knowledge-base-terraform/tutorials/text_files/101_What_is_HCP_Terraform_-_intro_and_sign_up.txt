@@ -1,0 +1,113 @@
+In this tutorial, you will learn about HCP Terraform, sign up for an
+account, and create an organization.
+What is HCP Terraform?
+Terraform
+is an infrastructure as code tool
+that lets you define and manage infrastructure resources through human-readable
+configuration files. Terraform allows you to use a consistent workflow over
+your infrastructure lifecycle, regardless of the resource provider. The
+infrastructure as code workflow lets your declaratively manage a variety of
+services and automate your changes to them, reducing the risk of human error
+through manual operations.
+HCP
+Terraform
+builds on these features by managing
+Terraform runs in a consistent and reliable environment instead of on your
+local machine. It securely stores state and secret data, and can connect to
+version control systems so that you can develop your
+infrastructure using a workflow similar to application development.
+The HCP Terraform UI provides a detailed view into the resources managed by a
+Terraform project and gives enhanced visibility into each Terraform operation.
+HCP Terraform also has a private registry for sharing your
+organization's Terraform modules and providers. Paid features include access controls for
+approving changes to infrastructure, detailed policy controls for governing the
+contents of Terraform configurations, cost estimates for runs, and more.
+HCP Terraform helps you collaborate on each step of your infrastructure
+development process. For example, each time you plan a new change, your team
+can review and approve the plan before you apply it. It also automatically
+locks state during operations to prevent concurrent modifications that may corrupt the state file.
+For more details on HCP Terraform features and plans, visit the
+feature overview
+and
+pricing page
+.
+Workflows
+In HCP Terraform, your resources are organized by workspaces,
+which contain your resource definitions, environment and input variables, and state files. A Terraform operation occurs within a
+workspace, and Terraform uses the configuration and state for that
+workspace to modify your infrastructure.
+HCP Terraform supports three workflows for your Terraform runs:
+The CLI-driven workflow, which uses Terraform's standard CLI tools to execute runs in HCP Terraform.
+The UI/Version Control System(VCS)-driven workflow, in which changes pushed to version control repositories trigger runs in the associated workspace.
+The API-driven workflow, which allows you to create tooling to interact with the HCP Terraform API programmatically.
+These tutorials will introduce the CLI and VCS-driven
+workflows. To learn more about the API-driven workflow, refer to
+HCP
+Terraform's API Documentation
+.
+The CLI-driven workflow
+In the CLI-driven workflow, you initiate Terraform operations in your Terminal,
+and use HCP Terraform's ephemeral remote execution environments for your
+operations. HCP Terraform securely stores any input and environment variables
+needed by your configuration, as well as your current and previous state files.
+The CLI-driven workflow enables collaboration and allows you to leverage
+the stability, security, and enhanced visiblity of HCP Terraform while still
+using the same familiar Terraform workflow, with minimal additional configuration.
+The VCS-driven workflow
+For the VCS-driven workflow, you must configure VCS access and create your
+workspace, then associate it with a repository containing your Terraform
+configuration. You can then configure your workspace to create speculative
+plans for any Pull Requests, which allows your team to review how the changes
+would modify infrastructure. Any merges to your main branch then trigger
+Terraform runs to implement your changes.
+Create an account
+Tip
+If you have a HashiCorp Cloud Platform (HCP) account, use your HCP account credentials to log in to HCP Terraform and go to to the
+next step
+. If you already have an HCP Terraform account, go to to the
+next step
+.
+Visit
+https://app.terraform.io/signup/account
+and follow the prompts to create a free HCP Terraform account.
+When you sign up, you will receive an email asking you to confirm your
+email address. Confirm your email address before moving on. When you click the link to confirm your email address, HCP Terraform will send you to the
+Organizations
+page. Click
+Create organization
+.
+Create an organization
+The next screen will prompt you to create a new organization. Creating
+organizations of up to 5 users is free, and the members you add to the
+organization will be able to collaborate on your workspaces and share private
+modules and providers.
+Tip
+Create a tutorial-specific
+organization to manage the workspaces you create while running HashiCorp tutorials. This will give you a
+convenient, isolated sandbox environment in which to learn Terraform.
+Enter an organization name and email address. You can use the same email
+address that you used for your account.
+Note
+If you want to join an existing organization, give the
+organization's administrator the email address you used to create an account.
+They will be able to send you an invite.
+Click
+Create organization
+. In later tutorials, you will create and use a workspace within your new HCP Terraform organization.
+Next Steps
+In this tutorial, you created an HCP Terraform account and organization. For more information about organizations and their relationship to workspaces, teams, and users, refer to the
+Organizations documentation
+.
+Now that you have created an account and organization, you are ready to authenticate and begin using HCP Terraform.
+Was this tutorial helpful?
+Yes
+No
+Collection Overview
+HCP Terraform
+Next
+CLI log in
+This tutorial also appears in:
+37 tutorials
+Terraform Associate (003) Tutorials
+Progress through these tutorials to prepare for the Terraform Associate (003) certification exam.
+Terraform

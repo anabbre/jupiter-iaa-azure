@@ -1,0 +1,67 @@
+Overview
+Try HCP Terraform
+Sign up for HCP Terraform for free and start managing infrastructure with your team.
+Follow the tutorials
+Get Started
+Build, change, and destroy infrastructure with Terraform. Start here to learn the basics of Terraform with your favorite cloud provider.
+6 tutorials
+Create, manage, and destroy AWS infrastructure using Terraform. Step-by-step, command-line tutorials will walk you through the Terraform basics for the first time.
+Terraform
+8 tutorials
+Build, change, and destroy Azure infrastructure using Terraform. Step-by-step, command-line tutorials will walk you through the Terraform basics for the first time.
+Terraform
+9 tutorials
+Collaborate on version-controlled configuration using HCP Terraform. Follow this track to build, change, and destroy infrastructure using remote runs and state.
+Terraform
+7 tutorials
+Build, change, and destroy Docker infrastructure using Terraform. Step-by-step, command-line tutorials will walk you through the Terraform basics for the first time.
+Terraform
+7 tutorials
+Build, change, and destroy Google Cloud Platform (GCP) infrastructure using Terraform. Step-by-step, command-line tutorials will walk you through the Terraform basics for the first time.
+Terraform
+7 tutorials
+Build, change, and destroy a virtual cloud network and subnet on Oracle Cloud Infrastructure (OCI) using Terraform. Step-by-step, command-line tutorials will walk you through the Terraform basics for the first time.
+Terraform
+New Tutorials
+Try the newest tutorials for common Terraform tasks and use cases.
+18min
+Write Terraform Tests
+Write tests to validate the behavior of your Terraform module configuration.
+Terraform
+27min
+Enable self-service workflows with Vault-backed dynamic credentials
+Manage dynamic credentials with an HCP Terraform project. Create trust relationships for a single workspace, an entire project, and provision infrastructure with a no-code module.
+Terraform
+Vault
+11min
+Use health assessments to detect infrastructure drift
+Enable and use HCP Terraform health assessments to detect infrastructure changes outside the Terraform workflow.
+Terraform
+12min
+Manage hosted Apache Kafka with the Confluent Terraform provider
+Use the Confluent provider to create Apache Kafka clusters, topics, and service accounts using Terraform.
+Terraform
+23min
+Detect infrastructure drift and enforce policies
+Use HCP Terraform to enforce policies and detect infrastructure configuration drift.
+Terraform
+14min
+Create and use no-code modules
+Use HCP Terraform no-code modules to let users deploy resources without writing Terraform configuration.
+Terraform
+Get Certified
+Prepare for Terraform certifications with our prep materials.
+3 tutorials
+Prepare for the Terraform Associate (003) Certification Exam
+Prepare for your Terraform Associate certification exam. Choose to follow an in-depth guide or to review select exam topics depending on the kind of preparation support you need. Then review sample questions to learn what to expect on exam day.
+Terraform
+37 tutorials
+Terraform Associate (003) Tutorials
+Progress through these tutorials to prepare for the Terraform Associate (003) certification exam.
+Terraform
+Build Providers
+Use the Terraform Plugin Framework to build providers that use common Go conventions.
+13 tutorials
+Call APIs with Custom Framework Providers
+In these tutorials, learn how Terraform uses providers to interact with target APIs. Then, build a custom provider based on the new Terraform Plugin Framework.
+Terraform

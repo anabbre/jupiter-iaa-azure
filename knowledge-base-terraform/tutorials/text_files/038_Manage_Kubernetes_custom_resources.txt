@@ -1,0 +1,1051 @@
+Custom Resource Definitions (CRDs) extend Kubernetes to allow you to manage
+resources controlled by in-cluster applications with the same tools and workflow
+as built-in Kubernetes resources, such as pods and nodes. You can manage CRDs
+with the
+kubernetes_manifest
+Terraform resource type. Managing the resources
+running inside your Kubernetes clusters with Terraform allows you to use a
+single workflow to manage your infrastructure and take advantage of Terraform's
+workflow and features.
+OpenFaaS, an open source Functions as a Service (FaaS) platform that you can run
+inside your Kubernetes cluster, includes a Kubernetes operator that defines a
+CRD you can use to manage OpenFaaS functions.
+In this tutorial, you will create a Kubernetes cluster on your local machine
+with Docker and kind. Then, you will deploy OpenFaaS to your cluster with
+Terraform. Next, you will use Terraform to deploy a function to your Kubernetes
+cluster using the OpenFaaS functions CRD. Finally, you will configure CPU and memory
+limits for your function and scale it to run on multiple pods.
+Prerequisites
+This tutorial assumes that you are familiar with the standard Terraform
+workflow. If you are new to Terraform, complete the
+Get Started
+tutorials
+first.
+For this tutorial, you will need:
+The
+Terraform
+CLI
+(1.0.1+).
+Docker Desktop
+installed and running.
+kubectl
+.
+kind
+.
+Clone the example configuration
+Clone the
+Manage Kubernetes Custom Resources with
+Terraform
+GitHub
+repository for this tutorial.
+$
+git clone https://github.com/hashicorp-education/learn-terraform-k8s-crd-openfaas
+Change to the repository directory.
+$
+cd learn-terraform-k8s-crd-openfaas
+Start Kubernetes cluster
+Create a Kubernetes cluster running in Docker on your local machine.
+$
+kind create cluster --name=openfaas
+Creating cluster "openfaas" ...
+✓ Ensuring node image (kindest/node:v1.21.1) 🖼
+✓ Preparing nodes 📦
+✓ Writing configuration 📜
+✓ Starting control-plane 🕹️
+✓ Installing CNI 🔌
+✓ Installing StorageClass 💾
+Set kubectl context to "kind-openfaas"
+You can now use your cluster with:
+kubectl cluster-info --context kind-openfaas
+Thanks for using kind! 😊
+​​Verify that your cluster exists by listing your kind clusters.
+$
+kind get clusters
+openfaas
+Then, use
+kubectl
+to print out information about your cluster. The context is
+kind-
+followed by the name of your cluster.
+$
+kubectl cluster-info --context=kind-openfaas
+Kubernetes master is running at https://127.0.0.1:56300
+CoreDNS is running at https://127.0.0.1:56300/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+Review example configuration
+Open
+main.tf
+. This configuration uses the Kubernetes provider to create
+namespaces for OpenFaaS and the Helm provider to deploy OpenFaaS on your
+Kubernetes cluster.
+First, the configuration sets up the Kubernetes provider with client certificate
+authentication using four variables. You will configure these variables in the
+next section. The configuration creates two namespaces: one for the OpenFaaS
+application, named
+openfaas
+, and another for your functions, named
+openfaas-fn
+.
+main.tf
+provider
+"kubernetes"
+{
+host
+=
+var.k8s_host
+client_certificate
+=
+base64decode(var
+.
+k8s_client_certificate)
+client_key
+=
+base64decode(var
+.
+k8s_client_key)
+cluster_ca_certificate
+=
+base64decode(var
+.
+k8s_cluster_ca_certificate)
+}
+resource
+"kubernetes_namespace"
+"openfaas"
+{
+lifecycle
+{
+ignore_changes
+=
+[metadata]
+}
+metadata
+{
+name
+=
+"openfaas"
+labels
+=
+{
+role
+=
+"openfaas-system"
+access
+=
+"openfaas-system"
+istio-injection
+=
+"enabled"
+}
+}
+}
+resource
+"kubernetes_namespace"
+"openfaas-fn"
+{
+lifecycle
+{
+ignore_changes
+=
+[metadata]
+}
+metadata
+{
+name
+=
+"openfaas-fn"
+labels
+=
+{
+role
+=
+"openfaas-fn"
+istio-injection
+=
+"enabled"
+}
+}
+}
+Then, the
+helm
+provider block configures Kubernetes authentication using the
+same values as the Kubernetes provider. The
+time_sleep
+resource avoids an
+error from Helm when you destroy your OpenFaaS cluster.
+main.tf
+provider
+"helm"
+{
+kubernetes
+{
+host
+=
+var.k8s_host
+client_certificate
+=
+base64decode(var
+.
+k8s_client_certificate)
+client_key
+=
+base64decode(var
+.
+k8s_client_key)
+cluster_ca_certificate
+=
+base64decode(var
+.
+k8s_cluster_ca_certificate)
+}
+}
+# Need to wait a few seconds when removing the openfaas resource to give helm
+# time to finish cleaning up.
+#
+# Otherwise, after `terraform destroy`:
+# │ Error: uninstallation completed with 1 error(s): uninstall: Failed to purge
+# the release: release: not found
+resource
+"time_sleep"
+"wait_30_seconds"
+{
+depends_on
+=
+[kubernetes_namespace.openfaas]
+destroy_duration
+=
+"30s"
+}
+Finally, the
+helm_release.openfaas
+resource defines your OpenFaaS chart. This
+resource configures your OpenFaaS deployment, sets the namespace for your
+functions, enables basic authentication, and creates the operator that you will
+use to deploy functions using a CRD.
+main.tf
+resource
+"helm_release"
+"openfaas"
+{
+repository
+=
+"https://openfaas.github.io/faas-netes"
+chart
+=
+"openfaas"
+name
+=
+"openfaas"
+namespace
+=
+"openfaas"
+depends_on
+=
+[time_sleep.wait_30_seconds]
+set
+{
+name
+=
+"functionNamepsace"
+value
+=
+"openfaas-fn"
+}
+set
+{
+name
+=
+"generateBasicAuth"
+value
+=
+"true"
+}
+set
+{
+name
+=
+"operator.create"
+value
+=
+"true"
+}
+}
+Deploy OpenFaaS
+Terraform must authenticate with Kubernetes to deploy resources to your cluster.
+Use the
+kubectl config view
+command to generate a
+terraform.tfvars
+file from
+the template in the example repository. This file sets values for variables in
+the example configuration, which the Kubernetes provider will use to
+authenticate with your Kubernetes cluster.
+$
+kubectl config view --context=kind-openfaas --raw --output=
+"go-template-file=cluster.tfvars.gotemplate"
+>
+terraform.tfvars
+The
+terraform.tfvars
+file now contains values the Kubernetes provider will use
+to authenticate with your cluster. These values will be different from the
+example below.
+terraform.tfvars
+k8s_host
+=
+"https://127.0.0.1:50390"
+k8s_cluster_ca_certificate
+=
+"LS0tLS1CR...EXAMPLE...0FURS0tLS0tCg=="
+k8s_client_certificate
+=
+"LS0tLS1CR...EXAMPLE...0FURS0tLS0tCg=="
+k8s_client_key
+=
+"LS0tLS1CR...EXAMPLE...0FURS0tLS0tCg=="
+Now initialize Terraform.
+$
+terraform init
+Initializing the backend...
+Initializing provider plugins...
+- Reusing previous version of hashicorp/helm from the dependency lock file
+- Reusing previous version of hashicorp/time from the dependency lock file
+- Reusing previous version of hashicorp/kubernetes from the dependency lock file
+- Installing hashicorp/helm v2.2.0...
+- Installed hashicorp/helm v2.2.0 (signed by HashiCorp)
+- Installing hashicorp/time v0.7.2...
+- Installed hashicorp/time v0.7.2 (signed by HashiCorp)
+- Installing hashicorp/kubernetes v2.6.1...
+- Installed hashicorp/kubernetes v2.6.1 (signed by HashiCorp)
+Terraform has been successfully initialized!
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+Apply the configuration to deploy OpenFaaS to your Kubernetes cluster. Respond
+yes
+to the prompt to confirm the apply.
+$
+terraform apply
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the
+following symbols:
++ create
+Terraform will perform the following actions:
+# helm_release.openfaas will be created
++ resource "helm_release" "openfaas" {
++ atomic = false
++ chart = "openfaas"
++ cleanup_on_fail = false
++ create_namespace = false
+##...
+Plan: 4 to add, 0 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+kubernetes_namespace.openfaas-fn: Creating...
+kubernetes_namespace.openfaas: Creating...
+kubernetes_namespace.openfaas-fn: Creation complete after 1s [id=openfaas-fn]
+kubernetes_namespace.openfaas: Creation complete after 1s [id=openfaas]
+time_sleep.wait_30_seconds: Creating...
+time_sleep.wait_30_seconds: Creation complete after 0s [id=2021-08-02T21:47:33Z]
+helm_release.openfaas: Creating...
+helm_release.openfaas: Still creating... [10s elapsed]
+helm_release.openfaas: Still creating... [20s elapsed]
+helm_release.openfaas: Still creating... [30s elapsed]
+helm_release.openfaas: Still creating... [40s elapsed]
+helm_release.openfaas: Still creating... [50s elapsed]
+helm_release.openfaas: Creation complete after 56s [id=openfaas]
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+Verify OpenFaaS deployment
+List the deployments in your OpenFaaS namespace.
+$
+kubectl get deployments --context=kind-openfaas --namespace=openfaas
+NAME READY UP-TO-DATE AVAILABLE AGE
+alertmanager 1/1 1 1 74s
+basic-auth-plugin 1/1 1 1 74s
+gateway 1/1 1 1 74s
+nats 1/1 1 1 74s
+prometheus 1/1 1 1 74s
+queue-worker 1/1 1 1 74s
+List the two CRDs installed with the OpenFaaS operator.
+$
+kubectl get crds --context=kind-openfaas
+NAME CREATED AT
+functions.openfaas.com 2021-08-02T21:47:40Z
+profiles.openfaas.com 2021-08-02T21:47:40Z
+Inspect the
+functions.openfaas.com
+CRD.
+$
+kubectl describe crds/functions.openfaas.com --context=kind-openfaas
+Name: functions.openfaas.com
+Namespace:
+Labels: app.kubernetes.io/managed-by=Helm
+Annotations: controller-gen.kubebuilder.io/version: v0.4.0
+meta.helm.sh/release-name: openfaas
+meta.helm.sh/release-namespace: openfaas
+API Version: apiextensions.k8s.io/v1
+Kind: CustomResourceDefinition
+Metadata:
+## ...
+Status:
+Accepted Names:
+Kind: Function
+List Kind: FunctionList
+Plural: functions
+Singular: function
+Conditions:
+Last Transition Time: 2021-08-02T21:47:40Z
+Message: no conflicts found
+Reason: NoConflicts
+Status: True
+Type: NamesAccepted
+Last Transition Time: 2021-08-02T21:47:40Z
+Message: the initial names have been accepted
+Reason: InitialNamesAccepted
+Status: True
+Type: Established
+Stored Versions:
+v1
+Events: <none>
+You will use this CRD with the Kubernetes Terraform provider to manage your
+OpenFaaS functions.
+Forward OpenFaaS API gateway
+The OpenFaaS gateway allows you to call OpenFaaS functions over HTTP. Before you
+deploy a function to OpenFaaS, forward the port so you can connect to the
+gateway running inside your Kubernetes cluster.
+$
+kubectl port-forward svc/gateway 8080:8080 --context=kind-openfaas --namespace=openfaas
+This command will continue running in your current terminal until you cancel it.
+Open a new terminal window or tab to proceed with this tutorial.
+In that new terminal, navigate to the top-level
+learn-terraform-k8s-faas-crd
+directory you cloned from GitHub earlier in this tutorial. Verify your current
+directory with
+pwd
+.
+$
+pwd
+/Users/<YOU>/learn-terraform-k8s-crd-openfaas
+Deploy an OpenFaaS function
+The
+kubernetes_manifest
+resource type allows you to use Terraform to manage resources defined by a
+Kubernetes manifest. In this section, you will use a manifest to deploy a
+function to OpenFaaS with the
+functions.openfaas.com
+CRD.
+First, change into the function's directory. This function returns a
+randomly selected ASCII art featuring cows.
+$
+cd functions/cows
+Review
+main.tf
+.
+functions/cows/main.tf
+provider
+"kubernetes"
+{
+host
+=
+var.k8s_host
+client_certificate
+=
+base64decode(var
+.
+k8s_client_certificate)
+client_key
+=
+base64decode(var
+.
+k8s_client_key)
+cluster_ca_certificate
+=
+base64decode(var
+.
+k8s_cluster_ca_certificate)
+}
+The configuration in
+main.tf
+does not define any resources. You will add a
+kubernetes_manifest
+resource to this configuration to manage your OpenFaaS
+function.
+First, reconfigure
+kubectl
+to point to your
+openfaas
+Kubernetes cluster.
+$
+kind
+export
+kubeconfig --name
+=
+openfaas
+Set kubectl context to "kind-openfaas"
+Generate a
+terraform.tfvars
+file to store your Kubernetes authentication
+secrets as you did earlier.
+$
+kubectl config view --context=kind-openfaas --raw --output=
+"go-template-file=../../cluster.tfvars.gotemplate"
+>
+terraform.tfvars
+Initialize this configuration to install the provider and set up Terraform.
+$
+terraform init
+Initializing the backend...
+Initializing provider plugins...
+- Finding hashicorp/kubernetes versions matching "~> 2.6.1"...
+- Installing hashicorp/kubernetes v2.6.1...
+- Installed hashicorp/kubernetes v2.6.1 (signed by HashiCorp)
+Terraform has made some changes to the provider dependency selections recorded
+in the .terraform.lock.hcl file. Review those changes and commit them to your
+version control system if they represent changes you intended to make.
+Terraform has been successfully initialized!
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+Review
+cows.yaml
+. This file is a Kubernetes manifest that defines the function
+you will deploy with the OpenFaaS functions CRD.
+functions/cows/cows.yaml
+apiVersion
+:
+openfaas.com/v1
+kind
+:
+Function
+metadata
+:
+name
+:
+showcow
+namespace
+:
+openfaas-fn
+spec
+:
+name
+:
+showcow
+handler
+:
+node show_cow.js
+image
+:
+alexellis2/ascii-cows-openfaas:0.1
+You must convert this manifest from YAML to HCL to use it with the Terraform
+Kubernetes provider.
+Convert
+cows.yaml
+to HCL with the
+yamldecode()
+Terraform function and the
+terraform console
+command.
+$
+echo
+'yamldecode(file("cows.yaml"))'
+|
+terraform
+console
+{
+"apiVersion" = "openfaas.com/v1"
+"kind" = "Function"
+"metadata" = {
+"name" = "showcow"
+"namespace" = "openfaas-fn"
+}
+"spec" = {
+"handler" = "node show_cow.js"
+"image" = "alexellis2/ascii-cows-openfaas:0.1"
+"name" = "showcow"
+}
+}
+Add a
+kubernetest_manifest
+resource for the
+showcow
+function. Assign the
+value of the
+manifest
+attribute to the HCL generated by the previous
+command.
+functions/cows/main.tf
+resource
+"kubernetes_manifest"
+"openfaas_fn_showcow"
+{
+manifest
+=
+{
+"apiVersion"
+=
+"openfaas.com/v1"
+"kind"
+=
+"Function"
+"metadata"
+=
+{
+"name"
+=
+"showcow"
+"namespace"
+=
+"openfaas-fn"
+}
+"spec"
+=
+{
+"handler"
+=
+"node show_cow.js"
+"image"
+=
+"alexellis2/ascii-cows-openfaas:0.1"
+"name"
+=
+"showcow"
+}
+}
+}
+The HCL manifest you pasted into your configuration includes additional
+whitespace and does not line up with the rest of your configuration. Save
+main.tf
+and use
+terraform fmt
+to format your configuration.
+$
+terraform fmt
+main.tf
+Apply your configuration to deploy the function to your OpenFaaS cluster.
+Respond
+yes
+to the prompt to confirm the apply.
+$
+terraform apply
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the
+following symbols:
++ create
+Terraform will perform the following actions:
+# kubernetes_manifest.openfaas_fn_showcow will be created
++ resource "kubernetes_manifest" "openfaas_fn_showcow" {
++ manifest = {
++ apiVersion = "openfaas.com/v1"
++ kind = "Function"
++ metadata = {
++ name = "showcow"
++ namespace = "openfaas-fn"
+}
++ spec = {
++ handler = "node show_cow.js"
++ image = "alexellis2/ascii-cows-openfaas:0.1"
++ name = "showcow"
+}
+}
++ object = {
++ apiVersion = "openfaas.com/v1"
++ kind = "Function"
++ metadata = {
++ name = "showcow"
++ namespace = "openfaas-fn"
+}
++ spec = {
++ annotations = (known after apply)
++ constraints = (known after apply)
++ environment = (known after apply)
++ handler = "node show_cow.js"
++ image = "alexellis2/ascii-cows-openfaas:0.1"
++ labels = (known after apply)
++ limits = {
++ cpu = (known after apply)
++ memory = (known after apply)
+}
++ name = "showcow"
++ readOnlyRootFilesystem = (known after apply)
++ requests = {
++ cpu = (known after apply)
++ memory = (known after apply)
+}
++ secrets = (known after apply)
+}
+}
+}
+Plan: 1 to add, 0 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+kubernetes_manifest.openfaas_fn_showcow: Creating...
+kubernetes_manifest.openfaas_fn_showcow: Creation complete after 0s
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+Now, call your function by using the
+curl
+command to send a request to the
+gateway you set up earlier. The function will return a randomly selected piece
+of cow-related ASCII art.
+$
+curl http://127.0.0.1:8080/
+function
+/showcow
+(__) | (__) | (__) | (__) | (__) | (__) |
+( oo | ( oo | ( oo | ( oo | ( oo | ( oo |
+/\_| | /\_| | /\_| | /\_| | /\_| | /\_| |
+-------------------------------------------------
+(__) | (__) | (__) | (__) | (__) | (__) |
+( oo | ( oo | ( oo | ( oo | ( oo | ( oo |
+/\_| | /\_| | /\_| | /\_| | /\_| | /\_| |
+-------------------------------------------------
+(__) | (__) | (__) | (__) | (__) | (__) |
+( oo | ( oo | ( oo | ( oo | ( oo | ( oo |
+/\_| | /\_| | /\_| | /\_| | /\_| | /\_| |
+-------------------------------------------------
+(__) | (__) | (__) | (__) | (__) | (__) |
+( oo | ( oo | ( oo | ( oo | ( oo | ( oo |
+/\_| | /\_| | /\_| | /\_| | /\_| | /\_| |
+-------------------------------------------------
+Andy Warhol Cow
+List OpenFaaS function pods
+Your OpenFaaS functions run on pods in the
+openfaas-fn
+namespace in your
+Kubernetes cluster.
+List the pods in your
+openfaas-fn
+namespace.
+$
+kubectl get pods --context=kind-openfaas --namespace=openfaas-fn
+NAME READY STATUS RESTARTS AGE
+showcow-845ff7bdcc-2rvgq 1/1 Running 0 43s
+Right now, there is only one instance of the
+showcow
+function running on your
+Kubernetes cluster.
+Scale the function
+Add the following configuration to the
+"spec"
+section of your
+openfaas_fn_showcow
+resource in
+main.tf
+to manage scaling and resource
+limits for the function. This configuration ensures that there are between four
+and six instances of your function running at any given time. It also sets CPU
+and memory usage limits for each instance.
+"labels"
+= {
+"com.openfaas.scale.max"
+=
+"6"
+"com.openfaas.scale.min"
+=
+"4"
+}
+"limits"
+= {
+"cpu"
+=
+"100m"
+"memory"
+=
+"64Mi"
+}
+Your configuration should now match the following.
+functions/cows/main.tf
+resource
+"kubernetes_manifest"
+"openfaas_fn_showcow"
+{
+manifest
+=
+{
+"apiVersion"
+=
+"openfaas.com/v1"
+"kind"
+=
+"Function"
+"metadata"
+=
+{
+"name"
+=
+"showcow"
+"namespace"
+=
+"openfaas-fn"
+}
+"spec"
+=
+{
+"handler"
+=
+"node show_cow.js"
+"image"
+=
+"alexellis2/ascii-cows-openfaas:0.1"
+"name"
+=
+"showcow"
+"labels"
+=
+{
+"com.openfaas.scale.max"
+=
+"6"
+"com.openfaas.scale.min"
+=
+"4"
+}
+"limits"
+=
+{
+"cpu"
+=
+"100m"
+"memory"
+=
+"64Mi"
+}
+}
+}
+}
+Apply the new configuration. Respond
+yes
+to the prompt to confirm the apply
+and update your function.
+$
+terraform apply
+kubernetes_manifest.openfaas_fn_showcow: Refreshing state...
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the
+following symbols:
+~ update in-place
+Terraform will perform the following actions:
+# kubernetes_manifest.openfaas_fn_showcow will be updated in-place
+~ resource "kubernetes_manifest" "openfaas_fn_showcow" {
+~ manifest = {
+~ spec = {
++ labels = {
++ com.openfaas.scale.max = "6"
++ com.openfaas.scale.min = "4"
+}
++ limits = {
++ cpu = "100m"
++ memory = "64Mi"
+}
+# (3 unchanged elements hidden)
+}
+# (3 unchanged elements hidden)
+}
+~ object = {
+~ spec = {
+~ labels = null -> {
++ "com.openfaas.scale.max" = "6"
++ "com.openfaas.scale.min" = "4"
+}
+~ limits = {
+~ cpu = null -> "100m"
+~ memory = null -> "64Mi"
+}
+# (9 unchanged elements hidden)
+}
+# (3 unchanged elements hidden)
+}
+}
+Plan: 0 to add, 1 to change, 0 to destroy.
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value: yes
+kubernetes_manifest.openfaas_fn_showcow: Modifying...
+kubernetes_manifest.openfaas_fn_showcow: Modifications complete after 0s
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+Now, list your OpenFaas function pods again to confirm that Terraform scaled
+your function.
+$
+kubectl get pods --context=kind-openfaas --namespace=openfaas-fn
+NAME READY STATUS RESTARTS AGE
+showcow-6cdbc9cc48-4dhv7 1/1 Running 0 12s
+showcow-6cdbc9cc48-92x8p 1/1 Running 0 24s
+showcow-6cdbc9cc48-lhvlx 1/1 Running 0 16s
+showcow-6cdbc9cc48-rkt66 1/1 Running 0 20s
+showcow-845ff7bdcc-2rvgq 0/1 Terminating 0 2m31s
+showcow-845ff7bdcc-dnkfr 0/1 Terminating 0 24s
+showcow-845ff7bdcc-k9mnv 0/1 Terminating 0 24s
+It may take a few minutes for Kubernetes to terminate the old pod and make the
+new ones available. When this process is complete, your cluster will have four
+running
+showcow-*
+pods.
+$
+kubectl get pods --context=kind-openfaas --namespace=openfaas-fn
+NAME READY STATUS RESTARTS AGE
+showcow-6cdbc9cc48-4dhv7 1/1 Running 0 54s
+showcow-6cdbc9cc48-92x8p 1/1 Running 0 66s
+showcow-6cdbc9cc48-lhvlx 1/1 Running 0 58s
+showcow-6cdbc9cc48-rkt66 1/1 Running 0 62s
+Retrieve more cow-related ASCII art from your function.
+$
+curl http://127.0.0.1:8080/
+function
+/showcow
+___ __ __
+(( /\ (__) ( /\/ \(__)
+\\ /\ (oo) \ /\\/(oo)
+,----\ /\--\/ ,----\ /\--\/
+( ) ) ) // || ( ) ) ) // ||
+`-----//--|| `-----//--||
+^^ ^^ ^^ ^^
+beecows
+Clean up resources
+In this section, you will delete your OpenFaaS function, remove OpenFaaS, and
+destroy your Kubernetes cluster.
+Working in your
+learn-terraform-k8s-faas-crd/functions/cows
+directory, use the
+terraform destroy
+command to remove your function from OpenFaaS. Respond
+yes
+to the prompt to confirm the destroy.
+$
+terraform destroy
+kubernetes_manifest.openfaas_fn_showcow: Refreshing state...
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the
+following symbols:
+- destroy
+Terraform will perform the following actions:
+# kubernetes_manifest.openfaas_fn_showcow will be destroyed
+- resource "kubernetes_manifest" "openfaas_fn_showcow" {
+- manifest = {
+- apiVersion = "openfaas.com/v1"
+- kind = "Function"
+- metadata = {
+- name = "showcow"
+- namespace = "openfaas-fn"
+}
+- spec = {
+- handler = "node show_cow.js"
+- image = "alexellis2/ascii-cows-openfaas:0.1"
+- labels = {
+- com.openfaas.scale.max = "6"
+- com.openfaas.scale.min = "4"
+}
+- limits = {
+- cpu = "100m"
+- memory = "64Mi"
+}
+- name = "showcow"
+}
+} -> null
+- object = {
+- apiVersion = "openfaas.com/v1"
+- kind = "Function"
+- metadata = {
+- name = "showcow"
+- namespace = "openfaas-fn"
+}
+- spec = {
+- annotations = null
+- constraints = null
+- environment = null
+- handler = "node show_cow.js"
+- image = "alexellis2/ascii-cows-openfaas:0.1"
+- labels = {
+- "com.openfaas.scale.max" = "6"
+- "com.openfaas.scale.min" = "4"
+}
+- limits = {
+- cpu = "100m"
+- memory = "64Mi"
+}
+- name = "showcow"
+- readOnlyRootFilesystem = null
+- requests = {
+- cpu = null
+- memory = null
+}
+- secrets = null
+}
+} -> null
+}
+Plan: 0 to add, 0 to change, 1 to destroy.
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+kubernetes_manifest.openfaas_fn_showcow: Destroying...
+kubernetes_manifest.openfaas_fn_showcow: Destruction complete after 0s
+Destroy complete! Resources: 1 destroyed.
+Switch to the terminal window running the
+kubectl port-forward
+command, and
+press
+<
+ctrl-c
+>
+to cancel it.
+Ensure that you are in the root directory of the example repository.
+$
+pwd
+/Users/<YOU>/learn-terraform-k8s-crd-openfaas
+Run
+terraform destroy
+again to remove OpenFaaS and the associated resources from your cluster.
+Respond
+yes
+to the prompt to confirm the destroy.
+$
+terraform destroy
+##...
+Plan: 0 to add, 0 to change, 4 to destroy.
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+helm_release.openfaas: Destroying... [id=openfaas]
+kubernetes_namespace.openfaas-fn: Destroying... [id=openfaas-fn]
+helm_release.openfaas: Destruction complete after 1s
+time_sleep.wait_30_seconds: Destroying... [id=2021-08-02T21:47:33Z]
+kubernetes_namespace.openfaas-fn: Destruction complete after 6s
+time_sleep.wait_30_seconds: Still destroying... [id=2021-08-02T21:47:33Z, 10s elapsed]
+time_sleep.wait_30_seconds: Still destroying... [id=2021-08-02T21:47:33Z, 20s elapsed]
+time_sleep.wait_30_seconds: Destruction complete after 30s
+kubernetes_namespace.openfaas: Destroying... [id=openfaas]
+kubernetes_namespace.openfaas: Destruction complete after 6s
+Destroy complete! Resources: 4 destroyed.
+Finally, delete your cluster.
+$
+kind delete cluster --name=openfaas
+Deleting cluster "openfaas" ...
+Next steps
+In this tutorial, you used Terraform to deploy OpenFaaS to a Kubernetes cluster.
+You then used the Kubernetes Terraform provider to deploy a function defined as a CRD to OpenFaaS. You also modified the CRD to scale your function.
+Learn more about how to use Terraform to manage Kubernetes resources with CRDs
+and the OpenFaaS project by reviewing the following resources:
+The
+Kubernetes provider
+documentation
+includes other examples of managing resources with
+kubernetes_manifest
+resource.
+The
+OpenFaaS Project website
+includes links to
+documentation and other resources.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Helm
+Next
+Multi-cloud Kubernetes

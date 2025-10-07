@@ -1,0 +1,52 @@
+Automate Terraform
+Automate Terraform with HCP Terraform and integrate it with third-party CI/CD tools such as GitHub Actions and CircleCI.
+11 tutorials
+15min
+Running Terraform in automation
+Common techniques for running Terraform in continuous delivery pipelines.
+Terraform
+12min
+Deploy infrastructure with Terraform and CircleCI
+Create infrastructure using Terraform in a CircleCI pipeline and store project state in HCP Terraform.
+Terraform
+3min
+Configure GitHub.com access through OAuth
+Add GitHub.com as an HCP Terraform VCS Provider to manage your Terraform Cloud workspaces VCS integration through the TFE Provider or API
+Terraform
+11min
+Automate Terraform with GitHub Actions
+Automate infrastructure deployments with CI/CD using HCP Terraform and GitHub Actions.
+Terraform
+10min
+Connect workspaces with run triggers
+Create a run trigger in HCP Terraform to trigger runs in one workspace from another.
+Terraform
+10min
+Automate HCP Terraform workflows
+Use the TFE provider to create teams and version-control backed workspaces and set up run triggers in HCP Terraform. Then, trigger the deployment of a Consul-backed Vault cluster on Kubernetes.
+Consul
+Vault
+Terraform
+11min
+Deploy Consul and Vault on Kubernetes with run triggers
+Learn how to integrate Consul, HCP Terraform, and Vault. Use run triggers to start runs across workspaces and deploy a Consul-backed Vault cluster on Kubernetes. Share Kubernetes cluster credentials between workspaces using data sources.
+Consul
+Vault
+Terraform
+6min
+Configure Snyk run task in HCP Terraform
+Extend your HCP Terraform infrastructure workflow by adding a Snyk run task to check for security misconfigurations in your resources.
+Terraform
+25min
+Create preview environments with Terraform, GitHub Actions, and Vercel
+Configure HCP Terraform and GitHub Actions to create frontend and backend preview environments for your application. Dynamically create and destroy preview environments by opening, merging and closing pull requests.
+Terraform
+4min
+Set up HCP Terraform run task for HCP Packer
+Configure an HCP Terraform run task for HCP Packer that helps enforce security and compliance best practices.
+Packer
+Terraform
+21min
+Enforce OPA policies using HCP Terraform and Styra
+Use Terraform preconditions and HCP Terraform run tasks with OPA policy checks to enforce infrastructure configuration compliance.
+Terraform

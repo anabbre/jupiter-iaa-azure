@@ -6,4 +6,8 @@ langchain
 langchain-openai
 langchain-community
 langchain-pinecone
+openai
+fastapi
+uvicorn
+tiktoken
 pandas

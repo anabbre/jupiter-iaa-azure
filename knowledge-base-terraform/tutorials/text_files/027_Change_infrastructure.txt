@@ -1,0 +1,157 @@
+Now that you have provisioned infrastructure with HCP Terraform, you are ready to make changes to that infrastructure.
+HCP Terraform offers multiple ways to set variable values for your
+configuration. In the previous tutorial, you defined your variables in the web
+UI. Now, you will use per-run variables passed on the command line to modify
+your EC2 instance configuration.
+Explore your workspace
+The landing page for a workspace includes an overview of its current state and configuration.
+The top of the workspace overview page reports the following information:
+the
+lock icon
+to indicate if the workspace is locked, which prevents others from triggering new runs.
+the
+resource count
+for the workspace.
+the
+Terraform version
+used for the workspace.
+the
+time since the last update
+.
+the
+Lock button
+that lets you lock and unlock the workspace.
+the
+New run
+button, which allows you to trigger a new run.
+The rest of the page shows details about the most recent run and current settings for
+your workspace.
+The
+Latest run
+section displays details of the last run, including a count
+of resource modifications, duration, and estimated change in cost.
+The
+resources
+and
+outputs
+tables display details about the current infrastructure and any outputs defined for the workspace.
+The
+sidebar
+contains metrics and details about workspace settings. It also includes a section for workspace
+tags
+. You can manage your workspace's tags here, and your list of tags in your Organization settings. Tags allow you to group and filter your workspaces.
+The workspace's menu lists available actions and configurations for the workspace.
+The
+Runs
+page lists all of the plan and apply actions you have
+taken with this workspace.
+The
+States
+page lists the state files for all successful past runs in the workspace. Terraform records data about your resources as a
+tfstate
+file. The state file is central to Terraform operations, and Terraform uses it to determine which changes to make to your resources over their lifecycle.
+The
+Variables
+page lists the Terraform variables, environment variables, and variable sets configured for the workspace.
+The
+Settings
+page contains all of the HCP Terraform settings for your workspace, and is where you will destroy your infrastructure at the end of these tutorials.
+Navigate to the
+Runs
+page, and notice the run attributes that you can
+filter the list of runs by.
+Status
+lets you filter by the
+stage of the run
+, such as
+Applied
+,
+Discarded
+, or
+Pending
+.
+Operation
+lets you filter by the
+run type
+, such as
+Refresh only
+,
+Apply
+, or
+Destroy
+.
+Source
+lets you filter by the
+run workflow
+,
+UI
+,
+VCS
+, or
+API
+.
+Edit variables
+Use variables to make your configuration flexible enough to use in different contexts.
+Setting variable values is one of the most common ways to customize Terraform configuration, and
+HCP Terraform supports multiple ways to manage variables.
+Like Terraform Community Edition, you can pass per-run variables to HCP
+Terraform using command line flags. When using the CLI-driven workflow for
+HCP Terraform, any variables passed using the
+-var
+flag will override
+workspace-specific variables. However, HCP Terraform will not save the new
+value in your workspace unless you update the variable in the UI. This feature
+can be useful when you want to test or temporarily apply a change that you
+expect to revert on the next apply, so your stored variable values continue to
+reflect the desired eventual configuration.
+In your terminal, start a new Terraform run for your workspace. Use a command line variable to update the instance type for your EC2 instance to
+t2.small
+.
+$
+terraform apply -var=
+"instance_type=t2.small"
+Running apply in HCP Terraform. Output will stream here. Pressing Ctrl-C
+will cancel the remote apply if it's still pending. If the apply started it
+will stop streaming the logs, but will not stop the apply running remotely.
+Preparing the remote apply...
+To view this run in a browser, visit:
+https://app.terraform.io/app/hashicorp-training/learn-terraform/runs/run-zRZTVvu....
+##...
+Once again, Terraform will trigger a run in your
+learn-terraform
+workspace and stream the output to your terminal. You can also review the
+details for the run in the workspace itself.
+The Terraform AWS provider determined that it can modify your instance type in
+place. Approve the run to resize your EC2 instance.
+Next Steps
+Review the documentation on
+variables in HCP
+Terraform
+to
+learn more about variable precedence in a workspace.
+In these tutorials, you created an HCP Terraform account and organization,
+authenticated from the command line, created an HCP Terraform workspace, and
+used the CLI-driven workflow to create and modify infrastructure.
+In the next tutorial, you will update your workspace settings to instead use
+the VCS-driven workflow and trigger Terraform operations off of pull requests.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Create infrastructure
+Next
+VCS-driven workflow
+This tutorial also appears in:
+9 tutorials
+Get Started - HCP Terraform
+Collaborate on version-controlled configuration using HCP Terraform. Follow this track to build, change, and destroy infrastructure using remote runs and state.
+Terraform
+Stay Informed
+Sign up to be notified with updates to the HashiCorp Product Certifications program and to receive news and information about HashiCorp products.
+Email
+*
+Send me news about HashiCorp products, releases and events.
+By submitting this form, you acknowledge and agree that HashiCorp will process your personal information in accordance with the
+Privacy Policy
+.
+Submit

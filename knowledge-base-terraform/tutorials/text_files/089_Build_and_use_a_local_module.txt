@@ -1,0 +1,728 @@
+In the last tutorial, you used modules from the Terraform Registry to create a
+VPC and an EC2 instance in AWS. While using existing Terraform modules correctly
+is an important skill, every Terraform practitioner will also benefit from
+learning how to create modules. In fact, we recommend that every Terraform
+configuration be created with the assumption that it may be used as a module,
+because doing so will help you design your configurations to be flexible,
+reusable, and composable.
+As you may already know, Terraform treats every configuration as a module. When
+you run
+terraform
+commands, or use HCP Terraform or Terraform Enterprise to
+remotely run Terraform, the target directory containing Terraform configuration
+is treated as the root module.
+In this tutorial, you will create a module to manage AWS S3 buckets used to host
+static websites.
+Prerequisites
+Although the concepts in this tutorial apply to any module creation workflow,
+this tutorial uses Amazon Web Services (AWS) modules.
+To follow this tutorial you will need:
+An AWS account
+Configure one of the authentication methods described in our
+AWS Provider
+Documentation
+.
+The examples in this tutorial assume that you are using the
+shared credentials
+file
+method with the default AWS credentials file and default profile.
+The
+AWS CLI
+The
+Terraform CLI
+Module structure
+Terraform treats any local directory referenced in the
+source
+argument of a
+module
+block as a module. A typical file structure for a new module is:
+.
+├── LICENSE
+├── README.md
+├── main.tf
+├── variables.tf
+├── outputs.tf
+None of these files are required, or have any special meaning to Terraform when
+it uses your module. You can create a module with a single
+.tf
+file, or use
+any other file structure you like.
+Each of these files serves a purpose:
+LICENSE
+will contain the license under which your module will be
+distributed. When you share your module, the
+LICENSE
+file will let people
+using it know the terms under which it has been made available. Terraform
+itself does not use this file.
+README.md
+will contain documentation describing how to use your module, in
+markdown format. Terraform does not use this file, but services like the
+Terraform Registry and GitHub will display the contents of this file to people
+who visit your module's Terraform Registry or GitHub page.
+main.tf
+will contain the main set of configuration for your module. You can
+also create other configuration files and organize them however makes sense
+for your project.
+variables.tf
+will contain the variable definitions for your module. When
+your module is used by others, the variables will be configured as arguments
+in the
+module
+block. Since all Terraform values must be defined, any
+variables that are not given a default value will become required arguments.
+Variables with default values can also be provided as module arguments,
+overriding the default value.
+outputs.tf
+will contain the output definitions for your module. Module
+outputs are made available to the configuration using the module, so they are
+often used to pass information about the parts of your infrastructure defined
+by the module to other parts of your configuration.
+There are also some other files to be aware of, and ensure that you don't
+distribute them as part of your module:
+terraform.tfstate
+and
+terraform.tfstate.backup
+: These files contain your
+Terraform state, and are how Terraform keeps track of the relationship between
+your configuration and the infrastructure provisioned by it.
+.terraform
+: This directory contains the modules and plugins used to
+provision your infrastructure. These files are specific to a specific instance
+of Terraform when provisioning infrastructure, not the configuration of the
+infrastructure defined in
+.tf
+files.
+*.tfvars
+: Since module input variables are set via arguments to the
+module
+block in your configuration, you don't need to distribute any
+*.tfvars
+files
+with your module, unless you are also using it as a standalone Terraform
+configuration.
+If you are tracking changes to your module in a version control system, such as
+git, you will want to configure your version control system to ignore these
+files. For an example, see this
+.gitignore
+file
+from
+GitHub.
+Warning
+The files mentioned above will often include secret information
+such as passwords or access keys, which will become public if those files are
+committed to a public version control system such as GitHub.
+Create a module
+This tutorial will use the configuration created in the
+using modules
+tutorial
+as a starting point. You can
+either continue working on that configuration in your local directory, or use the
+following commands to clone this
+GitHub repository
+.
+Clone the GitHub repository.
+$
+git clone https://github.com/hashicorp-education/learn-terraform-modules-create
+Change into the directory in your terminal.
+$
+cd learn-terraform-modules-create
+Ensure that Terraform has downloaded all the necessary providers and modules by
+initializing it.
+$
+terraform init
+Initializing modules...
+Downloading registry.terraform.io/terraform-aws-modules/ec2-instance/aws 4.3.0 for ec2_instances...
+- ec2_instances in .terraform/modules/ec2_instances
+Downloading registry.terraform.io/terraform-aws-modules/vpc/aws 3.18.1 for vpc...
+- vpc in .terraform/modules/vpc
+- website_s3_bucket in modules/aws-s3-static-website-bucket
+Initializing the backend...
+Initializing provider plugins...
+- Reusing previous version of hashicorp/aws from the dependency lock file
+- Installing hashicorp/aws v4.49.0...
+- Installed hashicorp/aws v4.49.0 (signed by HashiCorp)
+Terraform has been successfully initialized!
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+In this tutorial, you will create a local submodule within your existing
+configuration that uses the
+s3 bucket
+resource
+from the
+AWS provider.
+If you didn't clone the example repository, you'll need to create the directory
+for your module. Inside your existing configuration directory, create a
+directory called
+modules
+, with a directory called
+aws-s3-static-website-bucket
+inside of it. For example, on Linux or Mac
+systems, run:
+$
+mkdir -p modules/aws-s3-static-website-bucket
+After creating these directories, your configuration's directory structure
+will look like this:
+.
+├── LICENSE
+├── README.md
+├── main.tf
+├── modules
+│   └── aws-s3-static-website-bucket
+├── outputs.tf
+├── terraform.tfstate
+├── terraform.tfstate.backup
+└── variables.tf
+If you have cloned the GitHub repository, the
+tfstate
+files won't appear until
+you run a
+terraform apply
+command.
+Hosting a static website with S3 is a fairly common use case. While it isn't too
+difficult to figure out the correct configuration to provision a bucket this
+way, encapsulating this configuration within a module will provide your users
+with a quick and easy way create buckets they can use to host static websites
+that adhere to best practices. Another benefit of using a module is that the
+module name can describe exactly what buckets created with it are for. In this
+example, the
+aws-s3-static-website-bucket
+module creates s3 buckets that host
+static websites.
+Create a README.md and LICENSE
+If you have cloned the GitHub repository, it will include
+README.md
+and
+LICENSE
+files. These files are not used by Terraform at all. They are included
+in this example to demonstrate best practice. If you want, you can create them
+as follows.
+Inside the
+aws-s3-static-website-bucket
+directory, create a file called
+README.md
+with the following content.
+modules/aws-s3-static-website-bucket/README.md
+# AWS S3 static website bucket
+This module provisions AWS S3 buckets configured for static website hosting.
+Choosing the correct license for your modules is out of the scope of this tutorial.
+This tutorial will use the Apache 2.0 open source license.
+Create another file called
+LICENSE
+with the following content.
+modules/aws-s3-static-website-bucket/LICENSE
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+Neither of these files is required or used by Terraform. Having them is a best
+practice for modules that may one day be shared with others.
+Add module configuration
+You will work with three Terraform configuration files inside the
+aws-s3-static-website-bucket
+directory:
+main.tf
+,
+variables.tf
+, and
+outputs.tf
+.
+If you checked out the git repository, those files will already exist.
+Otherwise, you can create these empty files now. After you do so, your module
+directory structure will look like this:
+modules
+└── aws-s3-static-website-bucket
+├── LICENSE
+├── README.md
+├── main.tf
+├── outputs.tf
+├── variables.tf
+└── www
+Add an S3 bucket resource to
+main.tf
+inside the
+modules/aws-s3-static-website-bucket
+directory:
+modules/aws-s3-static-website-bucket/main.tf
+resource
+"aws_s3_bucket"
+"s3_bucket"
+{
+bucket
+=
+var.bucket_name
+tags
+=
+var.tags
+}
+resource
+"aws_s3_bucket_website_configuration"
+"s3_bucket"
+{
+bucket
+=
+aws_s3_bucket.s3_bucket.id
+index_document
+{
+suffix
+=
+"index.html"
+}
+error_document
+{
+key
+=
+"error.html"
+}
+}
+resource
+"aws_s3_bucket_acl"
+"s3_bucket"
+{
+bucket
+=
+aws_s3_bucket.s3_bucket.id
+acl
+=
+"public-read"
+}
+resource
+"aws_s3_bucket_policy"
+"s3_bucket"
+{
+bucket
+=
+aws_s3_bucket.s3_bucket.id
+policy
+=
+jsonencode({
+Version
+=
+"2012-10-17"
+Statement
+=
+[
+{
+Sid
+=
+"PublicReadGetObject"
+Effect
+=
+"Allow"
+Principal
+=
+"*"
+Action
+=
+"s3:GetObject"
+Resource
+=
+[
+aws_s3_bucket.s3_bucket.arn,
+"
+${
+aws_s3_bucket
+.
+s3_bucket
+.
+arn
+}
+/*"
+,
+]
+},
+]
+})
+}
+This configuration creates a public S3 bucket hosting a website with an index
+page and an error page.
+Notice that there is no
+provider
+block in this configuration. When Terraform
+processes a module block, it will inherit the provider from the enclosing
+configuration. Because of this, we recommend that you do not include
+provider
+blocks in modules.
+Just like the root module of your configuration, modules will define and use
+variables.
+Define the following variables in
+variables.tf
+inside the
+modules/aws-s3-static-website-bucket
+directory:
+modules/aws-s3-static-website-bucket/variables.tf
+# Input variable definitions
+variable
+"bucket_name"
+{
+description
+=
+"Name of the s3 bucket. Must be unique."
+type
+=
+string
+}
+variable
+"tags"
+{
+description
+=
+"Tags to set on the bucket."
+type
+=
+map
+(
+string
+)
+default
+=
+{}
+}
+Variables within modules work almost exactly the same way that they do for the
+root module. When you run a Terraform command on your root configuration, there
+are various ways to set variable values, such as passing them on the
+commandline, or with a
+.tfvars
+file. When using a module, variables are set by
+passing arguments to the module in your configuration. You will set some of
+these variables when calling this module from your root module's
+main.tf
+.
+Variables declared in modules that aren't given a default value are required, and
+so must be set whenever you use the module.
+When creating a module, consider which resource arguments to expose to module
+end users as input variables. For example, you might decide to expose the index
+and error documents to end users of this module as variables, but not declare a
+variable to set the ACL, since you must set your bucket's ACL to
+public-read
+to host a website.
+You should also consider which values to add as outputs, since outputs are the
+only supported way for users to get information about resources configured by
+the module.
+Add outputs to your module in the
+outputs.tf
+file inside the
+modules/aws-s3-static-website-bucket
+directory:
+modules/aws-s3-static-website-bucket/outputs.tf
+# Output variable definitions
+output
+"arn"
+{
+description
+=
+"ARN of the bucket"
+value
+=
+aws_s3_bucket.s3_bucket.arn
+}
+output
+"name"
+{
+description
+=
+"Name (id) of the bucket"
+value
+=
+aws_s3_bucket.s3_bucket.id
+}
+output
+"domain"
+{
+description
+=
+"Domain name of the bucket"
+value
+=
+aws_s3_bucket_website_configuration.s3_bucket.website_domain
+}
+Like variables, outputs in modules perform the same function as they do in the
+root module but are accessed in a different way. You can access a module's output
+from the configuration that calls the module through the following syntax:
+module.<MODULE NAME>.<OUTPUT NAME>
+. Module outputs are read-only attributes.
+Now that you have created your module, return to the
+main.tf
+in your root
+module and add a reference to the new module:
+main.tf
+module
+"website_s3_bucket"
+{
+source
+=
+"./modules/aws-s3-static-website-bucket"
+bucket_name
+=
+"<UNIQUE BUCKET NAME>"
+tags
+=
+{
+Terraform
+=
+"true"
+Environment
+=
+"dev"
+}
+}
+AWS S3 Bucket names must be globally unique. Because of this, you will need to
+replace
+<UNIQUE BUCKET NAME>
+with a unique, valid name for an S3 bucket. Using
+your name and the date is usually a good way to guess a unique bucket name. For
+example:
+bucket_name
+=
+"robin-example-2020-01-15"
+This example passes the
+bucket_name
+and
+tags
+arguments to the module, which
+provides values for the matching variables found in
+modules/aws-s3-static-website-bucket/variables.tf
+.
+Define outputs
+Earlier, you added several outputs to the
+aws-s3-static-website-bucket
+module,
+making those values available to your root module configuration.
+Add the following to the
+outputs.tf
+file in your root module directory (not the
+one in
+modules/aws-s3-static-website-bucket
+) to create additional outputs for
+your S3 bucket.
+outputs.tf
+# Output variable definitions
+output
+"vpc_public_subnets"
+{
+description
+=
+"IDs of the VPC's public subnets"
+value
+=
+module.vpc.public_subnets
+}
+output
+"ec2_instance_public_ips"
+{
+description
+=
+"Public IP addresses of EC2 instances"
+value
+=
+module.ec2_instances[
+*
+].public_ip
+}
+output
+"website_bucket_arn"
+{
+description
+=
+"ARN of the bucket"
+value
+=
+module.website_s3_bucket.arn
+}
+output
+"website_bucket_name"
+{
+description
+=
+"Name (id) of the bucket"
+value
+=
+module.website_s3_bucket.name
+}
+output
+"website_bucket_domain"
+{
+description
+=
+"Domain name of the bucket"
+value
+=
+module.website_s3_bucket.domain
+}
+Install the local module
+Whenever you add a new module to a configuration, Terraform must install the
+module before it can be used. Both the
+terraform get
+and
+terraform init
+commands will install and update modules. The
+terraform init
+command will also
+initialize backends and install plugins.
+Now install the module by running
+terraform get
+.
+$
+terraform get
+Note
+When installing a remote module, Terraform will download it into
+the
+.terraform
+directory in your configuration's root directory. When
+installing a local module, Terraform will instead refer directly to the source
+directory. Because of this, Terraform will automatically notice changes to
+local modules without having to re-run
+terraform init
+or
+terraform get
+.
+Now that your new module is installed and configured, run
+terraform apply
+to
+provision your bucket.
+$
+terraform apply
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
++ create
+Terraform will perform the following actions:
+## ...
+# module.website_s3_bucket.aws_s3_bucket.s3_bucket will be created
++ resource "aws_s3_bucket" "s3_bucket" {
++ acceleration_status = (known after apply)
+## ...
+Do you want to perform these actions?
+Terraform will perform the actions described above.
+Only 'yes' will be accepted to approve.
+Enter a value:
+After you respond to the prompt with
+yes
+, your bucket and other resources will
+be provisioned.
+Note
+This will provision the EC2 instances from the previous tutorial as
+well. Don't forget to run
+terraform destroy
+when you are done with this tutorial
+to remove those EC2 instances, or you could end up being charged for them.
+After running
+terraform apply
+, your bucket will be created.
+Upload files to the bucket
+You have now configured and used your own module to create a static website. You
+may want to visit this static website. Right now there is nothing inside your
+bucket, so there would be nothing to see if you visit the bucket's website. In
+order to see any content, you will need to upload objects to your bucket. You
+can upload the contents of the
+www
+directory found in
+the GitHub
+repository
+to the bucket using the AWS console, or the
+AWS commandline
+tool
+, for example:
+$
+aws s3 cp modules/aws-s3-static-website-bucket/www/ s3://
+$(
+terraform
+output -raw website_bucket_name)
+/ --recursive
+upload: modules/aws-s3-static-website-bucket/www/error.html to s3://robin-test-2020-01-15/error.html
+upload: modules/aws-s3-static-website-bucket/www/index.html to s3://robin-test-2020-01-15 /index.html
+The website domain was shown when you last ran
+terraform apply
+, or whenever
+you run
+terraform output
+.
+Visit the website domain in a web browser, and you will see the website
+contents.
+https://<YOUR BUCKET NAME>.s3-us-west-2.amazonaws.com/index.html
+Clean up the website and infrastructure
+If you have uploaded files to your bucket, you will need to delete them before
+the bucket can be destroyed. For example, you could run:
+$
+aws s3 rm s3://
+$(
+terraform
+output -raw website_bucket_name)
+/ --recursive
+delete: s3://robin-test-2020-01-15/index.html
+delete: s3://robin-test-2020-01-15/error.html
+Once the bucket is empty, destroy your Terraform resources:
+$
+terraform destroy
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+- destroy
+Terraform will perform the following actions:
+# module.ec2_instances.aws_instance.this[0] will be destroyed
+## ...
+Plan: 0 to add, 0 to change, 26 to destroy.
+Changes to Outputs:
+- ec2_instance_public_ips = [
+- "34.209.188.84",
+- "18.236.69.92",
+] -> null
+- vpc_public_subnets = [
+- "subnet-035b78336fdc48d7c",
+- "subnet-06b1eb0de498734e1",
+] -> null
+- website_bucket_arn = "arn:aws:s3:::robin-example-2021-01-25" -> null
+- website_bucket_domain = "s3-website-us-west-2.amazonaws.com" -> null
+- website_bucket_name = "robin-example-2021-01-25" -> null
+Do you really want to destroy all resources?
+Terraform will destroy all your managed infrastructure, as shown above.
+There is no undo. Only 'yes' will be accepted to confirm.
+Enter a value: yes
+module.vpc.aws_route_table_association.public[1]: Destroying... [id=rtbassoc-0c8637d50db69e572]
+module.vpc.aws_route_table_association.public[0]: Destroying... [id=rtbassoc-0069ea0a8d0a37a9b]
+## ...
+Destroy complete! Resources: 26 destroyed.
+After you respond to the prompt with
+yes
+, Terraform will destroy all of the
+resources created by following this tutorial.
+Next steps
+In this tutorial, you created a local Terraform module and referenced it in your root Terraform configuration. You also configured the module using input variables and exposed data about its resources with outputs.
+To learn more about module best practices:
+Review the
+recommended patterns on designing modules and workflows for collaboration
+.
+Follow the
+tutorial on how to use objects to manage complex module inputs
+.
+Read the
+module documentation
+.
+Was this tutorial helpful?
+Yes
+No
+Previous
+Use modules
+Next
+Refactor configuration
+This tutorial also appears in:
+10 tutorials
+Reuse Configuration with Modules
+Create and use Terraform modules to organize your configuration. Host a static website in AWS using two modules: one from the Terraform Registry and one you will build yourself. Organize configuration using directories and workspaces.
+Terraform
+Stay Informed
+Sign up to be notified with updates to the HashiCorp Product Certifications program and to receive news and information about HashiCorp products.
+Email
+*
+Send me news about HashiCorp products, releases and events.
+By submitting this form, you acknowledge and agree that HashiCorp will process your personal information in accordance with the
+Privacy Policy
+.
+Submit

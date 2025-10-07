@@ -1,0 +1,106 @@
+Over the course of these tutorials, you created an EC2 instance in AWS, an HCP
+Terraform workspace, and a GitHub repository.
+In this tutorial, you will destroy the EC2 instance and delete your HCP
+Terraform workspace.
+Tip
+If you plan to complete later tutorials, destroy the
+resources
+but not the workspace in this tutorial.
+Destroy infrastructure
+Now that you have provisioned and changed infrastructure with HCP Terraform,
+the final stage of your infrastructure's lifecycle is to destroy it.
+HCP Terraform allows you to destroy the infrastructure you have provisioned
+as a part of the standard workflow.
+To destroy the infrastructure you provisioned in these tutorials, go
+to your workspace in the HCP Terraform UI. Navigate to your workspace's
+Settings
+, then to
+Destruction and Deletion
+.
+This page offers two operations:
+Queue destroy plan
+destroys all
+infrastructure managed by the workspace.
+Delete from HCP Terraform
+deletes your workspace from HCP Terraform without destroying the infrastructure the workspace manages.
+Note
+Deleting a workspace does not destroy its infrastructure. For example, if you were to delete this
+workspace, the AWS EC2 instance you provisioned earlier would still exist.
+Queue a destroy plan
+Click the red
+Queue destroy plan
+button.
+HCP Terraform will prompt you to enter your workspace name before you can queue a destroy plan.
+Enter your workspace name and queue the plan.
+Destroy the infrastructure
+As it does with all plans, HCP Terraform will ask you to
+Confirm and Apply
+the plan. Do so now
+to destroy your EC2 instance.
+After a few minutes, the apply step should complete successfully.
+Verify that Terraform destroyed the EC2 instance by visiting the
+AWS web console
+in the region where you created it. The configuration defaults
+to using the
+N. California/us-west-1
+region.
+Delete the workspace (optional)
+Tip
+If you plan to continue to later tutorials and
+your organization does not contain other workspaces, do
+not
+destroy the
+workspace created.
+If you do not plan to run these tutorials again and want to keep your HCP
+Terraform organization clean, you can delete the workspace you created. HCP
+Terraform does not limit the number of workspaces you have or charge per workspace,
+so whether you delete the workspace is up to you.
+To delete the workspace, return to the
+Settings -> Destruction
+& Deletion
+page, and click the red
+Delete from HCP Terraform
+button.
+HCP Terraform will prompt you to enter your workspace name before you can click
+Delete workspace
+. Input the workspace name and click the button to delete the workspace.
+Next steps
+In these tutorials you used HCP Terraform to provision, change, and destroy
+infrastructure using both the CLI and VCS-driven workflows. Now you are ready
+to learn more about developing Terraform configurations. Get started with using
+Terraform to manage resources on your preferred cloud platform:
+Terraform CLI with AWS
+Terraform CLI with Azure
+Terraform CLI with GCP
+At the end of the tutorials listed above, you will revisit managing your configuration using the CLI-driven HCP Terraform workflow.
+Learn more about the concepts you used in these tutorials by
+exploring the documentation
+.
+To explore more of HCP Terraform's features, continue to the following tutorials:
+Organize workspaces with projects
+Manage variable sets in HCP Terraform
+Enforce policy with Sentinel
+Share modules in the private registry
+Use health assessments to detect infrastructure drift
+Connect workspaces with run triggers
+Was this tutorial helpful?
+Yes
+No
+Previous
+VCS-driven workflow
+Next Collection
+Professional Prep
+This tutorial also appears in:
+9 tutorials
+Get Started - HCP Terraform
+Collaborate on version-controlled configuration using HCP Terraform. Follow this track to build, change, and destroy infrastructure using remote runs and state.
+Terraform
+Stay Informed
+Sign up to be notified with updates to the HashiCorp Product Certifications program and to receive news and information about HashiCorp products.
+Email
+*
+Send me news about HashiCorp products, releases and events.
+By submitting this form, you acknowledge and agree that HashiCorp will process your personal information in accordance with the
+Privacy Policy
+.
+Submit

@@ -1,0 +1,27 @@
+IT/SaaS Providers
+Manage your organization, users, and workflows with Terraform's Information Technology (IT) and Software as a Service (SaaS) focused providers.
+6 tutorials
+20min
+Manage Microsoft Entra ID users and groups
+Codify your Microsoft Entra ID (previously Azure Active Directory) resources. Create and manage new users and assign them to groups.
+Terraform
+20min
+Manage your Google Workspace organization
+Manage a Google Workspace organization using Terraform. Add a new user, new group, and assign permissions to your user with infrastructure as code.
+Terraform
+34min
+Manage GitHub Users, Teams, and Repository Permissions
+Use Terraform to invite new users to your GitHub organization, create teams, and manage repository and team memberships.
+Terraform
+9min
+Configure ServiceNow Service Graph Connector for HCP Terraform
+Import Terraform resources into the ServiceNow CMDB, then search ServiceNow for your infrastructure.
+Terraform
+14min
+Self-service enablement with HCP Terraform and ServiceNow
+Use no-code modules with the ServiceNow Service Catalog to let your team self-provision infrastructure.
+Terraform
+8min
+Manage Azure Virtual Machine Scale Sets with Terraform
+Create a Virtual Machine Scale Set in Azure and configure autoscaling rules using Terraform.
+Terraform

@@ -1,0 +1,711 @@
+No-code provisioning in HCP Terraform lets users deploy infrastructure resources without writing Terraform configuration. This lets organizations adopt a self-service model by giving developers with limited infrastructure knowledge a way to deploy the resources they need.
+Modules can codify your infrastructure standards and architecture requirements, making it easier for Terraform configuration authors to deploy infrastructure that complies with best practices. No-code provisioning lets users deploy infrastructure in modules without writing any Terraform configuration, which makes your standards even easier to comply with, and removes the dependency on infrastructure teams or ticketing systems to give developers their required resources.
+Note
+No-code modules are available in HCP Terraform
+Plus
+Edition. Refer to
+HCP Terraform pricing
+for details.
+In this tutorial, you will review a no-code module that complies with our architectural recommendations. Then, you will publish it to your HCP Terraform private registry and use it to deploy resources. Finally, you will publish a new version of the module and update the resources in your HCP Terraform workspace. In the process, you will review the no-code workflow from the perspective of two personas: the module author, and the module user.
+Prerequisites
+This tutorial assumes that you are familiar with the Terraform and HCP
+Terraform workflows. If you are new to Terraform, complete the
+Get Started
+collection
+first. If you are new to
+HCP Terraform, complete the
+HCP Terraform Get Started
+tutorials
+first.
+In order to complete this tutorial, you will need the following:
+An
+HCP Terraform account
+with Plus edition features.
+An
+AWS account
+.
+Fork example repository
+Fork the
+example repository for this tutorial
+, but
+rename
+the repository to
+terraform-aws-rds
+to satisfy module repository naming constraints in HCP Terraform.
+Then, clone
+your fork
+of the repository, replacing
+USER
+with your own username.
+$
+git clone git@github.com:USER/terraform-aws-rds.git
+Navigate to the repository directory.
+$
+cd terraform-aws-rds
+Review module design recommendations
+Unlike standard module deployment, users do not provision infrastructure in no-code modules by referencing them in written configuration. Because of this, you must write no-code modules in a specific way.
+No-code modules must follow standard module structure and define all resources in the root repository of the directory. This lets HCP Terraform inspect the module, generate documentation, track resource usage, and parse submodules and examples. It will display this data in your HCP Terraform registry.
+Open
+main.tf
+and review the no-code module configuration. This module definition uses the public
+vpc
+module to create networking resources, then deploys an RDS instance, subnet group, and security group within that designated VPC.
+Declare provider blocks within module
+Notice that the module configuration includes a declaration for the AWS and
+random providers.
+main.tf
+provider
+"aws"
+{
+region
+=
+var.region
+default_tags
+{
+tags
+=
+{
+HashiCorpLearnTutorial
+=
+"no-code-provisioning"
+}
+}
+}
+provider
+"random"
+{}
+The main difference between no-code modules and ordinary modules is that the no-code workflow
+requires
+declaring provider configuration within the module itself. Authors of standard modules usually avoid including the provider configuration within the module because it makes the module incompatible with the
+for_each
+,
+count
+, and
+depends_on
+meta-arguments. Since users will not reference no-code modules in written configuration, there is no risk of this conflict.
+When users provision infrastructure with a no-code module, HCP Terraform will automatically launch a new workspace to manage the module's resources. Because no-code modules contain their provider configuration, organization administrators must also enable automatic access to provider credentials. You will review options for configuring credential access later in this tutorial.
+Limit configurable variables and attributes
+Because no-code ready modules target users who are unfamiliar with Terraform and infrastructure management, reduce the number of decisions the user needs to make. A well-designed no-code module is scoped to a specific use case and limits the number of variables a user needs to configure.
+Potential use cases for this module are testing changes to database schemas, or general load testing. Because of this, the module configuration makes assumptions about expected usage, but still gives users the flexibility to configure a few resource attributes through input variables.
+For example, the
+aws_security_group.rds
+defines a single ingress rule, scoping inbound traffic to the instance to a single CIDR block, representing a hypothetical internal VPN.
+main.tf
+resource
+"aws_security_group"
+"rds"
+{
+name
+=
+"
+${
+random_pet
+.
+random
+.
+id
+}
+-education_rds"
+vpc_id
+=
+module.vpc.vpc_id
+ingress
+{
+from_port
+=
+5432
+to_port
+=
+5432
+protocol
+=
+"tcp"
+cidr_blocks
+=
+[
+"192.80.0.0/16"
+]
+}
+egress
+{
+from_port
+=
+5432
+to_port
+=
+5432
+protocol
+=
+"tcp"
+cidr_blocks
+=
+[
+"0.0.0.0/0"
+]
+}
+}
+It also enforces logging for all connections to the database through a parameter group.
+main.tf
+resource
+"aws_db_parameter_group"
+"education"
+{
+name
+=
+"
+${
+random_pet
+.
+random
+.
+id
+}
+-education"
+family
+=
+"postgres16"
+parameter
+{
+name
+=
+"log_connections"
+value
+=
+"1"
+}
+lifecycle
+{
+create_before_destroy
+=
+true
+}
+}
+The configuration generates a random password for your RDS instance using the
+random_password
+ephemeral resource. The configuration then sets this password
+for your database using a write-only argument. The configuration also stores and encrypts the
+generated password in AWS SSM using another write-only argument.
+Review the ephemeral resource for the database password in
+main.tf
+.
+main.tf
+ephemeral
+"random_password"
+"db_password"
+{
+length
+=
+16
+}
+The
+random_password.db_password
+is an ephemeral resource. Terraform does not
+store ephemeral resources in its state or plan files.
+Note
+Ephemeral resources and values are available in Terraform 1.10 and later.
+The configuration uses
+random_password.db_password
+to set the value of two
+write-only arguments. A resource's write-only arguments are only available
+during the current operation, and Terraform does not store write-only argument values
+in state or plan files. The first write-only argument,
+aws_db_instance.password_wo
+, sets the password on the RDS instance. The second
+write-only argument,
+aws_ssm_parameter.value_wo
+, stores the password value as
+an AWS SSM secret. By setting the password with an ephemeral resource and
+write-only arguments, Terraform does not store your database password, and the
+only way to retrieve that password is by querying the AWS SSM parameter.
+Note
+Write-only arguments are available in Terraform 1.11 and later.
+main.tf
+locals
+{
+# Increment db_password_version to update the DB password and store the new
+# password in SSM.
+db_password_version
+=
+1
+}
+resource
+"aws_db_instance"
+"education"
+{
+identifier
+=
+"
+${
+var
+.
+db_name
+}
+-
+${
+random_pet
+.
+random
+.
+id
+}
+"
+instance_class
+=
+"db.t3.micro"
+allocated_storage
+=
+5
+engine
+=
+"postgres"
+engine_version
+=
+"16"
+username
+=
+var.db_username
+password_wo
+=
+ephemeral.random_password.db_password.result
+password_wo_version
+=
+local.db_password_version
+db_subnet_group_name
+=
+aws_db_subnet_group.education.name
+vpc_security_group_ids
+=
+[aws_security_group.rds.id]
+parameter_group_name
+=
+aws_db_parameter_group.education.name
+publicly_accessible
+=
+true
+skip_final_snapshot
+=
+true
+}
+resource
+"aws_ssm_parameter"
+"secret"
+{
+name
+=
+"/education/database/
+${
+var
+.
+db_name
+}
+/password/master"
+description
+=
+"Password for RDS database."
+type
+=
+"SecureString"
+value_wo
+=
+ephemeral.random_password.db_password.result
+value_wo_version
+=
+local.db_password_version
+}
+Since Terraform does not store write-only argument values, the AWS
+provider declares corresponding
+_version
+arguments for each write-only argument.
+Whenever you increment the corresponding
+_version
+argument, you let Terraform know your write-only argument value has changed. Terraform can then make a plan diff and notify the provider that a write-only argument has a new value.
+update the write-only argument as well. The example configuration uses a local
+value,
+local.db_password_version
+, to ensure that the RDS database password
+and the secret stored in SSM are updated at the same time.
+The RDS instance configuration itself uses multiple variable values to allow
+developers to configure the database as needed. However, it hardcodes the
+engine
+,
+engine_version
+,
+instance_class
+, and
+allocated_storage
+arguments
+to satisfy organizational requirements.
+Open
+variables.tf
+to review the variable configuration. These are the limited
+variable values that users will have to enter to deploy the module.
+variables.tf
+variable
+"region"
+{
+description
+=
+"AWS region for all resources."
+type
+=
+string
+default
+=
+"us-east-2"
+}
+variable
+"db_name"
+{
+description
+=
+"Unique name to assign to RDS instance."
+type
+=
+string
+}
+variable
+"db_username"
+{
+description
+=
+"RDS root username."
+type
+=
+string
+}
+The no-code provisioning workflow prompts users to set values for the module's
+input variables that do not have defaults before creating the new workspace and
+deploying resources. Users will be able to override any variable values with
+defaults in future runs. The new workspace will also access any variable sets
+sets in your organization or project, giving you another way to set configuration
+defaults.
+Publish no-code ready module
+Module repositories published to the Terraform registry must follow the name
+format
+terraform-<provider>-<name>
+and define releases with either branches or
+semantically versioned tags. This tutorial will use tag-based releases for your
+module.
+First, create a tag for your module.
+$
+git tag 1.0.0
+Then, push the tag.
+$
+git push --tags
+* [new tag] 1.0.0 -> 1.0.0
+Next, go to your organization's HCP Terraform registry, click
+Publish
+, then select
+Module
+.
+Select your version control provider, then select your
+terraform-aws-rds
+repository.
+On the
+Add Module
+screen, check
+Add Module to no-code provision allowlist
+. Then, click
+Publish module
+.
+When you enable no-code provisioning on a module, HCP Terraform displays a
+No-Code Ready
+badge next to the module name and adds a
+Provision Workspace
+button to the details page.
+Now, select
+Configure Settings
+, which takes you to the
+No-code provisioning settings
+page.
+Click
+Edit versions and variable options
+.
+Select
+1.0.0 (latest)
+from the
+Select module version
+dropdown. When users provision a workspace for this module, Terraform will deploy this module version.
+Then, click
+Add dropdown options
+for the
+db_username
+variable. Enter
+education
+in the text box.
+Finally, click
+Save
+.
+Create a project
+Navigate to your organization's
+Projects
+landing page. Click
++ New Project
+.
+Enter
+No-Code
+as the project name, then click
+Create
+.
+Tip
+Use projects to easily assign team-level access to project-scoped variable sets and enable self-service workflows.
+Create provider credentials variable set
+Navigate to the
+Variable Sets
+page for your organization and create a new variable set.
+Enter
+No Code Credentials
+for the name.
+Scroll down to the
+Variable set scope
+section and select
+Apply to specific projects and workspaces
+. Then, select the
+No-Code
+project from the
+Apply to projects
+dropdown.
+Find the AWS credentials you want to use for the workspaces in this project, or create a new key pair in the
+IAM console
+. Then, set the credentials as variables using
++Add Variable
+.
+Type
+Variable name
+Description
+Sensitive
+Environment variable
+AWS_ACCESS_KEY_ID
+The access key ID from your AWS key pair
+No
+Environment variable
+AWS_SECRET_ACCESS_KEY
+The secret access key from your AWS key pair
+Yes
+Tip
+If you have temporary AWS credentials, you must also add your
+AWS_SESSION_TOKEN
+as an environment variable.
+Now, click
+Create variable set
+.
+Deploy no-code ready module
+The preceding sections described the no-code workflow for the module designer and publisher. Now, you will follow the deployment process for a module user.
+Navigate to the
+Registry
+for your organization and select the
+rds
+module.
+Click the
+Provision workspace
+button on the module's details page to launch the workflow. HCP Terraform prompts you for values for the input variables. Notice the dropdown for the
+db_username
+variable contains the value you predefined.
+Set the variables to the following:
+Variable name
+Value
+db_name
+nocode
+db_username
+education
+Then, click
+Next: Workspace settings
+.
+On the workspace settings page:
+Set the workspace name to
+learn-terraform-no-code-provisioning
+.
+Select the
+No-Code
+project from the
+Project
+dropdown.
+In the
+Apply methods
+section, leave the method as
+Auto-apply
+. HCP Terraform will automatically apply successful runs in the workspace, including the first one that will launch on workspace creation. The manual apply method would automatically launch a plan in the new workspace, and then prompt operators to manually approve the plan.
+Click
+Create workspace
+to create the workspace and deploy your resources.
+Review no-code workspace
+When you create the workspace, HCP Terraform launches a new run. Because of the auto-apply, it automatically creates your infrastructure.
+The workspace indicates that it uses the no-code workflow. It also highlights the outputs for the configuration to give users easy access to the resource attributes they need.
+Because you cannot interact with the Terraform configuration for the workspace, you can only change the infrastructure by editing the variable values or by updating to a different version of the module. You cannot directly apply configuration changes to existing no-code workspaces.
+Update the no-code module
+When you update a no-code module, HCP Terraform notifies every workspace that uses the module that a newer version is available. In this section, you will publish a new version of the module and update your workspace's resources.
+Open the
+variables.tf
+file and add a new variable.
+variables.tf
+variable
+"db_encrypted"
+{
+description
+=
+"Encrypt the database storage"
+type
+=
+bool
+}
+Next, open
+main.tf
+and set the
+aws_db_instance
+resource's
+storage_encrypted
+attribute to reference the new variable value.
+main.tf
+resource
+"aws_db_instance"
+"education"
+{
+identifier
+=
+"
+${
+var
+.
+db_name
+}
+-
+${
+random_pet
+.
+random
+.
+id
+}
+"
+instance_class
+=
+"db.t3.micro"
+allocated_storage
+=
+5
+engine
+=
+"postgres"
+engine_version
+=
+"16"
+username
+=
+var.db_username
+password_wo
+=
+ephemeral.random_password.db_password.result
+password_wo_version
+=
+local.db_password_version
+db_subnet_group_name
+=
+aws_db_subnet_group.education.name
+vpc_security_group_ids
+=
+[aws_security_group.rds.id]
+parameter_group_name
+=
+aws_db_parameter_group.education.name
+publicly_accessible
+=
+true
+skip_final_snapshot
+=
+true
+storage_encrypted
+=
+var.db_encrypted
+}
+Commit the changes to your git repository.
+$
+git commit main.tf variables.tf -m
+"Add variable to choose if database is encrypted"
+[main 00bd925] Add variable to choose if database is encrypted
+2 files changed, 6 insertions(+)
+Next, create a new tag.
+$
+git tag 1.0.1
+Push the code changes and the new tag to your GitHub repository.
+$
+git push origin main --tags
+efcd2b4..00bd925 main -> main
+* [new tag] 1.0.1 -> 1.0.1
+HCP Terraform will continue to use version
+1.0.0
+of the module until you configure it to use the new version. Go to your organization's HCP Terraform registry, click your
+rds
+module, and click
+Configure Settings
+.
+Click
+Edit version and variable options
+. Under
+Module version
+, select
+1.0.1 (latest)
+and click
+Save
+.
+Next, navigate to your
+learn-terraform-no-code-provisioning
+workspace and you will see a notification that a no-code module version update is available.
+Click
+View update
+to view the module change request.
+You already set the
+db_name
+and
+db_username
+variables values previous run, but you must provide a value for the new
+db_encrypted
+variable. Choose
+true
+from the dropdown and click
+Save configuration & start plan
+.
+HCP Terraform starts a new plan, then displays the proposed resource changes. Once the plan completes, click
+Confirm & apply
+to apply the changes of the updated module.
+Clean up your infrastructure
+Destroy the resources you created as part of this tutorial to avoid incurring
+unnecessary costs. Navigate to your
+Workspace Settings
+, then to
+Destruction and Deletion
+. Select
+Queue destroy plan
+to delete your
+resources. HCP Terraform will automatically apply the run.
+Optionally delete the workspace,
+No-Code
+project,
+No-Code Credentials
+variable set, and the module from your HCP Terraform organization.
+Next steps
+In this tutorial, you published and used a no-code module, which let you automatically deploy Terraform resources without writing configuration for the workspace. Along the way, you reviewed the design recommendations and requirements for no-code modules.
+Review the following resources to learn more about how Terraform can support your organization's workflows.
+Review the documentation for
+no-code provisioning
+.
+Learn how to configure
+optional object attributes for modules
+.
+Learn how to
+enforce OPA policies and detect drift with HCP Terraform
+.
+Learn how
+dynamic credentials
+help users deploy no-code modules.
+Was this tutorial helpful?
+Yes
+No
+Previous
+OPA policies
+Next
+Projects
+This tutorial also appears in:
+10 tutorials
+Reuse Configuration with Modules
+Create and use Terraform modules to organize your configuration. Host a static website in AWS using two modules: one from the Terraform Registry and one you will build yourself. Organize configuration using directories and workspaces.
+Terraform

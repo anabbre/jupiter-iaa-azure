@@ -1,0 +1,13 @@
+Manage Virtual Machine Images
+Deploy and manage virtual machine images with Terraform and Packer.
+2 tutorials
+5min
+Provision infrastructure with Packer
+Create an image with Packer and deploy it with Terraform.
+Terraform
+Packer
+13min
+Manage VMs and snapshots on vSphere
+Create and load an Ubuntu image to vSphere using Packer. Then, provision and manage a vSphere virtual machine based on that template.
+Terraform
+Packer

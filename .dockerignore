@@ -28,3 +28,26 @@ tmp/
 
 # Documentación y datos locales
 docs/
+
+# Caches de herramientas
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.cache/
+coverage.xml
+htmlcov/
+.coverage
+
+# Archivos de sistema
+.DS_Store
+
+# Artefactos de Python
+*.egg-info/
+dist/
+build/
+
+# Datos locales pesados (vector db, etc.)
+src/rag/vector_db/
+
+# Imágenes/notebooks (si no se necesitan dentro del contenedor)
+*.ipynb

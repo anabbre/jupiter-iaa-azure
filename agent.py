@@ -1,6 +1,4 @@
 from typing import TypedDict, Annotated, List, Dict
-from dotenv import load_dotenv
-load_dotenv()
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
@@ -8,9 +6,12 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain.prompts import ChatPromptTemplate
 try:
-    from langchain.schema import BaseMessage, HumanMessage, AIMessage
+    from langchain.schema import BaseMessage, HumanMessage
 except ImportError:
-    from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+    from langchain_core.messages import BaseMessage, HumanMessage
+
+from dotenv import load_dotenv
+load_dotenv()
 
 
 # Configuración
@@ -139,7 +140,8 @@ responde en base a la información que tienes en la DB Vectorial y cita las fuen
         """Crea el grafo del agente RAG"""
         workflow = StateGraph(AgentState)
 
-        retrieve_with_k = lambda state: self.retrieve_node(state, k_docs)
+        def retrieve_with_k(state):
+            return self.retrieve_node(state, k_docs)
 
         workflow.add_node("retrieve", retrieve_with_k)
         workflow.add_node("generate", self.generate_node)

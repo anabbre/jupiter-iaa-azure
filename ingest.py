@@ -1,19 +1,18 @@
-# ingest_fixed.py
+from pathlib import Path
+from typing import List
 import os
 import re
 import json
 import shutil
-from pathlib import Path
-from typing import List
-
-from dotenv import load_dotenv
-load_dotenv()
 
 # API moderna de LangChain (>=0.2)
 from langchain.schema import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
+
+from dotenv import load_dotenv
+load_dotenv()
 
 # -------- Config --------
 BASE_DIR = Path("knowledge-base-terraform")

@@ -1,6 +1,5 @@
 import streamlit as st
 from aux_files import _utils as aux
-import traceback
 
 # Logs
 logger = aux.get_logger(__name__, subdir="chatbot")

@@ -15,7 +15,6 @@ from langchain_community.document_loaders import TextLoader
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
 from langchain.chains.retrieval import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
 
 load_dotenv()
@@ -224,6 +223,7 @@ def ingest_docs(uploaded_files: List[UploadedFile], assistant_id: str, index_nam
         batch_size = 100
         total_batches = (len(documents) + batch_size - 1) // batch_size
 
+        _ = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
         vectorstore = PineconeVectorStore(index_name=index_name, embedding=embeddings)
 
         if delete_existing_files:

@@ -6,6 +6,9 @@ from openai import OpenAI
 from gtts import gTTS
 from agent import RAGAgent
 
+from aux_files import _utils as aux
+logger = aux.get_logger(__name__, subdir="ui")
+
 # =============================
 # CONFIGURACIÓN
 # =============================
@@ -156,7 +159,8 @@ def text_to_speech(text):
         tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
         tts.save(tmp_file.name)
         return tmp_file.name
-    except Exception as e:
+    except Exception:
+        logger.exception("TTS generation failed")
         return None
 
 # =============================

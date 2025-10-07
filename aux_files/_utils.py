@@ -254,8 +254,9 @@ def get_docs_by_index(index_name: str, limit: int = 7, chunked: bool = False):
     Obtiene documentos de un índice específico en Pinecone.
     """
     try:
-        pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
+        _ = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
         vectorstore = PineconeVectorStore(index_name=index_name, embedding=embeddings)
+
 
         # Búsqueda robusta: consulta neutra + fallback MMR
         docs = vectorstore.similarity_search("terraform", k=limit)

@@ -5,17 +5,17 @@ import gradio as gr
 from openai import OpenAI
 from gtts import gTTS
 from agent import RAGAgent
-
 from aux_files import _utils as aux
-logger = aux.get_logger(__name__, subdir="ui")
+
+# Cargar claves de entorno
+from dotenv import load_dotenv
+load_dotenv()
 
 # =============================
 # CONFIGURACIÓN
 # =============================
 
-# Cargar claves de entorno
-from dotenv import load_dotenv
-load_dotenv()
+logger = aux.get_logger(__name__, subdir="ui")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:

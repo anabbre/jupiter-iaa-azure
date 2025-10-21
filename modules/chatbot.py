@@ -4,6 +4,7 @@ from aux_files import _utils as aux
 # Logs
 logger = aux.get_logger(__name__, subdir="chatbot")
 
+
 def show_chatbot(index_name):
     # Variable para saber si hay datos entrenados
     if "is_trained" not in st.session_state:
@@ -51,10 +52,9 @@ def show_chatbot(index_name):
     chat_messages = st.container(height=500)
     with chat_messages:
         # Mostrar historial de mensajes
-        for i, (user_query, ai_response) in enumerate(zip(
-                chat_state["user_prompt_history"],
-                chat_state["chat_answers_history"]
-        )):
+        for i, (user_query, ai_response) in enumerate(
+            zip(chat_state["user_prompt_history"], chat_state["chat_answers_history"])
+        ):
             # Mensaje del usuario
             st.chat_message("user").write(user_query)
 
@@ -86,7 +86,11 @@ def show_chatbot(index_name):
 
                     # Agrupar fuentes por archivo
                     for key, fragment in message_fragments.items():
-                        filename = fragment["metadata"].get("filename", "Desconocido") if "metadata" in fragment else "Desconocido"
+                        filename = (
+                            fragment["metadata"].get("filename", "Desconocido")
+                            if "metadata" in fragment
+                            else "Desconocido"
+                        )
                         if filename not in fragments_by_file:
                             fragments_by_file[filename] = []
                         fragments_by_file[filename].append(fragment)
@@ -96,7 +100,10 @@ def show_chatbot(index_name):
                     for j, (filename, fragments) in enumerate(files_list):
                         col_index = j % 4  # Distribuir en las 4 columnas
                         with cols[col_index]:
-                            if st.button(f"📄 {filename} ({len(fragments)})", key=f"file_{message_id}_{filename}"):
+                            if st.button(
+                                f"📄 {filename} ({len(fragments)})",
+                                key=f"file_{message_id}_{filename}",
+                            ):
                                 st.session_state.show_fragment_dialog = True
                                 st.session_state.current_file = filename
                                 st.session_state.current_fragments = fragments
@@ -114,20 +121,32 @@ def show_chatbot(index_name):
                         generated_response = aux.run_llm_on_index(
                             query=st.session_state.current_prompt,
                             chat_history=chat_state["chat_history"],
-                            index_name=index_name
+                            index_name=index_name,
                         )
                         # Validar respuesta
-                        if not generated_response or "result" not in generated_response or not generated_response["result"]:
+                        if (
+                            not generated_response
+                            or "result" not in generated_response
+                            or not generated_response["result"]
+                        ):
                             raise ValueError("Respuesta inválida del asistente")
-                        logger.info(f"Respuesta generada '{user_query}': {generated_response['result']}")
-                        
+                        logger.info(
+                            f"Respuesta generada '{user_query}': {generated_response['result']}"
+                        )
+
                         # Crear un ID para este mensaje
                         message_id = f"msg_{len(chat_state['user_prompt_history'])}"
                         st.session_state.message_sources[message_id] = {}
                         # Guardar fuentes específicas para este mensaje
-                        if "source_documents" in generated_response and generated_response["source_documents"]:
+                        if (
+                            "source_documents" in generated_response
+                            and generated_response["source_documents"]
+                        ):
                             for doc in generated_response["source_documents"]:
-                                if hasattr(doc, "metadata") and "filename" in doc.metadata:
+                                if (
+                                    hasattr(doc, "metadata")
+                                    and "filename" in doc.metadata
+                                ):
                                     fragment_key = f"{doc.metadata.get('filename')}_{doc.page_content[:30]}"
                                     # Guardar en el historial general
                                     if "used_fragments" not in chat_state:
@@ -135,27 +154,46 @@ def show_chatbot(index_name):
                                     if fragment_key not in chat_state["used_fragments"]:
                                         chat_state["used_fragments"][fragment_key] = {
                                             "content": doc.page_content,
-                                            "metadata": doc.metadata
+                                            "metadata": doc.metadata,
                                         }
                                     # Guardar para este mensaje específico
-                                    st.session_state.message_sources[message_id][fragment_key] = {
+                                    st.session_state.message_sources[message_id][
+                                        fragment_key
+                                    ] = {
                                         "content": doc.page_content,
-                                        "metadata": doc.metadata
+                                        "metadata": doc.metadata,
                                     }
-                            logger.info(f"Se guardaron {len(st.session_state.message_sources[message_id])} fuentes para el mensaje {message_id}")
-                            
+                            logger.info(
+                                f"Se guardaron {len(st.session_state.message_sources[message_id])} fuentes para el mensaje {message_id}"
+                            )
+
                         # Actualizar historial
-                        chat_state["user_prompt_history"].append(st.session_state.current_prompt)
-                        chat_state["chat_answers_history"].append(generated_response['result'])
-                        chat_state["chat_history"].append(("human", st.session_state.current_prompt))
-                        chat_state["chat_history"].append(("ai", generated_response["result"]))
+                        chat_state["user_prompt_history"].append(
+                            st.session_state.current_prompt
+                        )
+                        chat_state["chat_answers_history"].append(
+                            generated_response["result"]
+                        )
+                        chat_state["chat_history"].append(
+                            ("human", st.session_state.current_prompt)
+                        )
+                        chat_state["chat_history"].append(
+                            ("ai", generated_response["result"])
+                        )
                     except Exception:
                         # Si hay error, mostrar mensaje amigable
-                        logger.error("Error al procesar la consulta '{user_query}'", exc_info=True)
+                        logger.error(
+                            "Error al procesar la consulta '{user_query}'",
+                            exc_info=True,
+                        )
                         error_msg = "El asistente no puede contestar en este momento. Por favor, inténtalo más tarde."
-                        chat_state["user_prompt_history"].append(st.session_state.current_prompt)
+                        chat_state["user_prompt_history"].append(
+                            st.session_state.current_prompt
+                        )
                         chat_state["chat_answers_history"].append(error_msg)
-                        chat_state["chat_history"].append(("human", st.session_state.current_prompt))
+                        chat_state["chat_history"].append(
+                            ("human", st.session_state.current_prompt)
+                        )
                         chat_state["chat_history"].append(("ai", error_msg))
                     finally:
                         # Finalizar procesamiento
@@ -173,17 +211,26 @@ def show_chatbot(index_name):
         st.rerun()
 
     # Dialog de fuentes
-    if "show_fragment_dialog" in st.session_state and st.session_state.show_fragment_dialog:
-        if hasattr(st.session_state, "current_fragments") and st.session_state.current_file:
-            @st.dialog(f"Fuentes de {st.session_state.current_file}", width='large')
+    if (
+        "show_fragment_dialog" in st.session_state
+        and st.session_state.show_fragment_dialog
+    ):
+        if (
+            hasattr(st.session_state, "current_fragments")
+            and st.session_state.current_file
+        ):
+
+            @st.dialog(f"Fuentes de {st.session_state.current_file}", width="large")
             def show_fragments_dialog():
                 st.subheader(f"Fuentes de {st.session_state.current_file}")
 
                 for idx, fragment in enumerate(st.session_state.current_fragments):
                     expander_title = ""
                     if "metadata" in fragment and "page" in fragment["metadata"]:
-                        expander_title = f"Page {int(fragment['metadata']['page'])} --- "
-                    expander_title += fragment['content'][:90] + "..."
+                        expander_title = (
+                            f"Page {int(fragment['metadata']['page'])} --- "
+                        )
+                    expander_title += fragment["content"][:90] + "..."
 
                     with st.expander(expander_title, expanded=(idx == 0)):
                         st.markdown("**Contenido:**")

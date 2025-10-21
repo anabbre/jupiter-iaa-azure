@@ -12,6 +12,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # -------- Config --------
@@ -22,6 +23,7 @@ CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 
 IDX_RE = re.compile(r"^(\d{3,})_")  # captura "000_" del nombre
+
 
 # -------- Carga de docs + metadatos (1:1 por índice) --------
 def load_docs_with_metadata(base: Path) -> List[Document]:
@@ -37,7 +39,9 @@ def load_docs_with_metadata(base: Path) -> List[Document]:
 
         json_path = json_files[0]
         with json_path.open("r", encoding="utf-8") as f:
-            meta_list = json.load(f)  # lista en el mismo orden en que generaste los .txt
+            meta_list = json.load(
+                f
+            )  # lista en el mismo orden en que generaste los .txt
 
         # Carpeta con los .txt (puede tener subcarpetas; usamos rglob)
         text_root = section_dir / "text_files"
@@ -58,7 +62,9 @@ def load_docs_with_metadata(base: Path) -> List[Document]:
 
             idx = int(m.group(1))
             if not (0 <= idx < len(meta_list)):
-                print(f"[AVISO] Índice {idx} fuera de rango para {txt.name} en {section_dir}.")
+                print(
+                    f"[AVISO] Índice {idx} fuera de rango para {txt.name} en {section_dir}."
+                )
                 continue
 
             meta = meta_list[idx]
@@ -75,13 +81,16 @@ def load_docs_with_metadata(base: Path) -> List[Document]:
                         "section": meta.get("section", ""),
                         "subsection": meta.get("subsection", ""),
                         "word_count": meta.get("word_count", 0),
-                    }
+                    },
                 )
             )
 
-        print(f"[OK] {section_dir.name}: {len(txt_paths)} txt ↔ {len(meta_list)} metas (usados: {min(len(txt_paths), len(meta_list))})")
+        print(
+            f"[OK] {section_dir.name}: {len(txt_paths)} txt ↔ {len(meta_list)} metas (usados: {min(len(txt_paths), len(meta_list))})"
+        )
 
     return docs
+
 
 # -------- Build index --------
 def build_index():
@@ -89,8 +98,7 @@ def build_index():
     print(f"Documentos base: {len(docs)}")
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=CHUNK_SIZE,
-        chunk_overlap=CHUNK_OVERLAP
+        chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP
     )
     chunks = splitter.split_documents(docs)
     print(f"Total de chunks: {len(chunks)}")
@@ -103,9 +111,7 @@ def build_index():
 
     # Usa SIEMPRE el wrapper moderno de Chroma
     vs = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory=DB_DIR
+        documents=chunks, embedding=embeddings, persist_directory=DB_DIR
     )
 
     try:
@@ -113,6 +119,7 @@ def build_index():
     except Exception:
         count = "desconocido"
     print(f"Vectorstore creado en {DB_DIR} con {count} embeddings.")
+
 
 if __name__ == "__main__":
     build_index()

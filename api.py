@@ -10,7 +10,7 @@ from agent import RAGAgent
 app = FastAPI(
     title="Terraform RAG Assistant API",
     description="API para consultar documentación de Terraform usando RAG",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORS middleware
@@ -38,7 +38,7 @@ async def root():
         status="healthy",
         message="Terraform RAG Assistant API is running",
         vector_db_status=db_info["status"],
-        documents_count=db_info.get("count")
+        documents_count=db_info.get("count"),
     )
 
 
@@ -52,15 +52,13 @@ async def query_endpoint(request: QueryRequest):
             rag_agent.query,
             request.question,
             request.k_docs,
-            request.temperature
+            request.temperature,
         )
 
         sources = [SourceInfo(**source) for source in result["sources"]]
 
         return QueryResponse(
-            answer=result["answer"],
-            sources=sources,
-            question=result["question"]
+            answer=result["answer"], sources=sources, question=result["question"]
         )
 
     except Exception as e:
@@ -76,8 +74,9 @@ async def health_check():
         status="healthy",
         message="All systems operational",
         vector_db_status=db_info["status"],
-        documents_count=db_info.get("count")
+        documents_count=db_info.get("count"),
     )
+
 
 # comando para lanzar la api
 # uvicorn api:app --port 8008 --reload

@@ -1,3 +1,4 @@
+# Dependencias principales
 streamlit
 python-dotenv
 pymupdf
@@ -11,3 +12,12 @@ fastapi
 uvicorn
 tiktoken
 pandas
+
+# Herramientas de desarrollo / CI
+ruff
+black
+isort
+mypy
+bandit
+pytest 
+ 

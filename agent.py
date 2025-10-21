@@ -5,12 +5,14 @@ from langgraph.graph.message import add_messages
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain.prompts import ChatPromptTemplate
+
 try:
     from langchain.schema import BaseMessage, HumanMessage
 except ImportError:
     from langchain_core.messages import BaseMessage, HumanMessage
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 
@@ -28,6 +30,7 @@ class AgentState(TypedDict):
     - messages: Lista de mensajes intercambiados (HumanMessage y AIMessage)
     - sources: Lista de diccionarios con metadatos de las fuentes consultadas
     """
+
     messages: Annotated[List[BaseMessage], add_messages]
     sources: List[dict]
 
@@ -41,11 +44,11 @@ class RAGAgent:
     - vectorstore: Base de datos vectorial Chroma
     - llm: Modelo de lenguaje (ChatOpenAI)
     """
+
     def __init__(self):
         self.embeddings = OpenAIEmbeddings(model=EMB_MODEL)
         self.vectorstore = Chroma(
-            persist_directory=DB_DIR,
-            embedding_function=self.embeddings
+            persist_directory=DB_DIR, embedding_function=self.embeddings
         )
         self.llm = None
         self._init_llm()
@@ -69,7 +72,7 @@ class RAGAgent:
                 "url": doc.metadata.get("url", ""),
                 "section": doc.metadata.get("section", ""),
                 "subsection": doc.metadata.get("subsection", ""),
-                "score": round(score, 3)
+                "score": round(score, 3),
             }
 
             sources.append(metadata)
@@ -89,19 +92,17 @@ class RAGAgent:
 
         results, sources = self.search_docs(last_message, k=k_docs)
 
-        context_message = HumanMessage(
-            content=f"Contexto encontrado:\n\n{results}"
-        )
+        context_message = HumanMessage(content=f"Contexto encontrado:\n\n{results}")
 
-        return {
-            "messages": [context_message],
-            "sources": sources
-        }
+        return {"messages": [context_message], "sources": sources}
 
     def generate_node(self, state: AgentState) -> AgentState:
         """Nodo que genera la respuesta usando el LLM"""
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """
 Actúa como un Ingeniero/a DevOps senior especializado/a en Terraform (HCL) y buenas prácticas de IaC.
 Objetivo: generar configuraciones de Terraform con sintaxis correcta, mínimas suposiciones, y ancladas al CONTEXT (RAG) cuando exista.
 
@@ -127,9 +128,11 @@ Citas y veracidad:
 - Si no hay cobertura en el contexto, dilo claramente. No alucines.
 
 Si te preguntan conusltas normales o teóricas y no te piden que generes código, simplemenete
-responde en base a la información que tienes en la DB Vectorial y cita las fuentes."""),
-            ("placeholder", "{messages}")
-        ])
+responde en base a la información que tienes en la DB Vectorial y cita las fuentes.""",
+                ),
+                ("placeholder", "{messages}"),
+            ]
+        )
 
         chain = prompt | self.llm
         response = chain.invoke({"messages": state["messages"]})
@@ -152,25 +155,20 @@ responde en base a la información que tienes en la DB Vectorial y cita las fuen
 
         return workflow.compile()
 
-    def query(self, question: str, k_docs: int = K_DOCS, temperature: float = 0.0) -> Dict:
+    def query(
+        self, question: str, k_docs: int = K_DOCS, temperature: float = 0.0
+    ) -> Dict:
         """Ejecuta una consulta al agente RAG"""
         if temperature != self.llm.temperature:
             self._init_llm(temperature)
 
         agent = self.create_graph(k_docs)
 
-        initial_state = {
-            "messages": [HumanMessage(content=question)],
-            "sources": []
-        }
+        initial_state = {"messages": [HumanMessage(content=question)], "sources": []}
 
         result = agent.invoke(initial_state)
 
         answer = result["messages"][-1].content
         sources = result["sources"]
 
-        return {
-            "answer": answer,
-            "sources": sources,
-            "question": question
-        }
+        return {"answer": answer, "sources": sources, "question": question}

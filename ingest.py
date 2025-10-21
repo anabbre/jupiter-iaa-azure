@@ -1,19 +1,19 @@
-# ingest_fixed.py
+import json
 import os
 import re
-import json
 import shutil
 from pathlib import Path
 from typing import List
 
 from dotenv import load_dotenv
-load_dotenv()
 
 # API moderna de LangChain (>=0.2)
 from langchain.schema import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+load_dotenv()
 
 # -------- Config --------
 BASE_DIR = Path("knowledge-base-terraform")
@@ -23,6 +23,7 @@ CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 
 IDX_RE = re.compile(r"^(\d{3,})_")  # captura "000_" del nombre
+
 
 # -------- Carga de docs + metadatos (1:1 por índice) --------
 def load_docs_with_metadata(base: Path) -> List[Document]:
@@ -76,23 +77,23 @@ def load_docs_with_metadata(base: Path) -> List[Document]:
                         "section": meta.get("section", ""),
                         "subsection": meta.get("subsection", ""),
                         "word_count": meta.get("word_count", 0),
-                    }
+                    },
                 )
             )
 
-        print(f"[OK] {section_dir.name}: {len(txt_paths)} txt ↔ {len(meta_list)} metas (usados: {min(len(txt_paths), len(meta_list))})")
+        print(
+            f"[OK] {section_dir.name}: {len(txt_paths)} txt ↔ {len(meta_list)} metas (usados: {min(len(txt_paths), len(meta_list))})"
+        )
 
     return docs
+
 
 # -------- Build index --------
 def build_index():
     docs = load_docs_with_metadata(BASE_DIR)
     print(f"Documentos base: {len(docs)}")
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=CHUNK_SIZE,
-        chunk_overlap=CHUNK_OVERLAP
-    )
+    splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
     chunks = splitter.split_documents(docs)
     print(f"Total de chunks: {len(chunks)}")
 
@@ -103,17 +104,14 @@ def build_index():
         shutil.rmtree(DB_DIR)
 
     # Usa SIEMPRE el wrapper moderno de Chroma
-    vs = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory=DB_DIR
-    )
+    vs = Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory=DB_DIR)
 
     try:
         count = vs._collection.count()  # puede cambiar en futuras versiones
     except Exception:
         count = "desconocido"
     print(f"Vectorstore creado en {DB_DIR} con {count} embeddings.")
+
 
 if __name__ == "__main__":
     build_index()

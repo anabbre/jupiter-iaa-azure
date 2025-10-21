@@ -1,79 +1,94 @@
 # Generador automático de infraestructura Azure con IA
 
+[![Python checks](https://github.com/anabbre/jupiter-iaa-azure/actions/workflows/python_checks.yml/badge.svg)](https://github.com/anabbre/jupiter-iaa-azure/actions/workflows/python_checks.yml)
+[![Docker build](https://github.com/anabbre/jupiter-iaa-azure/actions/workflows/docker_build.yml/badge.svg)](https://github.com/anabbre/jupiter-iaa-azure/actions/workflows/docker_build.yml)
+[![Validate Terraform examples](https://github.com/anabbre/jupiter-iaa-azure/actions/workflows/terraform_examples.yml/badge.svg)](https://github.com/anabbre/jupiter-iaa-azure/actions/workflows/terraform_examples.yml)
+
+Aplicación con dos pestañas: **Chatbot** (asistente experto en Terraform) y **Entrenamiento** (subida y gestión de documentos para RAG).
+
+---
+
 ## Flujo de uso y comportamiento de la aplicación
 
-La aplicación cuenta con dos pestañas principales:
+### 1) Chatbot
+- Interactúa en español con un asistente especializado en Terraform.
+- Si la respuesta usa documentos, se muestra *Fuentes utilizadas*.
+- Botón **Nueva conversación** para reiniciar el chat.
 
-### 1. Chatbot
+> Casuísticas:
+> - Mensajes de error amigables si no puede responder.
+> - El historial se mantiene entre preguntas.
 
-- Permite interactuar con el asistente especializado en Terraform.
-- El usuario puede escribir preguntas relacionadas con infraestructura y código Terraform.
-- El asistente responde en español, de forma clara y concisa.
-- Si la respuesta se basa en documentos subidos, se muestra la sección "Fuentes utilizadas" con los archivos y fragmentos relevantes.
-- El usuario puede visualizar el contenido de cada fuente pulsando sobre el nombre del archivo.
-- Si la respuesta no requiere fuentes, no se muestra la sección de fuentes.
-- Se puede reiniciar la conversación en cualquier momento con el botón "Nueva conversación".
+### 2) Entrenamiento
+- Subida de `.tf`, `.txt`, `.md`, `.pdf`, `.docx`, `.html`.
+- Lógica de duplicados:
+  - mismo nombre + mismo contenido → **sobrescribe**;
+  - mismo nombre + distinto contenido → **sufijo incremental** (`_1`, `_2`, …).
+- Se muestra progreso y resultado de la carga.
 
-#### Casuísticas:
-- Si el asistente no puede responder, muestra un mensaje de error amigable.
-- El historial de chat se mantiene entre preguntas y respuestas.
+> Casuísticas:
+> - Tipos no soportados → advertencia.
+> - Sin archivos válidos → advertencia.
 
-### 2. Entrenamiento
+### Resumen del proceso
+1. Consulta en **Chatbot** y visualiza fuentes si aplica.  
+2. Sube documentos en **Entrenamiento** con gestión de duplicados.  
+3. Se preserva la información relevante evitando duplicidades.
 
-- Permite subir archivos de entrenamiento para mejorar el asistente.
-- Se muestran los documentos ya subidos al modelo, agrupados por nombre único.
-- El usuario puede subir archivos de tipo `.tf`, `.txt`, `.md`, `.pdf`, `.docx`, `.html`.
-- Al subir archivos:
-	- Si el nombre del archivo ya existe y el contenido es igual, se sobreescribe el archivo existente.
-	- Si el nombre del archivo ya existe pero el contenido es diferente, el nuevo archivo se guarda con un sufijo incremental (`nombre_1`, `nombre_2`, etc.).
-	- Si el archivo no existe, se guarda normalmente.
-- El sistema muestra el progreso de subida y procesamiento de archivos.
-- Al finalizar, indica si los archivos se añadieron correctamente o si hubo algún error.
+---
 
-#### Casuísticas:
-- Si se intenta subir un archivo ya existente (mismo nombre y contenido), se sobreescribe.
-- Si se sube un archivo con el mismo nombre pero diferente contenido, se guarda con sufijo incremental.
-- Si el archivo es de tipo no soportado, se muestra una advertencia y no se procesa.
-- Si no hay archivos válidos, se muestra una advertencia.
+## Ejecución local
 
-## Resumen del proceso
+### 0) Requisitos
+- Python 3.11+
+- (Opcional) Docker + Docker Compose
 
-1. El usuario puede consultar al asistente en la pestaña "Chatbot" y ver las fuentes utilizadas en las respuestas.
-2. En la pestaña "Entrenamiento", puede subir nuevos archivos para mejorar el modelo, siguiendo la lógica de comprobación de duplicados y contenido.
-3. El sistema gestiona los archivos subidos, asegurando que no se pierda información relevante y evitando duplicados innecesarios.
+### 1) Clonar
+```bash
+git clone https://github.com/anabbre/jupiter-iaa-azure.git
+cd jupiter-iaa-azure
+```
+
+### 2) Variables de entorno
+Crea un .env (o copia desde .env.example):
+```
+OPENAI_API_KEY=
+PINECONE_API_KEY=
+PINECONE_ENVIRONMENT=us-east-1
+# (opcional) Telemetría/langsmith si lo usáis:
+LANGCHAIN_PROJECT=
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=
+```
+
+### 3A) Ejecutar con Python
+```
+pip install -r requirements.txt
+# API (FastAPI)
+uvicorn api:app --port 8008 --reload
+# UI (Streamlit)
+python ui.py  # o: streamlit run app.py
+```
+
+### 3B) Ejecutar con Docker
+```
+docker compose up --build
+# UI en http://localhost:8501  (si el compose lanza streamlit run app.py)
+# API en http://localhost:8008   (si el compose expone la API)
+```
 
 
-## Pasos para ejecutar la aplicación
+## CI/CD del proyecto: 
+- **Workflow en .github/workflows/terraform_examples.yml**
+Se ejecuta en push/pull_request a develop y main cuando hay cambios en docs/ejemplos-terraform/**.
+Pasos: checkout → setup-terraform → terraform fmt --check → terraform init (sin backend) → terraform validate.
 
-1. **Clona el repositorio**  
-	```bash
-	git clone https://github.com/anabbre/jupiter-iaa-azure.git
-	cd jupiter-iaa-azure
-	```
+- **Python checks (lint + formato + seguridad + tests)**
+Workflow en .github/workflows/python_checks.yml.
+Pasos: ruff (lint), black --check (formato), isort --check, mypy (permisivo), bandit (seguridad), pytest si hay tests.
 
-2. **Instala las dependencias**  
-	Asegúrate de tener Python 3.8+ y pip instalado.  
-	```bash
-	pip install -r requirements.txt
-	```
+- **Docker build (GHCR)
+Workflow en .github/workflows/docker_build.yml**
+Construye y publica la imagen en GitHub Container Registry (ghcr.io/<owner>/<repo>:latest y :sha).
 
-3. **Configura las variables de entorno**  
-	Crea un archivo `.env` en la raíz del proyecto con tus credenciales de Azure y otras configuraciones necesarias.  
-	Ejemplo:
-	```
-	OPENAI_API_KEY=
-    LANGCHAIN_PROJECT=
-    TAVILY_API_KEY=
-    
-    LANGSMITH_TRACING=true
-    LANGSMITH_API_KEY=
-	```
-
-4. **Ejecuta la aplicación**  
-	```bash
-	uvicorn api:app --port 8008 --reload
-    python ui.py
-	```
-
-5. **Accede a la interfaz web**  
-	Abre tu navegador y visita la Local URL que te muestra y ya puedes interactuar con el chatbot.
+Los badges arriba muestran el estado en tiempo real de estos workflows.

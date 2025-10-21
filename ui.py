@@ -1,18 +1,24 @@
+import base64
 import os
 import tempfile
-import base64
+
 import gradio as gr
-from openai import OpenAI
+
+# Cargar claves de entorno
+from dotenv import load_dotenv
 from gtts import gTTS
+from openai import OpenAI
+
 from agent import RAGAgent
+from aux_files import _utils as aux
+
+load_dotenv()
 
 # =============================
 # CONFIGURACIÓN
 # =============================
 
-# Cargar claves de entorno
-from dotenv import load_dotenv
-load_dotenv()
+logger = aux.get_logger(__name__, subdir="ui")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
@@ -26,6 +32,7 @@ rag_agent = RAGAgent()
 # FUNCIONES DEL CHATBOT
 # =============================
 
+
 def chatbot_response(message, history):
     """
     Procesa entrada de texto del usuario.
@@ -38,7 +45,7 @@ def chatbot_response(message, history):
                 model="dall-e-3",  # Modelo correcto
                 prompt=prompt,
                 size="1024x1024",  # Tamaño válido para DALL-E 3
-                n=1
+                n=1,
             )
             image_url = result.data[0].url
             new_history = history.copy()
@@ -53,7 +60,9 @@ def chatbot_response(message, history):
 
     # Detectar si es consulta de Terraform
     elif any(
-        term in message.lower() for term in ["terraform", "tf", "azure provider", "infraestructura como código"]):
+        term in message.lower()
+        for term in ["terraform", "tf", "azure provider", "infraestructura como código"]
+    ):
         try:
             # Usar el agente RAG para consultas de Terraform
             result = rag_agent.query(message)
@@ -62,9 +71,9 @@ def chatbot_response(message, history):
             sources_text = "\n\n**Fuentes consultadas:**\n"
             for i, source in enumerate(result["sources"], 1):
                 sources_text += f"{i}. {source['title']} "
-                if source['url']:
+                if source["url"]:
                     sources_text += f"[Link]({source['url']}) "
-                if source['section']:
+                if source["section"]:
                     sources_text += f"- Sección: {source['section']}"
                 sources_text += "\n"
 
@@ -78,9 +87,10 @@ def chatbot_response(message, history):
         except Exception as e:
             new_history = history.copy()
             new_history.append({"role": "user", "content": message})
-            new_history.append({"role": "assistant", "content": f"Error consultando Terraform: {e}"})
+            new_history.append(
+                {"role": "assistant", "content": f"Error consultando Terraform: {e}"}
+            )
             return new_history
-
 
     else:
         try:
@@ -90,10 +100,7 @@ def chatbot_response(message, history):
                 messages.append(msg)
             messages.append({"role": "user", "content": message})
 
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=messages
-            )
+            completion = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
             answer = completion.choices[0].message.content
 
             new_history = history.copy()
@@ -106,10 +113,12 @@ def chatbot_response(message, history):
             new_history.append({"role": "assistant", "content": f"Error en chat: {e}"})
             return new_history
 
+
 def encode_image_to_base64(image_path):
     """Convierte imagen a base64 para la API"""
     with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
 
 def interpret_image(image, question):
     """
@@ -120,16 +129,26 @@ def interpret_image(image, question):
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "Eres un asistente que interpreta imágenes."},
-                {"role": "user", "content": [
-                    {"type": "text", "text": question},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                ]}
-            ]
+                {
+                    "role": "system",
+                    "content": "Eres un asistente que interpreta imágenes.",
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": question},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                        },
+                    ],
+                },
+            ],
         )
         return completion.choices[0].message.content
     except Exception as e:
         return f"Error interpretando imagen: {e}"
+
 
 def transcribe_audio(audio_file):
     """
@@ -139,13 +158,11 @@ def transcribe_audio(audio_file):
         return ""
     try:
         with open(audio_file, "rb") as f:
-            transcript = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=f
-            )
+            transcript = client.audio.transcriptions.create(model="whisper-1", file=f)
         return transcript.text
     except Exception as e:
         return f"Error en transcripción: {e}"
+
 
 def text_to_speech(text):
     """
@@ -156,8 +173,10 @@ def text_to_speech(text):
         tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
         tts.save(tmp_file.name)
         return tmp_file.name
-    except Exception as e:
+    except Exception:
+        logger.exception("TTS generation failed")
         return None
+
 
 # =============================
 # INTERFAZ GRADIO REORGANIZADA
@@ -190,12 +209,7 @@ with gr.Blocks() as demo:
     def user_message(user_msg, history):
         return "", chatbot_response(user_msg, history)
 
-    msg.submit(
-        user_message,
-        [msg, chatbot],
-        [msg, chatbot],
-        api_name="chat"
-    )
+    msg.submit(user_message, [msg, chatbot], [msg, chatbot], api_name="chat")
 
     def handle_audio(audio_file):
         if audio_file:
@@ -227,8 +241,10 @@ with gr.Blocks() as demo:
 # MAIN
 # =============================
 
+
 def main():
     demo.launch()
+
 
 if __name__ == "__main__":
     main()

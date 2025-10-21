@@ -1,6 +1,4 @@
-# -----------------------------
 # Formato y lint compartidos
-# -----------------------------
 
 [tool.black]
 line-length = 100
@@ -21,17 +19,27 @@ skip = [
 ]
 
 [tool.ruff]
-line-length = 100
-target-version = "py311"
-# solo unos rules útiles; el pipeline ya ejecuta ruff
-lint.select = ["E", "F", "I"]  # base errors + imports (isort-compat)
-lint.ignore = []
-exclude = [
-  "src/rag/vector_db",
-  "knowledge-base-terraform",
-  "docs",
-  "src/docs_terraform"
+# objetivo de versión y longitud global un poco más laxa
+target-version = "py312"
+line-length = 200
+extend-exclude = [
+  "src/rag/vector_db",         # binarios/BD
+  "knowledge-base-terraform",  # corpus
+  "docs"                        # docs estáticas
 ]
+
+[tool.ruff.lint]
+# qué reglas chequeamos
+select = ["E", "F", "I"]   # (errors, pyflakes, isort)
+ignore = ["E203"]          # típico para convivir con Black
+
+# ignora E501 SOLO en archivos con prompts/logs largos
+per-file-ignores = {
+  "agent.py" = ["E501"],
+  "aux_files/_utils.py" = ["E501"],
+  "modules/chatbot.py" = ["E501"],
+  "ingest.py" = ["E501"],
+}
 
 [tool.mypy]
 python_version = "3.11"

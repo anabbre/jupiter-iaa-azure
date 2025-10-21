@@ -1,4 +1,5 @@
 import streamlit as st
+
 from aux_files import _utils as aux
 
 # Logs
@@ -143,11 +144,10 @@ def show_chatbot(index_name):
                             and generated_response["source_documents"]
                         ):
                             for doc in generated_response["source_documents"]:
-                                if (
-                                    hasattr(doc, "metadata")
-                                    and "filename" in doc.metadata
-                                ):
-                                    fragment_key = f"{doc.metadata.get('filename')}_{doc.page_content[:30]}"
+                                if hasattr(doc, "metadata") and "filename" in doc.metadata:
+                                    fragment_key = (
+                                        f"{doc.metadata.get('filename')}_{doc.page_content[:30]}"
+                                    )
                                     # Guardar en el historial general
                                     if "used_fragments" not in chat_state:
                                         chat_state["used_fragments"] = {}
@@ -157,9 +157,7 @@ def show_chatbot(index_name):
                                             "metadata": doc.metadata,
                                         }
                                     # Guardar para este mensaje específico
-                                    st.session_state.message_sources[message_id][
-                                        fragment_key
-                                    ] = {
+                                    st.session_state.message_sources[message_id][fragment_key] = {
                                         "content": doc.page_content,
                                         "metadata": doc.metadata,
                                     }
@@ -168,18 +166,12 @@ def show_chatbot(index_name):
                             )
 
                         # Actualizar historial
-                        chat_state["user_prompt_history"].append(
-                            st.session_state.current_prompt
-                        )
-                        chat_state["chat_answers_history"].append(
-                            generated_response["result"]
-                        )
+                        chat_state["user_prompt_history"].append(st.session_state.current_prompt)
+                        chat_state["chat_answers_history"].append(generated_response["result"])
                         chat_state["chat_history"].append(
                             ("human", st.session_state.current_prompt)
                         )
-                        chat_state["chat_history"].append(
-                            ("ai", generated_response["result"])
-                        )
+                        chat_state["chat_history"].append(("ai", generated_response["result"]))
                     except Exception:
                         # Si hay error, mostrar mensaje amigable
                         logger.error(
@@ -187,9 +179,7 @@ def show_chatbot(index_name):
                             exc_info=True,
                         )
                         error_msg = "El asistente no puede contestar en este momento. Por favor, inténtalo más tarde."
-                        chat_state["user_prompt_history"].append(
-                            st.session_state.current_prompt
-                        )
+                        chat_state["user_prompt_history"].append(st.session_state.current_prompt)
                         chat_state["chat_answers_history"].append(error_msg)
                         chat_state["chat_history"].append(
                             ("human", st.session_state.current_prompt)
@@ -211,14 +201,8 @@ def show_chatbot(index_name):
         st.rerun()
 
     # Dialog de fuentes
-    if (
-        "show_fragment_dialog" in st.session_state
-        and st.session_state.show_fragment_dialog
-    ):
-        if (
-            hasattr(st.session_state, "current_fragments")
-            and st.session_state.current_file
-        ):
+    if "show_fragment_dialog" in st.session_state and st.session_state.show_fragment_dialog:
+        if hasattr(st.session_state, "current_fragments") and st.session_state.current_file:
 
             @st.dialog(f"Fuentes de {st.session_state.current_file}", width="large")
             def show_fragments_dialog():
@@ -227,9 +211,7 @@ def show_chatbot(index_name):
                 for idx, fragment in enumerate(st.session_state.current_fragments):
                     expander_title = ""
                     if "metadata" in fragment and "page" in fragment["metadata"]:
-                        expander_title = (
-                            f"Page {int(fragment['metadata']['page'])} --- "
-                        )
+                        expander_title = f"Page {int(fragment['metadata']['page'])} --- "
                     expander_title += fragment["content"][:90] + "..."
 
                     with st.expander(expander_title, expanded=(idx == 0)):

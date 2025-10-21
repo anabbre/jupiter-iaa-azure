@@ -1,10 +1,10 @@
-from typing import TypedDict, Annotated, List, Dict
+from typing import Annotated, Dict, List, TypedDict
 
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_chroma import Chroma
 from langchain.prompts import ChatPromptTemplate
+from langchain_chroma import Chroma
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import add_messages
 
 try:
     from langchain.schema import BaseMessage, HumanMessage
@@ -47,9 +47,7 @@ class RAGAgent:
 
     def __init__(self):
         self.embeddings = OpenAIEmbeddings(model=EMB_MODEL)
-        self.vectorstore = Chroma(
-            persist_directory=DB_DIR, embedding_function=self.embeddings
-        )
+        self.vectorstore = Chroma(persist_directory=DB_DIR, embedding_function=self.embeddings)
         self.llm = None
         self._init_llm()
 
@@ -155,9 +153,7 @@ responde en base a la información que tienes en la DB Vectorial y cita las fuen
 
         return workflow.compile()
 
-    def query(
-        self, question: str, k_docs: int = K_DOCS, temperature: float = 0.0
-    ) -> Dict:
+    def query(self, question: str, k_docs: int = K_DOCS, temperature: float = 0.0) -> Dict:
         """Ejecuta una consulta al agente RAG"""
         if temperature != self.llm.temperature:
             self._init_llm(temperature)

@@ -1,10 +1,11 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import QueryRequest, QueryResponse, HealthResponse, SourceInfo
 from agent import RAGAgent
+from models import HealthResponse, QueryRequest, QueryResponse, SourceInfo
 
 # FastAPI App
 app = FastAPI(
@@ -57,9 +58,7 @@ async def query_endpoint(request: QueryRequest):
 
         sources = [SourceInfo(**source) for source in result["sources"]]
 
-        return QueryResponse(
-            answer=result["answer"], sources=sources, question=result["question"]
-        )
+        return QueryResponse(answer=result["answer"], sources=sources, question=result["question"])
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

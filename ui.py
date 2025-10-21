@@ -1,14 +1,16 @@
+import base64
 import os
 import tempfile
-import base64
+
 import gradio as gr
-from openai import OpenAI
-from gtts import gTTS
-from agent import RAGAgent
-from aux_files import _utils as aux
 
 # Cargar claves de entorno
 from dotenv import load_dotenv
+from gtts import gTTS
+from openai import OpenAI
+
+from agent import RAGAgent
+from aux_files import _utils as aux
 
 load_dotenv()
 
@@ -48,16 +50,12 @@ def chatbot_response(message, history):
             image_url = result.data[0].url
             new_history = history.copy()
             new_history.append({"role": "user", "content": message})
-            new_history.append(
-                {"role": "assistant", "content": f"![Imagen generada]({image_url})"}
-            )
+            new_history.append({"role": "assistant", "content": f"![Imagen generada]({image_url})"})
             return new_history
         except Exception as e:
             new_history = history.copy()
             new_history.append({"role": "user", "content": message})
-            new_history.append(
-                {"role": "assistant", "content": f"Error generando imagen: {e}"}
-            )
+            new_history.append({"role": "assistant", "content": f"Error generando imagen: {e}"})
             return new_history
 
     # Detectar si es consulta de Terraform
@@ -97,16 +95,12 @@ def chatbot_response(message, history):
     else:
         try:
             # Construir mensajes para la API
-            messages = [
-                {"role": "system", "content": "Eres un asistente útil y multimodal."}
-            ]
+            messages = [{"role": "system", "content": "Eres un asistente útil y multimodal."}]
             for msg in history:
                 messages.append(msg)
             messages.append({"role": "user", "content": message})
 
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini", messages=messages
-            )
+            completion = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
             answer = completion.choices[0].message.content
 
             new_history = history.copy()
@@ -145,9 +139,7 @@ def interpret_image(image, question):
                         {"type": "text", "text": question},
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            },
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
                         },
                     ],
                 },
@@ -204,9 +196,7 @@ with gr.Blocks() as demo:
 
             with gr.Accordion("Entrada y salida de voz", open=False):
                 with gr.Row():
-                    btn_audio = gr.Audio(
-                        sources="microphone", type="filepath", label="Habla"
-                    )
+                    btn_audio = gr.Audio(sources="microphone", type="filepath", label="Habla")
                     audio_output = gr.Audio(type="filepath", label="Respuesta")
 
         # Columna derecha: Funcionalidades de imagen

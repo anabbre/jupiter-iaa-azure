@@ -1,17 +1,17 @@
-from pathlib import Path
-from typing import List
+import json
 import os
 import re
-import json
 import shutil
+from pathlib import Path
+from typing import List
+
+from dotenv import load_dotenv
 
 # API moderna de LangChain (>=0.2)
 from langchain.schema import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
-
-from dotenv import load_dotenv
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
 
@@ -39,9 +39,7 @@ def load_docs_with_metadata(base: Path) -> List[Document]:
 
         json_path = json_files[0]
         with json_path.open("r", encoding="utf-8") as f:
-            meta_list = json.load(
-                f
-            )  # lista en el mismo orden en que generaste los .txt
+            meta_list = json.load(f)  # lista en el mismo orden en que generaste los .txt
 
         # Carpeta con los .txt (puede tener subcarpetas; usamos rglob)
         text_root = section_dir / "text_files"
@@ -62,9 +60,7 @@ def load_docs_with_metadata(base: Path) -> List[Document]:
 
             idx = int(m.group(1))
             if not (0 <= idx < len(meta_list)):
-                print(
-                    f"[AVISO] Índice {idx} fuera de rango para {txt.name} en {section_dir}."
-                )
+                print(f"[AVISO] Índice {idx} fuera de rango para {txt.name} en {section_dir}.")
                 continue
 
             meta = meta_list[idx]
@@ -97,9 +93,7 @@ def build_index():
     docs = load_docs_with_metadata(BASE_DIR)
     print(f"Documentos base: {len(docs)}")
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP
-    )
+    splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
     chunks = splitter.split_documents(docs)
     print(f"Total de chunks: {len(chunks)}")
 
@@ -110,9 +104,7 @@ def build_index():
         shutil.rmtree(DB_DIR)
 
     # Usa SIEMPRE el wrapper moderno de Chroma
-    vs = Chroma.from_documents(
-        documents=chunks, embedding=embeddings, persist_directory=DB_DIR
-    )
+    vs = Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory=DB_DIR)
 
     try:
         count = vs._collection.count()  # puede cambiar en futuras versiones

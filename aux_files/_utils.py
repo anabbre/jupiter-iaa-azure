@@ -1,21 +1,21 @@
+import logging
 import os
 import tempfile
-import logging
-import fitz
 from typing import List
+
+import fitz
 from dotenv import load_dotenv
-from pinecone import Pinecone
-from streamlit.runtime.uploaded_file_manager import UploadedFile
 from langchain import hub
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
-from langchain.prompts import PromptTemplate
-from langchain_pinecone import PineconeVectorStore
-from langchain_community.document_loaders import TextLoader
+from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
 from langchain.chains.retrieval import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_openai import ChatOpenAI
+from langchain.prompts import PromptTemplate
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import TextLoader
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 load_dotenv()
 
@@ -53,9 +53,7 @@ def get_logger(name: str, subdir: str = None) -> logging.Logger:
     if not logger.hasHandlers():
         file_handler = logging.FileHandler(logs_file, encoding="utf-8")
         file_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
@@ -200,14 +198,10 @@ def ingest_docs(
                     file_documents = loader.load()
 
                 else:
-                    logger.warning(
-                        f"Tipo de archivo no soportado: {uploaded_file.name}"
-                    )
+                    logger.warning(f"Tipo de archivo no soportado: {uploaded_file.name}")
                     continue
 
-                logger.info(
-                    f"Cargados {len(file_documents)} documentos de {uploaded_file.name}"
-                )
+                logger.info(f"Cargados {len(file_documents)} documentos de {uploaded_file.name}")
 
                 output_dir = os.path.join("docs", index_name)
                 os.makedirs(output_dir, exist_ok=True)
@@ -251,27 +245,19 @@ def ingest_docs(
 
         if delete_existing_files:
             filenames = [
-                doc.metadata["filename"]
-                for doc in all_documents
-                if "filename" in doc.metadata
+                doc.metadata["filename"] for doc in all_documents if "filename" in doc.metadata
             ]
             filenames = list(set(filenames))
             if filenames:
                 vectorstore.delete(filter={"filename": {"$in": filenames}})
-                logger.info(
-                    f"Eliminados documentos anteriores para: {', '.join(filenames)}"
-                )
+                logger.info(f"Eliminados documentos anteriores para: {', '.join(filenames)}")
 
-        logger.info(
-            f"Agregando {len(documents)} documentos a Pinecone en {total_batches} lotes"
-        )
+        logger.info(f"Agregando {len(documents)} documentos a Pinecone en {total_batches} lotes")
 
         for i in range(0, len(documents), batch_size):
             batch = documents[i : i + batch_size]
             end_idx = min(i + batch_size, len(documents))
-            logger.info(
-                f"Lote {i // batch_size + 1}/{total_batches} (docs {i + 1}-{end_idx})"
-            )
+            logger.info(f"Lote {i // batch_size + 1}/{total_batches} (docs {i + 1}-{end_idx})")
             vectorstore.add_documents(batch)
 
         logger.info("****Carga en el índice vectorial completada****")
@@ -342,9 +328,7 @@ def run_llm_on_index(query: str, chat_history: list, index_name: str):
 
         stuff_documents_chain = create_stuff_documents_chain(chat, custom_prompt)
 
-        logger.info(
-            "[AGENTE] Descargando prompt de rephrase y configurando retriever..."
-        )
+        logger.info("[AGENTE] Descargando prompt de rephrase y configurando retriever...")
         rephrase_prompt = hub.pull("langchain-ai/chat-langchain-rephrase")
         history_aware_retriever = create_history_aware_retriever(
             llm=chat, retriever=vectorstore.as_retriever(), prompt=rephrase_prompt

@@ -1,28 +1,41 @@
-[project]
-name = "jupiter-iaa-azure"
-version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "chromadb>=1.0.20",
-    "fastmcp>=2.0",
-    "gradio>=5.44.1",
-    "gtts>=2.5.4",
-    "hf-xet>=1.1.9",
-    "langchain>=0.3.27",
-    "langchain-chroma>=0.2.5",
-    "langchain-community>=0.3.29",
-    "langchain-huggingface>=0.3.1",
-    "langchain-openai>=0.3.32",
-    "langgraph>=0.6.6",
-    "langgraph-api>=0.4.7",
-    "langgraph-cli>=0.4.0",
-    "notebook>=7.4.5",
-    "openai>=1.102.0",
-    "openai-agents>=0.2.10",
-    "plotly>=6.3.0",
-    "python-dotenv>=1.1.1",
-    "sentence-transformers>=5.1.0",
-    "streamlit>=1.49.1",
+# -----------------------------
+# Formato y lint compartidos
+# -----------------------------
+
+[tool.black]
+line-length = 100
+target-version = ["py311", "py312", "py313"]
+skip-string-normalization = true
+
+[tool.isort]
+profile = "black"
+line_length = 100
+include_trailing_comma = true
+multi_line_output = 3
+known_first_party = ["aux_files", "modules"]
+skip = [
+  "src/rag/vector_db",
+  "knowledge-base-terraform",
+  "docs",
+  "src/docs_terraform"
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# solo unos rules útiles; el pipeline ya ejecuta ruff
+lint.select = ["E", "F", "I"]  # base errors + imports (isort-compat)
+lint.ignore = []
+exclude = [
+  "src/rag/vector_db",
+  "knowledge-base-terraform",
+  "docs",
+  "src/docs_terraform"
+]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+
+[tool.bandit]
+skips = ["B101"]  # (opcional) evita falso positivo assert

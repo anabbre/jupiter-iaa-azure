@@ -38,7 +38,7 @@ per-file-ignores = {
   "agent.py" = ["E501"],
   "aux_files/_utils.py" = ["E501"],
   "modules/chatbot.py" = ["E501"],
-  "ingest.py" = ["E501"],
+  "ingest.py" = ["E501"]
 }
 
 [tool.mypy]

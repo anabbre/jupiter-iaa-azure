@@ -45,5 +45,4 @@ per-file-ignores = {
 python_version = "3.11"
 ignore_missing_imports = true
 
-[tool.bandit]
 skips = ["B101"]  # (opcional) evita falso positivo assert

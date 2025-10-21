@@ -30,16 +30,15 @@ extend-exclude = [
 
 [tool.ruff.lint]
 # qué reglas chequeamos
-select = ["E", "F", "I"]   # (errors, pyflakes, isort)
-ignore = ["E203"]          # típico para convivir con Black
+select = ["E", "F", "I"]  # (errors, pyflakes, isort)
+ignore = ["E203"]         # típico para convivir con Black
 
 # ignora E501 SOLO en archivos con prompts/logs largos
-per-file-ignores = {
-  "agent.py" = ["E501"],
-  "aux_files/_utils.py" = ["E501"],
-  "modules/chatbot.py" = ["E501"],
-  "ingest.py" = ["E501"]
-}
+[tool.ruff.lint.per-file-ignores]
+"agent.py" = ["E501"]
+"aux_files/_utils.py" = ["E501"]
+"modules/chatbot.py" = ["E501"]
+"ingest.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

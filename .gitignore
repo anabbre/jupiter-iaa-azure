@@ -92,7 +92,7 @@ data/
 
 
 # --- Additional files to ignore ---
-Curso/sesion_01/
+qdrant_data/
 
 # --- Logs ---
 logs/

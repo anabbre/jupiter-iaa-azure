@@ -53,7 +53,7 @@ def chatbot_response(message, history):
 
     # Detectar si es consulta de Terraform
     elif any(
-        term in message.lower() for term in ["terraform", "tf", "azure provider", "infraestructura como código"]):
+        term in message.lower() for term in ["terraform", "tf", "azure provider", "infraestructura como código", "código"]):
         try:
             # Usar el agente RAG para consultas de Terraform
             result = rag_agent.query(message)

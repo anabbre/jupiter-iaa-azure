@@ -3,6 +3,9 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class RAGRequest(BaseModel):
+    question: str
+
 class QueryRequest(BaseModel):
     """Modelo para la petición de consulta"""
     question: str = Field(..., description="Pregunta para el agente RAG")
@@ -33,3 +36,4 @@ class HealthResponse(BaseModel):
     message: str
     vector_db_status: str
     documents_count: Optional[int] = None
+

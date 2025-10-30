@@ -6,21 +6,14 @@ from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
+from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_chroma import Chroma
-try:
-    from langchain.schema import BaseMessage, HumanMessage, AIMessage
-except ImportError:
-    from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_qdrant import QdrantVectorStore
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
-
-# Configuración
-DB_DIR = "src/rag/vector_db"
-EMB_MODEL = "text-embedding-3-small"
-LLM_MODEL = "gpt-4o-mini"
-K_DOCS = 3
+from config.project_config import SETTINGS
 
 
 class AgentState(TypedDict):
@@ -37,26 +30,26 @@ class AgentState(TypedDict):
 class RAGAgent:
     """
     Agente RAG para responder preguntas sobre Terraform
-    Usa una base de datos vectorial Chroma y un LLM de OpenAI
+    Usa una base de datos vectorial Qdrant y un LLM de OpenAI
 
     - embeddings: Modelo de embeddings de OpenAI
-    - vectorstore: Base de datos vectorial Chroma
+    - vectorstore: Base de datos vectorial Qdrant
     - llm: Modelo de lenguaje (ChatOpenAI)
     """
     def __init__(self):
-        self.embeddings = OpenAIEmbeddings(model=EMB_MODEL)
-        self.vectorstore = Chroma(
-            persist_directory=DB_DIR,
-            embedding_function=self.embeddings
+        self.vectorstore = QdrantVectorStore(
+            client=SETTINGS.qdrant_client,
+            collection_name=SETTINGS.qdrant_collection,
+            embedding=SETTINGS.embeddings_model
         )
         self.llm = None
         self._init_llm()
 
     def _init_llm(self, temperature: float = 0.0):
         """Inicializa o reinicializa el LLM con la temperatura especificada"""
-        self.llm = ChatOpenAI(model=LLM_MODEL, temperature=temperature)
+        self.llm = ChatOpenAI(verbose=True, temperature=temperature, top_p=0.85, model=SETTINGS.llm_model_name, max_tokens=4096)
 
-    def search_docs(self, query: str, k: int = K_DOCS) -> tuple:
+    def search_docs(self, query: str, k: int = SETTINGS.k_docs) -> tuple:
         """Busca documentos relevantes en la base de datos vectorial"""
         results = self.vectorstore.similarity_search_with_score(query, k=k)
 
@@ -85,7 +78,7 @@ class RAGAgent:
 
         return "\n---\n".join(formatted_results), sources
 
-    def retrieve_node(self, state: AgentState, k_docs: int = K_DOCS) -> AgentState:
+    def retrieve_node(self, state: AgentState, k_docs: int = SETTINGS.k_docs) -> AgentState:
         """Nodo que recupera información relevante"""
         last_message = state["messages"][-1].content
 
@@ -117,9 +110,9 @@ Reglas duras:
 
 Buenas prácticas por defecto:
 - Incluye bloque provider con versión o constraints razonables.
-- Añade versiones mínimas de Terraform si procede (terraform { required_version } y required_providers).
+- Añade versiones mínimas de Terraform si procede (terraform required_version y required_providers).
 - Usa nombres de recurso y variables consistentes y en minúsculas con _.
-- Para variables: tipa con variable { type = ... }, defaults prudentes (si aplica) y descripción.
+- Para variables: tipa con variable (type = ...), defaults prudentes (si aplica) y descripción.
 - Evita recursos huérfanos: si defines un resource dependiente, incluye dependencias o data sources necesarios.
 - Estructura cohesiva en un solo archivo (main.tf) salvo que el usuario pida dividir. Si hace falta, comenta con # nombre_de_archivo.tf sobre cada sección del mismo bloque.
 - No salgas del bloque de código HCL con comentarios extensos: las explicaciones van fuera del bloque.
@@ -138,7 +131,7 @@ responde en base a la información que tienes en la DB Vectorial y cita las fuen
 
         return {"messages": [response]}
 
-    def create_graph(self, k_docs: int = K_DOCS):
+    def create_graph(self, k_docs: int = SETTINGS.k_docs):
         """Crea el grafo del agente RAG"""
         workflow = StateGraph(AgentState)
 
@@ -153,7 +146,7 @@ responde en base a la información que tienes en la DB Vectorial y cita las fuen
 
         return workflow.compile()
 
-    def query(self, question: str, k_docs: int = K_DOCS, temperature: float = 0.0) -> Dict:
+    def query(self, question: str, k_docs: int = SETTINGS.k_docs, temperature: float = 0.0) -> Dict:
         """Ejecuta una consulta al agente RAG"""
         if temperature != self.llm.temperature:
             self._init_llm(temperature)

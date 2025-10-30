@@ -1,8 +1,19 @@
-# Generador automático de infraestructura Azure con IA
+# Generador automático de infraestructura Azure con IA y RAG
 
-## Flujo de uso y comportamiento de la aplicación
 
-La aplicación cuenta con dos pestañas principales:
+## Descripción general
+
+Este proyecto implementa un asistente inteligente para infraestructura en Azure, especializado en Terraform y basado en arquitectura RAG (Retrieval-Augmented Generation). Utiliza una base de datos vectorial Qdrant y modelos LLM de OpenAI para responder preguntas, citar fuentes y generar código HCL válido. Incluye funcionalidades multimodales (voz, imagen, audio) y una API REST para integración.
+
+
+## Principales funcionalidades
+
+### Chatbot
+- Interacción en español sobre Terraform y Azure.
+- Respuestas basadas en documentos indexados y fuentes citadas.
+- Generación de código HCL válido y explicación de buenas prácticas.
+- Soporte multimodal: entrada/salida de voz, imágenes y audio.
+- Visualización de fuentes utilizadas en cada respuesta.
 
 ### 1. Chatbot
 
@@ -18,17 +29,14 @@ La aplicación cuenta con dos pestañas principales:
 - Si el asistente no puede responder, muestra un mensaje de error amigable.
 - El historial de chat se mantiene entre preguntas y respuestas.
 
-### 2. Entrenamiento
 
-- Permite subir archivos de entrenamiento para mejorar el asistente.
-- Se muestran los documentos ya subidos al modelo, agrupados por nombre único.
-- El usuario puede subir archivos de tipo `.tf`, `.txt`, `.md`, `.pdf`, `.docx`, `.html`.
-- Al subir archivos:
-	- Si el nombre del archivo ya existe y el contenido es igual, se sobreescribe el archivo existente.
-	- Si el nombre del archivo ya existe pero el contenido es diferente, el nuevo archivo se guarda con un sufijo incremental (`nombre_1`, `nombre_2`, etc.).
-	- Si el archivo no existe, se guarda normalmente.
-- El sistema muestra el progreso de subida y procesamiento de archivos.
-- Al finalizar, indica si los archivos se añadieron correctamente o si hubo algún error.
+### Entrenamiento
+
+
+- Subida de archivos de entrenamiento para mejorar el asistente.
+- Soporte para `.tf`, `.txt`, `.md`, `.pdf`, `.docx`, `.html`.
+- Gestión automática de duplicados y versiones de documentos.
+- Visualización y gestión de documentos ya subidos.
 
 #### Casuísticas:
 - Si se intenta subir un archivo ya existente (mismo nombre y contenido), se sobreescribe.
@@ -36,44 +44,109 @@ La aplicación cuenta con dos pestañas principales:
 - Si el archivo es de tipo no soportado, se muestra una advertencia y no se procesa.
 - Si no hay archivos válidos, se muestra una advertencia.
 
-## Resumen del proceso
+
+## Arquitectura y componentes
+
+- **Vector DB Qdrant**: Almacena embeddings y permite búsquedas semánticas rápidas.
+- **RAGAgent**: Recupera contexto relevante y genera respuestas con LLM.
+- **API FastAPI**: Exposición de endpoints para consulta y health check.
+- **Ingesta de documentos**: Scripts para indexar y actualizar la base de conocimiento.
+- **Interfaz Gradio/Streamlit**: Chatbot multimodal y panel de entrenamiento.
+- **Docker y Docker Compose**: Despliegue sencillo de la app y la base Qdrant.
 
 1. El usuario puede consultar al asistente en la pestaña "Chatbot" y ver las fuentes utilizadas en las respuestas.
 2. En la pestaña "Entrenamiento", puede subir nuevos archivos para mejorar el modelo, siguiendo la lógica de comprobación de duplicados y contenido.
 3. El sistema gestiona los archivos subidos, asegurando que no se pierda información relevante y evitando duplicados innecesarios.
 
 
-## Pasos para ejecutar la aplicación
 
-1. **Clona el repositorio**  
+## Instalación y ejecución
+
+
+1. **Clona el repositorio**
 	```bash
 	git clone https://github.com/anabbre/jupiter-iaa-azure.git
 	cd jupiter-iaa-azure
 	```
 
-2. **Instala las dependencias**  
-	Asegúrate de tener Python 3.8+ y pip instalado.  
+
+2. **Instala las dependencias usando uv**
+	Requiere Python 3.8+ y tener instalado [uv](https://github.com/astral-sh/uv).
+
+	Si no tienes `uv` instalado, puedes instalarlo con:
 	```bash
-	pip install -r requirements.txt
+	pip install uv
 	```
 
-3. **Configura las variables de entorno**  
-	Crea un archivo `.env` en la raíz del proyecto con tus credenciales de Azure y otras configuraciones necesarias.  
-	Ejemplo:
+	Luego, crea un entorno virtual y activa el entorno:
+	```bash
+	uv venv .venv
+	# En Windows
+	.venv\Scripts\activate
+	# En Linux/Mac
+	source .venv/bin/activate
 	```
+
+	Instala las dependencias del proyecto:
+	```bash
+	uv pip install -r requirements.txt
+	```
+
+
+3. **Configura las variables de entorno**
+	Crea un archivo `.env` en la raíz con tus credenciales y parámetros:
+	```
+	# -------- Qdrant Config --------
+	EMB_MODEL = "text-embedding-3-large"
+	QDRANT_URL = "http://localhost:6333"
+	QDRANT_COLLECTION = "terraform_docs_index"
+
+	# ------- LLM Config --------
+	DB_DIR = "src/rag/vector_db"
+	LLM_MODEL = "gpt-4o-mini"
+	K_DOCS = 3
+
+	# -------- Secrets --------
 	OPENAI_API_KEY=
-    LANGCHAIN_PROJECT=
-    TAVILY_API_KEY=
-    
-    LANGSMITH_TRACING=true
-    LANGSMITH_API_KEY=
+
 	```
 
-4. **Ejecuta la aplicación**  
+
+4. **Ejecuta la aplicación**
 	```bash
 	uvicorn api:app --port 8008 --reload
-    python ui.py
+	python ui.py
 	```
 
-5. **Accede a la interfaz web**  
-	Abre tu navegador y visita la Local URL que te muestra y ya puedes interactuar con el chatbot.
+
+5. **Accede a la interfaz web**
+	Abre tu navegador y visita la URL local para interactuar con el chatbot y el panel de entrenamiento.
+
+### Despliegue con Docker
+
+Puedes levantar la app y la base Qdrant con Docker Compose:
+```bash
+docker-compose up --build
+```
+Esto inicia el servicio Qdrant y la app en modo Streamlit.
+
+### Ingesta y actualización de documentos
+
+Para reindexar o añadir nuevos documentos a la base vectorial, ejecuta:
+```bash
+python ingest.py
+```
+Puedes personalizar la colección y el modelo en `config/project_config.py` o vía variables de entorno.
+
+## Endpoints principales (API)
+
+- `GET /` y `/health`: Health check y estado de la base vectorial.
+- `POST /query`: Consulta al agente RAG, recibe pregunta y devuelve respuesta con fuentes.
+
+## Dependencias principales
+
+- `langchain`, `langchain-openai`, `langchain-qdrant`, `qdrant-client`, `streamlit`, `gradio`, `fastapi`, `uvicorn`, `openai`, `gtts`, `pymupdf`, `python-dotenv`.
+
+## Créditos y contacto
+
+Desarrollado por [anabbre](https://github.com/anabbre). Para dudas o sugerencias, abre un issue en el repositorio.

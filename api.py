@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from models import QueryRequest, QueryResponse, HealthResponse, SourceInfo
+from models.schemas import QueryRequest, QueryResponse, HealthResponse, SourceInfo
 from agent import RAGAgent
 
 # FastAPI App

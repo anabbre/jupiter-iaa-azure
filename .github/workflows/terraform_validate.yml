@@ -26,6 +26,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false           
       matrix:
         tfdir: [ "docs/terraform", "docs/ejemplos-terraform" ]
 
@@ -48,7 +49,7 @@ jobs:
       - name: TFLint run
         run: |
           tflint --init
-          tflint --chdir=${{ matrix.tfdir }} || true
+        tflint --chdir=${{ matrix.tfdir }} || true
 
       # ---- Seguridad 
       - name: tfsec

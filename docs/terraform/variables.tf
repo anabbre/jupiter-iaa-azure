@@ -1,6 +1,17 @@
-# variables.tf
-variable "bucket_name" {
-  description = "The name of the S3 bucket"
-  type        = string
-  default     = "my-static-site-bucket"
+variable "name_prefix" {
+  type    = string
+  default = "jup-dev"
+}
+
+variable "location" {
+  type    = string
+  default = "westeurope"
+}
+
+variable "common_tags" {
+  type = map(string)
+  default = {
+    project = "Jupiter"
+    env     = "dev"
+  }
 }

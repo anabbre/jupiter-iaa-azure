@@ -1,5 +1,4 @@
-# outputs.tf
 output "website_url" {
-  value       = aws_s3_bucket.static_site.website_endpoint
-  description = "URL of the static website"
+  description = "URL pública del sitio estático en Azure Storage"
+  value       = azurerm_storage_account.sa.primary_web_endpoint
 }

@@ -47,9 +47,11 @@ jobs:
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
       - name: TFLint run
+        shell: bash
         run: |
-          tflint --init
-          tflint --chdir=${{ matrix.tfdir }} || true
+            tflint --init
+            tflint --chdir=${{ matrix.tfdir }} || true
+
 
       # ---- Seguridad 
       - name: tfsec

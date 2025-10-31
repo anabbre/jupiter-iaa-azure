@@ -2,17 +2,21 @@ name: terraform-validate
 
 on:
   pull_request:
-    branches: [ main, develop, develop-api ]
+    branches: [ main, develop, develop-api, developer-anabelen ]
     paths:
       - "docs/terraform/**"
       - "docs/ejemplos-terraform/**"
       - ".github/workflows/terraform_validate.yml"
+
   push:
-    branches: [ main, develop, develop-api ]
+    branches: [ main, develop, develop-api, developer-anabelen, "developer-*", "ci/**" ]
     paths:
       - "docs/terraform/**"
       - "docs/ejemplos-terraform/**"
       - ".github/workflows/terraform_validate.yml"
+
+  workflow_dispatch:     # para lanzarlo a mano si quieres
+
 
 permissions:
   contents: read

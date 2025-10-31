@@ -10,9 +10,6 @@ resource "azurerm_storage_account" "sa" {
   location                 = var.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
-
-  allow_blob_public_access = false
   min_tls_version          = "TLS1_2"
-
-  tags = var.common_tags
+  tags                     = var.common_tags
 }

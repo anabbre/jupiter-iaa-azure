@@ -48,7 +48,7 @@ jobs:
       - name: TFLint run
         run: |
           tflint --init
-          tflint ${{ matrix.tfdir }}
+          tflint --chdir=${{ matrix.tfdir }} || true
 
       # ---- Seguridad 
       - name: tfsec

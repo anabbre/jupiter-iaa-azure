@@ -1,0 +1,69 @@
+name: terraform-validate
+
+on:
+  pull_request:
+    branches: [ main, develop, develop-api ]
+    paths:
+      - "docs/terraform/**"
+      - "docs/ejemplos-terraform/**"
+      - ".github/workflows/terraform_validate.yml"
+  push:
+    branches: [ main, develop, develop-api ]
+    paths:
+      - "docs/terraform/**"
+      - "docs/ejemplos-terraform/**"
+      - ".github/workflows/terraform_validate.yml"
+
+permissions:
+  contents: read
+  security-events: write   # para subir SARIF opcional
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tfdir: [ "docs/terraform", "docs/ejemplos-terraform" ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      # ---- Formato
+      - name: Terraform fmt (check)
+        run: terraform fmt -check -recursive ${{ matrix.tfdir }}
+
+      # ---- Lint
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+      - name: TFLint run
+        run: |
+          tflint --init
+          tflint ${{ matrix.tfdir }}
+
+      # ---- Seguridad 
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+            working_directory: ${{ matrix.tfdir }}
+            additional_args: --format sarif --out tfsec.sarif
+            soft_fail: true
+
+
+      - name: Upload tfsec SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tfsec.sarif
+        continue-on-error: true
+
+      # ---- Init & Validate (sin backend ni cloud)
+      - name: Terraform init (no backend)
+        run: terraform -chdir=${{ matrix.tfdir }} init -backend=false -input=false
+
+      - name: Terraform validate
+        run: terraform -chdir=${{ matrix.tfdir }} validate

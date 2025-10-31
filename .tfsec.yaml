@@ -1,0 +1,28 @@
+# Configuración personalizada de tfsec para el proyecto Júpiter
+
+# Ajuste de severidades (sube algunos hallazgos críticos)
+severity_overrides:
+  azurerm-storage-use-secure-transfer: HIGH        # exige transferencia segura en storage
+  azurerm-storage-enforces-https: HIGH             # requiere HTTPS obligatorio
+  azurerm-storage-minimum-tls-version: MEDIUM      # controla TLS mínimo
+  azurerm-keyvault-no-purge-protection: HIGH       # avisa si falta purge protection
+  azurerm-network-no-public-ip: HIGH               # prohíbe IPs públicas en entornos reales
+
+# Rutas a excluir del análisis (ejemplos educativos o archivos temporales)
+exclude_paths:
+  - "docs/ejemplos-terraform/**"
+  - "**/.terraform/**"
+  - ".venv/**"
+  - "infra/envs/dev/.terraform/**"
+  - "infra/envs/stg/.terraform/**"
+  - "infra/envs/prod/.terraform/**"
+
+# Reglas específicas a ignorar temporalmente
+exclude:
+  - AZU001   # ubicación hardcodeada (normal en ejemplos)
+  - AZU010   # falta de etiquetas en recursos
+  - GEN001   # variable sin descripción (en desarrollo)
+  - AWS*     # ignora reglas AWS, no aplican al proyecto Azure
+
+# Opcional: evita que errores bajos o medios rompan el pipeline
+minimum_severity: HIGH

@@ -1,8 +1,0 @@
-Community Providers
-Use one of the hundreds of Terraform providers to interact with third party APIs and resources.
-1 tutorial
-15min
-Create a Spotify playlist with Terraform
-Create a Spotify playlist with Terraform and share it with your friends.
-Terraform
-Video

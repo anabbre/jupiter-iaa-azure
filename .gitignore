@@ -79,10 +79,8 @@ artifacts/
 *.ckpt
 
 # --- Data files ---
-data/
 *.csv
 *.tsv
-*.json
 *.xlsx
 *.parquet
 *.zip
@@ -94,9 +92,6 @@ data/
 qdrant_data/
 .venv_jupyter/
 
-# --- Logs ---
-logs/
-logs/*
-*.log
 
-
+Notebooks/
+*.lock

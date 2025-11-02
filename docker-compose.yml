@@ -1,4 +1,3 @@
-version: "3.8"
 
 services:
   qdrant:
@@ -9,19 +8,63 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - ./qdrant_data:/qdrant/storage
+      - qdrant_storage:/qdrant/storage
       - ./qdrant_config/config.yaml:/config/config.yaml
     restart: always
-  app:
-    build: .
-    container_name: jupiter-iaa-azure-app
+    networks:
+      - terraform-rag-network
+
+  api:
+    build:
+      context: .
+      dockerfile: src/api/Dockerfile
+    container_name: terraform_rag_api
     ports:
-      - "8501:8501"
+      - "8008:8008"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - QDRANT_URL=http://qdrant:6333
+      - PYTHONUNBUFFERED=1
     volumes:
-      - ./:/app
+      - ./src:/app/src
+      - ./config:/app/config
       - ./logs:/app/logs
-      - ./docs:/app/docs
-    env_file:
-      - .env
-    restart: unless-stopped
-    command: streamlit run app.py --server.port 8501 --server.address=0.0.0.0
+    depends_on:
+      - qdrant
+    restart: always
+    networks:
+      - terraform-rag-network
+    command: >
+      sh -c "sleep 10 && uvicorn src.api.api:app --host 0.0.0.0 --port 8008"
+
+  ui:
+    build:
+      context: .
+      dockerfile: src/ui/Dockerfile
+    container_name: terraform_rag_ui
+    ports:
+      - "7860:7860"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - QDRANT_URL=http://qdrant:6333
+      - API_URL=http://api:8008
+      - PYTHONUNBUFFERED=1
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - GRADIO_SERVER_PORT=7860
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./logs:/app/logs
+    depends_on:
+      - qdrant
+      - api
+    restart: always
+    networks:
+      - terraform-rag-network
+
+volumes:
+  qdrant_storage:
+
+networks:
+  terraform-rag-network:
+    driver: bridge

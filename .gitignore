@@ -20,12 +20,11 @@ env/
 venv/
 ENV/
 *.env
+!.env.example
 
 # --- Jupyter and notebooks ---
 .ipynb_checkpoints/
 *.nbconvert.ipynb
-
-
 
 # --- Experiment configs ---
 *.tfvars
@@ -85,7 +84,6 @@ artifacts/
 *.parquet
 *.zip
 *.gz
-
 
 
 # --- Additional files to ignore ---

@@ -26,5 +26,6 @@ tmp/
 *.tmp
 *.swp
 
-# Documentación y datos locales
-docs/
+# Archivos de sistema
+.DS_Store
+Thumbs.db

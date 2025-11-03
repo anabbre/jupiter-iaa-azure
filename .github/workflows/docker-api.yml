@@ -1,0 +1,77 @@
+name: docker-api
+
+# Construye automáticamente la imagen Docker del API del proyecto Júpiter IAA Azure.
+
+on:
+  # El workflow se ejecuta cuando se realizan cambios en main o en PRs que afecten a estos paths.
+  push:
+    branches: [ main ]
+    paths:
+      - "src/api/**"
+      - ".github/workflows/docker-api.yml"
+      - "docker-compose.yml"
+      - "**/Dockerfile"
+      - "requirements.txt"
+      - "config/**"
+      - "src/**"
+  pull_request:
+    paths:
+      - "src/api/**"
+      - ".github/workflows/docker-api.yml"
+      - "docker-compose.yml"
+      - "**/Dockerfile"
+
+# Permisos mínimos necesarios para construir y subir la imagen a GHCR.
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+# Variables globales reutilizables.
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/jupiter-api
+  BUILD_CONTEXT: .
+  DOCKERFILE_PATH: src/api/Dockerfile
+
+jobs:
+  build-and-push:
+    # Job principal encargado de construir y publicar la imagen Docker.
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Descarga el código del repositorio
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2) Configura Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3) Login a GitHub Container Registry (GHCR)
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 4) Metadatos para tags/labels
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
+            type=ref,event=pr
+
+      # 5) Construir y (si no es PR) publicar en GHCR
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.BUILD_CONTEXT }}
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

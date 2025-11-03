@@ -1,0 +1,74 @@
+# Nombre del workflow que valida automáticamente los archivos Terraform del proyecto.
+name: terraform-validate
+
+on:
+  # Se ejecuta cuando hay un push a la rama main que afecte a los archivos dentro de infra/
+  push:
+    branches: [ main ]
+    paths:
+      - "infra/**"
+      - ".github/workflows/terraform-validate.yml"
+
+  # También se ejecuta en los Pull Requests que incluyan cambios en infra/ o en este YAML
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/terraform-validate.yml"
+
+# Permisos mínimos de lectura para el workflow (no necesita más privilegios)
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    # El job se ejecuta en un runner Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      # Descarga el código del repositorio
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Busca automáticamente las carpetas que contienen archivos .tf en el proyecto
+      - name: Find Terraform folders
+        id: discover
+        run: |
+          TF_DIRS=$(find infra -type f -name "*.tf" 2>/dev/null | xargs -r -n1 dirname | sort -u || true)
+          if [ -z "$TF_DIRS" ]; then
+            # Si no se encuentran ficheros .tf, se marca la variable 'found=false'
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            # Si se encuentran, se guarda la lista de directorios detectados
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "dirs<<EOF" >> $GITHUB_OUTPUT
+            echo "$TF_DIRS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      # Si no hay ficheros Terraform, muestra un mensaje y salta el resto del proceso
+      - name: No Terraform found - skip
+        if: steps.discover.outputs.found != 'true'
+        run: echo "No Terraform files under infra/. Skipping."
+
+      # Instala la versión de Terraform necesaria en el runner
+      - name: Setup Terraform
+        if: steps.discover.outputs.found == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false   # Desactiva el wrapper para ejecutar Terraform de forma directa
+
+      # Valida cada carpeta encontrada con archivos .tf
+      - name: Validate each folder
+        if: steps.discover.outputs.found == 'true'
+        run: |
+          set -e  # Hace que el script falle si cualquier comando devuelve error
+          # Recorre cada carpeta encontrada
+          echo "${{ steps.discover.outputs.dirs }}" | while read dir; do
+            [ -z "$dir" ] && continue   # Salta líneas vacías
+            echo "==> Validating $dir"  # Muestra qué carpeta se está validando
+            cd "$dir"
+            terraform fmt -check -recursive      # Verifica el formato correcto de los archivos .tf
+            terraform init -backend=false        # Inicializa Terraform sin backend (modo offline)
+            terraform validate                   # Valida la sintaxis y dependencias
+            cd - >/dev/null                      # Regresa al directorio anterior sin mostrarlo
+          done

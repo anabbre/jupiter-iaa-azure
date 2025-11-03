@@ -1,48 +1,18 @@
 import os
-import base64
 import gradio as gr
 import requests
-from openai import OpenAI
-from dotenv import load_dotenv
+from src.ui.utils.transcribe_audio import transcribe_audio
+from src.ui.utils.process_image import encode_image_to_base64
+from src.ui.utils.process_text_file import read_text_file
 
-# =============================
-# CONFIGURACIÓN
-# =============================
 
-load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("⚠️ Debes definir la variable de entorno OPENAI_API_KEY")
+
 
 # URL de la API FastAPI
 API_URL = os.getenv("API_URL", "http://localhost:8008")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
 
-
-# =============================
-# FUNCIONES AUXILIARES
-# =============================
-
-def encode_image_to_base64(image_path):
-    """Convierte imagen a base64"""
-    with open(image_path, "rb") as img:
-        encoded_string = base64.b64encode(img.read())
-    return encoded_string.decode('utf-8')
-
-
-def leer_archivo_texto(file_path):
-    """Lee archivos de texto"""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except:
-        try:
-            with open(file_path, 'r', encoding='latin-1') as f:
-                return f.read()
-        except Exception as e:
-            return f"❌ Error leyendo archivo: {e}"
 
 
 def get_api_response(pregunta: str) -> dict:
@@ -84,23 +54,7 @@ def get_api_response(pregunta: str) -> dict:
 # FUNCIONES PRINCIPALES
 # =============================
 
-def transcribir_audio(audio_file):
-    """
-    Transcribe audio en texto usando Whisper (OpenAI).
-    """
-    if not audio_file:
-        return ""
 
-    try:
-        with open(audio_file, "rb") as f:
-            transcript = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=f,
-                language="es"
-            )
-        return transcript.text
-    except Exception as e:
-        return f"❌ Error en transcripción: {e}"
 
 
 def procesar_mensaje(history, texto, archivo):
@@ -128,7 +82,7 @@ def procesar_mensaje(history, texto, archivo):
 
         # Si es archivo de texto
         else:
-            contenido_archivo = leer_archivo_texto(archivo)
+            contenido_archivo = read_text_file(archivo)
             if contenido_usuario:
                 contenido_usuario += f"\n\n📄 **Archivo adjunto ({os.path.basename(archivo)}):**\n```\n{contenido_archivo[:500]}...\n```"
             else:
@@ -168,7 +122,7 @@ def procesar_audio(history, audio_file):
         return history, ""
 
     # Transcribir audio
-    texto_transcrito = transcribir_audio(audio_file)
+    texto_transcrito = transcribe_audio(audio_file)
 
     if texto_transcrito.startswith("❌"):
         # Si hay error, mostrarlo en el chat

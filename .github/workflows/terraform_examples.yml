@@ -4,7 +4,6 @@ on:
   push:
     branches: [ develop, main ]
     paths:
-      - "docs/ejemplos-terraform/**"
       - ".github/workflows/terraform_examples.yml"
   pull_request:
     branches: [ develop, main ]

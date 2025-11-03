@@ -1,17 +1,18 @@
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
-from src.services.embeddings import embeddings_model_langchain
+from src.services.embeddings import embeddings_model
 import os
 import logging
+from src.config import SETTINGS
 
 logger = logging.getLogger(__name__)
 
 # Cliente de Qdrant - usar variable de entorno para la URL
-qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
+qdrant_url = SETTINGS.QDRANT_URL
 qdrant_client = QdrantClient(url=qdrant_url)
 
 # Verificar si la colección existe
-collection_name = "Terraform_Book_Index"
+collection_name = SETTINGS.QDRANT_COLLECTION_NAME
 
 try:
     # Intentar obtener info de la colección
@@ -29,7 +30,7 @@ except Exception as e:
 qdrant_vector_store = QdrantVectorStore(
     client=qdrant_client,
     collection_name=collection_name,
-    embedding=embeddings_model_langchain
+    embedding=embeddings_model
 )
 
 n_docs = 3

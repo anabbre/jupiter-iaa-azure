@@ -11,7 +11,7 @@ from langchain_core.documents import Document
 from qdrant_client.models import VectorParams, Distance
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
-from src.services.embeddings import embeddings_model_langchain
+from src.services.embeddings import embeddings_model
 from uuid import uuid4
 import time
 import re
@@ -83,7 +83,7 @@ def index_documents(qdrant_client: QdrantClient, documents: list[Document], coll
     vector_store = QdrantVectorStore(
         client=qdrant_client,
         collection_name=collection_name,
-        embedding=embeddings_model_langchain
+        embedding=embeddings_model
     )
 
     print(f"\n📥 Insertando {len(documents)} documentos en Qdrant con IDs únicos...")

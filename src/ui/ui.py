@@ -4,15 +4,10 @@ import requests
 from src.ui.utils.transcribe_audio import transcribe_audio
 from src.ui.utils.process_image import encode_image_to_base64
 from src.ui.utils.process_text_file import read_text_file
+from src.config import SETTINGS
 
 
-
-
-
-# URL de la API FastAPI
-API_URL = os.getenv("API_URL", "http://localhost:8008")
-
-
+API_URL = SETTINGS.API_URL
 
 
 def get_api_response(pregunta: str) -> dict:

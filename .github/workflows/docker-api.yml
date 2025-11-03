@@ -1,9 +1,8 @@
+# Construye automáticamente la imagen Docker del API del proyecto Júpiter IAA Azure.
 name: docker-api
 
-# Construye automáticamente la imagen Docker del API del proyecto Júpiter IAA Azure.
-
 on:
-  # El workflow se ejecuta cuando se realizan cambios en main o en PRs que afecten a estos paths.
+  # El workflow se ejecuta cuando se realizan cambios en main o en PRs que afecten a estos paths
   push:
     branches: [ main ]
     paths:
@@ -21,13 +20,13 @@ on:
       - "docker-compose.yml"
       - "**/Dockerfile"
 
-# Permisos mínimos necesarios para construir y subir la imagen a GHCR.
+# Permisos mínimos necesarios para construir y subir la imagen a GHCR
 permissions:
   contents: read
   packages: write
   id-token: write
 
-# Variables globales reutilizables.
+# Variables globales reutilizables
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/jupiter-api
   BUILD_CONTEXT: .
@@ -35,7 +34,7 @@ env:
 
 jobs:
   build-and-push:
-    # Job principal encargado de construir y publicar la imagen Docker.
+    # Job principal encargado de construir y publicar la imagen Docker
     runs-on: ubuntu-latest
 
     steps:

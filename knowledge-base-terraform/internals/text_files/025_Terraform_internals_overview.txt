@@ -1,6 +1,0 @@
-Terraform internals overview
-Learn about internal Terraform processes, such as generating the resource dependency graph.
-This topic provides overview information about the internals of Terraform.
-Topics in this section explain how Terraform generates plans and describe the provider lifecycle.
-You do not have to understand Terraform internals to use Terraform.
-Edit this page on GitHub

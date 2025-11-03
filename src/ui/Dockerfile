@@ -26,4 +26,4 @@ RUN mkdir -p logs
 EXPOSE 7860
 
 # Iniciar aplicación
-CMD ["python", "src/ui/ui.py"]
+CMD ["gradio", "src/ui/ui.py"]

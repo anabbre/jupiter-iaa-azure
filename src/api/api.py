@@ -66,11 +66,8 @@ async def query_endpoint(request: QueryRequest):
         for doc_meta in result.get("documents_metadata", []):
             metadata = doc_meta.get("metadata", {})
             sources.append(SourceInfo(
-                title=metadata.get("source", "Unknown"),
-                url=metadata.get("url", ""),
-                section=metadata.get("section", ""),
-                subsection=metadata.get("subsection", ""),
-                score=metadata.get("score", 0.0)
+                section=metadata.get("source", "Unknown"),
+                pages=metadata.get("original_pages_range", ""),
             ))
 
         return QueryResponse(

@@ -95,10 +95,19 @@ def procesar_mensaje(history, texto, archivo):
 
         # Agregar información de fuentes si están disponibles
         sources = result.get("sources", [])
+        # python
         if sources and not respuesta.startswith("❌"):
-            respuesta += f"\n\n📚 **Fuentes consultadas:** {len(sources)}"
+            # Enlace y título principal
+            book_url = "https://digtvbg.com/files/LINUX/Brikman%20Y.%20Terraform.%20Up%20and%20Running.%20Writing...as%20Code%203ed%202022.pdf"
+            book_title = "Terraform: Up & Running — Writing Infrastructure as Code (3rd ed, 2022)"
+            respuesta += f"\n\n\n 📚 **Fuente:** [{book_title}]({book_url})"
+
+            # Detalle de las fuentes extra (secciones y páginas)
             for i, source in enumerate(sources[:3], 1):
-                respuesta += f"\n{i}. {source.get('title', 'N/A')}"
+                section = source.get("section", "N/A")
+                pages = source.get("pages", "N/A")
+
+                respuesta += f"\n {section} ----- {'Página' if '-' not in pages else 'Páginas'}: {pages}"
 
     except Exception as e:
         respuesta = f"❌ Error al procesar la consulta: {str(e)}"

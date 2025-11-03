@@ -12,11 +12,8 @@ class QueryRequest(BaseModel):
 
 class SourceInfo(BaseModel):
     """Información de una fuente consultada"""
-    title: str
-    url: Optional[str] = ""
-    section: Optional[str] = ""
-    subsection: Optional[str] = ""
-    score: float
+    section: str
+    pages: str
 
 
 class QueryResponse(BaseModel):

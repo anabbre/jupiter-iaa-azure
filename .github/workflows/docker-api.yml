@@ -22,8 +22,9 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/jupiter-api
-  BUILD_CONTEXT: src
-  DOCKERFILE_PATH: src/api/Dockerfile 
+  BUILD_CONTEXT: .                 
+  DOCKERFILE_PATH: src/api/Dockerfile
+
 
 jobs:
   build-and-push:

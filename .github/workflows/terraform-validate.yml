@@ -1,0 +1,60 @@
+name: terraform-validate
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "infra/**"
+      - ".github/workflows/terraform-validate.yml"
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/terraform-validate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find Terraform folders
+        id: discover
+        run: |
+          TF_DIRS=$(find infra -type f -name "*.tf" 2>/dev/null | xargs -r -n1 dirname | sort -u || true)
+          if [ -z "$TF_DIRS" ]; then
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "dirs<<EOF" >> $GITHUB_OUTPUT
+            echo "$TF_DIRS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: No Terraform found - skip
+        if: steps.discover.outputs.found != 'true'
+        run: echo "No Terraform files under infra/. Skipping."
+
+      - name: Setup Terraform
+        if: steps.discover.outputs.found == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Validate each folder
+        if: steps.discover.outputs.found == 'true'
+        run: |
+          set -e
+          echo "${{ steps.discover.outputs.dirs }}" | while read dir; do
+            [ -z "$dir" ] && continue
+            echo "==> Validating $dir"
+            cd "$dir"
+            terraform fmt -check -recursive
+            terraform init -backend=false
+            terraform validate
+            cd - >/dev/null
+          done

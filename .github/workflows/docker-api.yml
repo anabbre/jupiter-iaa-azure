@@ -1,0 +1,63 @@
+name: docker-api
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "api/**"
+      - ".github/workflows/docker-api.yml"
+      - "docker-compose.yml"
+      - "**/Dockerfile"
+  pull_request:
+    paths:
+      - "api/**"
+      - ".github/workflows/docker-api.yml"
+      - "docker-compose.yml"
+      - "**/Dockerfile"
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/jupiter-api
+  BUILD_CONTEXT: .
+  DOCKERFILE_PATH: api/Dockerfile   
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
+            type=ref,event=pr
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.BUILD_CONTEXT }}
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

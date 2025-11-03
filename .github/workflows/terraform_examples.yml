@@ -1,30 +1,50 @@
 name: Validate Terraform examples
 
 on:
+  pull_request:
+    branches: [ develop, main ]
+    paths:
+      - ".github/workflows/terraform_examples.yml"
+      - "docs/ejemplos-terraform/**"
   push:
     branches: [ develop, main ]
     paths:
       - ".github/workflows/terraform_examples.yml"
-  pull_request:
-    branches: [ develop, main ]
-    paths:
       - "docs/ejemplos-terraform/**"
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+
     steps:
-      - name: CheckoutS
+      - name: Checkout
         uses: actions/checkout@v4
 
+      # Si el directorio NO existe, marca el job como OK y termina
+      - name: Skip if directory is missing
+        id: guard
+        shell: bash
+        run: |
+          if [ ! -d "docs/ejemplos-terraform" ]; then
+            echo "Directory docs/ejemplos-terraform not found. Skipping."
+            # crear un paso 'conclusión' y salir en verde
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Terraform
+        if: steps.guard.outputs.skip != 'true'
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
 
       - name: Terraform fmt (check)
+        if: steps.guard.outputs.skip != 'true'
         run: terraform fmt -check -recursive docs/ejemplos-terraform
 
       - name: Terraform init (no backend)
-        run: terraform -chdir=docs/ejemplos-terraform init -backend=false
+        if: steps.guard.outputs.skip != 'true'
+        run: terraform -chdir=docs/ejemplos-terraform init -backend=false -input=false
 
       - name: Terraform validate
+        if: steps.guard.outputs.skip != 'true'
         run: terraform -chdir=docs/ejemplos-terraform validate

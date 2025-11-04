@@ -1,5 +1,7 @@
 import os
 from dataclasses import dataclass
+from dotenv import load_dotenv
+load_dotenv()
 
 @dataclass
 class Settings:
@@ -12,6 +14,8 @@ class Settings:
     LLM_MAX_RETRIES: int = int(os.getenv("LLM_MAX_RETRIES", 3))
 
     API_URL: str = os.getenv("API_URL", "http://localhost:8008")
+    TAVILY_API_KEY: str = os.getenv("TAVILY_API_KEY", "")
 
 
 SETTINGS = Settings()
+

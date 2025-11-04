@@ -27,8 +27,8 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - ./src:/app/src
-      - ./config:/app/config
-      - ./logs:/app/logs
+#      - ./config:/app/config
+#      - ./logs:/app/logs
     depends_on:
       - qdrant
     restart: always
@@ -51,8 +51,8 @@ services:
       - GRADIO_SERVER_PORT=7860
     volumes:
       - ./src:/app/src
-      - ./config:/app/config
-      - ./logs:/app/logs
+#      - ./config:/app/config
+#      - ./logs:/app/logs
     depends_on:
       - qdrant
       - api

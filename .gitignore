@@ -93,3 +93,10 @@ qdrant_data/
 
 Notebooks/
 *.lock
+
+# Terraform locals
+**/terraform.tfvars
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*

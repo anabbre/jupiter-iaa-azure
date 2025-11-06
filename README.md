@@ -205,10 +205,49 @@ Accede al navegador en:
 Workflow preparado para validar la sintaxis y formato de los archivos `.tf` mediante **Terraform CLI** y **TFLint**.  
 Actualmente no se ejecuta porque el proyecto aún no contiene módulos de infraestructura, pero se integrará en la próxima fase cuando se despliegue la arquitectura en Azure.
 
-**Objetivo futuro:**
+## Validación automática de ejemplos Terraform
 
-- Validar automáticamente los `.tf` con `terraform fmt` y `terraform validate`.  
-- Comprobar que la infraestructura cumpla las convenciones de estilo y seguridad.
+Mantenemos nuestros ejemplos en `docs/examples/**` (cada ejemplo en su carpeta).
+El repositorio ejecuta una validación **offline** en GitHub Actions cada vez que:
+
+- hay cambios en `docs/examples/**`, o
+- se modifica el workflow `.github/workflows/terraform-validate.yml`.
+
+### ¿Qué comprueba el workflow?
+
+1. **Descubre** todas las carpetas que contengan ficheros `.tf`.
+2. **Formatea** (`terraform fmt -check -recursive`) — falla si hay diffs.
+3. **Inicializa en modo offline** (`terraform init -backend=false`) — _no_ se conecta a Azure ni a backends remotos.
+4. **Valida** (`terraform validate`) la sintaxis y dependencias.
+
+> Nota: hasta que tengamos la cuenta de Azure del máster, todo se valida en **local/offline**. No se crean recursos.
+
+### Estructura recomendada de un ejemplo
+
+```
+docs/examples/azure-static-site/01-storage-static-website/
+├─ main.tf
+├─ variables.tf
+├─ outputs.tf
+├─ terraform.tfvars.example # valores de ejemplo (no sensibles)
+└─ example.md # 2–3 líneas explicando qué hace el ejemplo
+```
+
+### Ejecutar en local
+
+```bash
+cd docs/examples/azure-static-site/01-storage-static-website
+
+# Formato
+terraform fmt -recursive
+
+# Init OFFLINE (sin backend remoto)
+terraform init -backend=false -input=false
+
+# Validación sintáctica
+terraform validate
+
+> Nota: Si terraform plan te pide Azure CLI, no es necesario de momento. Nuestro flujo de CI/CD usa init -backend=false para permanecer offline.
 
 ---
 

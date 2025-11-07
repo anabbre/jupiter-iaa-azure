@@ -1,0 +1,54 @@
+{"timestamp": "2025-11-07T12:53:13.797261+01:00", "level": "INFO", "message": "Iniciando PDF Schema Service - Proceso principal", "module": "get_pdf_schema", "function": "<module>", "line": 118, "request_id": "30dadfe2", "session_id": "pdf_schema_1762516393", "extra": {"session_id": "pdf_schema_1762516393", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T12:53:13.797971+01:00", "level": "ERROR", "message": "Error al procesar PDF", "module": "get_pdf_schema", "function": "<module>", "line": 128, "request_id": "30dadfe2", "session_id": "pdf_schema_1762516393", "extra": {"error": "cannot access local variable 'request_id' where it is not associated with a value", "tipo_error": "UnboundLocalError", "session_id": "pdf_schema_1762516393", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:11:00.153312+01:00", "level": "INFO", "message": "Iniciando PDF Schema Service - Proceso principal", "module": "get_pdf_schema", "function": "<module>", "line": 121, "request_id": "1f28350b", "session_id": "pdf_schema_1762517460", "extra": {"session_id": "pdf_schema_1762517460", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:11:00.153894+01:00", "level": "ERROR", "message": "Error al procesar PDF", "module": "get_pdf_schema", "function": "<module>", "line": 131, "request_id": "1f28350b", "session_id": "pdf_schema_1762517460", "extra": {"error": "cannot access local variable 'request_id' where it is not associated with a value", "tipo_error": "UnboundLocalError", "session_id": "pdf_schema_1762517460", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:11:50.971700+01:00", "level": "INFO", "message": "Iniciando PDF Schema Service - Proceso principal", "module": "get_pdf_schema", "function": "<module>", "line": 121, "request_id": "dc45e73f", "session_id": "pdf_schema_1762517510", "extra": {"session_id": "pdf_schema_1762517510", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:11:50.972418+01:00", "level": "ERROR", "message": "Error al procesar PDF", "module": "get_pdf_schema", "function": "<module>", "line": 131, "request_id": "dc45e73f", "session_id": "pdf_schema_1762517510", "extra": {"error": "cannot access local variable 'request_id' where it is not associated with a value", "tipo_error": "UnboundLocalError", "session_id": "pdf_schema_1762517510", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:14:26.832403+01:00", "level": "INFO", "message": "Iniciando PDF Schema Service - Proceso principal", "module": "get_pdf_schema", "function": "<module>", "line": 123, "request_id": "3a2582bb", "session_id": "pdf_schema_1762517666", "extra": {"session_id": "pdf_schema_1762517666", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:14:26.832925+01:00", "level": "INFO", "message": "Iniciando extracción de esquema PDF", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 42, "request_id": "3a2582bb", "session_id": "pdf_schema_1762517666", "extra": {"pdf_original": "Libro-TF.pdf", "request_id": "3a2582bb", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:14:26.972830+01:00", "level": "INFO", "message": "PDF cargado exitosamente", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 57, "request_id": "3a2582bb", "session_id": "pdf_schema_1762517666", "extra": {"pdf": "Libro-TF.pdf", "total_paginas": 680, "tiene_bookmarks": true, "request_id": "3a2582bb", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:14:26.980476+01:00", "level": "INFO", "message": "Bookmarks procesados", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 61, "request_id": "3a2582bb", "session_id": "pdf_schema_1762517666", "extra": {"total_secciones": 201, "request_id": "3a2582bb", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:14:26.981486+01:00", "level": "DEBUG", "message": "Guardando esquema en JSON", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 68, "request_id": "3a2582bb", "session_id": "pdf_schema_1762517666", "extra": {"json_path": "/mnt/c/Users/Carlos/Documents/Github/jupiter-iaa-azure/data/Libro-TF_esquema.json", "secciones": 201, "request_id": "3a2582bb", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:14:26.987498+01:00", "level": "ERROR", "message": "Error al extraer esquema", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 81, "request_id": "3a2582bb", "session_id": "pdf_schema_1762517666", "extra": {"error": "cannot access local variable 'duration' where it is not associated with a value", "tipo_error": "UnboundLocalError", "pdf": "Libro-TF.pdf", "duration": "0.155s", "request_id": "3a2582bb", "source": "pdf_schema", "process_time": "0.155s"}}
+
+{"timestamp": "2025-11-07T13:14:26.988367+01:00", "level": "ERROR", "message": "Error al procesar PDF", "module": "get_pdf_schema", "function": "<module>", "line": 133, "request_id": "3a2582bb", "session_id": "pdf_schema_1762517666", "extra": {"error": "cannot access local variable 'duration' where it is not associated with a value", "tipo_error": "UnboundLocalError", "session_id": "pdf_schema_1762517666", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:17:27.328250+01:00", "level": "INFO", "message": "Iniciando PDF Schema Service - Proceso principal", "module": "get_pdf_schema", "function": "<module>", "line": 123, "request_id": "6c687164", "session_id": "pdf_schema_1762517847", "extra": {"session_id": "pdf_schema_1762517847", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:17:27.328966+01:00", "level": "INFO", "message": "Iniciando extracción de esquema PDF", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 41, "request_id": "6c687164", "session_id": "pdf_schema_1762517847", "extra": {"pdf_original": "Libro-TF.pdf", "request_id": "6c687164", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:17:27.468842+01:00", "level": "INFO", "message": "PDF cargado exitosamente", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 57, "request_id": "6c687164", "session_id": "pdf_schema_1762517847", "extra": {"pdf": "Libro-TF.pdf", "total_paginas": 680, "tiene_bookmarks": true, "request_id": "6c687164", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:17:27.475341+01:00", "level": "INFO", "message": "Bookmarks procesados", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 61, "request_id": "6c687164", "session_id": "pdf_schema_1762517847", "extra": {"total_secciones": 201, "request_id": "6c687164", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:17:27.475815+01:00", "level": "DEBUG", "message": "Guardando esquema en JSON", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 68, "request_id": "6c687164", "session_id": "pdf_schema_1762517847", "extra": {"json_path": "/mnt/c/Users/Carlos/Documents/Github/jupiter-iaa-azure/data/Libro-TF_esquema.json", "secciones": 201, "request_id": "6c687164", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:17:27.480438+01:00", "level": "ERROR", "message": "Error al extraer esquema", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 81, "request_id": "6c687164", "session_id": "pdf_schema_1762517847", "extra": {"error": "cannot access local variable 'duration' where it is not associated with a value", "tipo_error": "UnboundLocalError", "pdf": "Libro-TF.pdf", "duration": "0.151s", "request_id": "6c687164", "source": "pdf_schema", "process_time": "0.151s"}}
+
+{"timestamp": "2025-11-07T13:17:27.481725+01:00", "level": "ERROR", "message": "Error al procesar PDF", "module": "get_pdf_schema", "function": "<module>", "line": 133, "request_id": "6c687164", "session_id": "pdf_schema_1762517847", "extra": {"error": "cannot access local variable 'duration' where it is not associated with a value", "tipo_error": "UnboundLocalError", "session_id": "pdf_schema_1762517847", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:20:24.882663+01:00", "level": "INFO", "message": "Iniciando PDF Schema Service - Proceso principal", "module": "get_pdf_schema", "function": "<module>", "line": 124, "request_id": "f3f41b14", "session_id": "pdf_schema_1762518024", "extra": {"session_id": "pdf_schema_1762518024", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:20:24.883212+01:00", "level": "INFO", "message": "Iniciando extracción de esquema PDF", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 41, "request_id": "f3f41b14", "session_id": "pdf_schema_1762518024", "extra": {"pdf_original": "Libro-TF.pdf", "request_id": "f3f41b14", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:20:25.018113+01:00", "level": "INFO", "message": "PDF cargado exitosamente", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 57, "request_id": "f3f41b14", "session_id": "pdf_schema_1762518024", "extra": {"pdf": "Libro-TF.pdf", "total_paginas": 680, "tiene_bookmarks": true, "request_id": "f3f41b14", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:20:25.024887+01:00", "level": "INFO", "message": "Bookmarks procesados", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 61, "request_id": "f3f41b14", "session_id": "pdf_schema_1762518024", "extra": {"total_secciones": 201, "request_id": "f3f41b14", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:20:25.025753+01:00", "level": "DEBUG", "message": "Guardando esquema en JSON", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 68, "request_id": "f3f41b14", "session_id": "pdf_schema_1762518024", "extra": {"json_path": "/mnt/c/Users/Carlos/Documents/Github/jupiter-iaa-azure/data/Libro-TF_esquema.json", "secciones": 201, "request_id": "f3f41b14", "source": "pdf_schema"}}
+
+{"timestamp": "2025-11-07T13:20:25.029828+01:00", "level": "INFO", "message": "Esquema guardado exitosamente", "module": "get_pdf_schema", "function": "extraer_esquema", "line": 73, "request_id": "f3f41b14", "session_id": "pdf_schema_1762518024", "extra": {"json_path": "/mnt/c/Users/Carlos/Documents/Github/jupiter-iaa-azure/data/Libro-TF_esquema.json", "total_secciones": 201, "tamaño_kb": "16.88", "duration": "0.146s", "request_id": "f3f41b14", "source": "pdf_schema", "process_time": "0.146s"}}
+
+{"timestamp": "2025-11-07T13:20:25.030538+01:00", "level": "INFO", "message": "✓ Esquema generado exitosamente", "module": "get_pdf_schema", "function": "<module>", "line": 128, "request_id": "f3f41b14", "session_id": "pdf_schema_1762518024", "extra": {"json_path": "/mnt/c/Users/Carlos/Documents/Github/jupiter-iaa-azure/data/Libro-TF_esquema.json", "session_id": "pdf_schema_1762518024", "source": "pdf_schema"}}
+

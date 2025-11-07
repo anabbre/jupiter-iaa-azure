@@ -11,6 +11,7 @@ uvicorn
 tiktoken
 pandas
 gtts
+loguru==0.7.2
 pypika==0.48.9
 langchain-core
 langchain-google-genai==3.0.0

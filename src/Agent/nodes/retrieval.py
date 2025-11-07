@@ -16,6 +16,7 @@ def retrieve_documents(state: AgentState) -> AgentState:
     Returns:
         Estado actualizado con documentos recuperados
     """
+    
     question = state["question"]
 
     # Buscar documentos similares

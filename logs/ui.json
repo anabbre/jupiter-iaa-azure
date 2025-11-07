@@ -1,0 +1,28 @@
+{"timestamp": "2025-11-07T10:37:02.840613+00:00", "level": "INFO", "message": "Procesando mensaje", "module": "ui", "function": "procesar_mensaje", "line": 77, "request_id": "99b058b9", "session_id": "anonymous", "extra": {"tiene_texto": true, "tiene_archivo": false, "source": "ui"}}
+
+{"timestamp": "2025-11-07T10:37:02.842164+00:00", "level": "INFO", "message": "Enviando consulta a API", "module": "ui", "function": "get_api_response", "line": 24, "request_id": "99b058b9", "session_id": "anonymous", "extra": {"url": "http://api:8008", "pregunta": "lkgblñljksdfg", "source": "ui"}}
+
+{"timestamp": "2025-11-07T10:37:06.859304+00:00", "level": "ERROR", "message": "Error al procesar consulta", "module": "ui", "function": "procesar_mensaje", "line": 130, "request_id": "99b058b9", "session_id": "anonymous", "extra": {"error": "cannot access local variable 'e' where it is not associated with a value", "tipo_error": "UnboundLocalError", "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:11:27.560722+00:00", "level": "INFO", "message": "Procesando mensaje", "module": "ui", "function": "procesar_mensaje", "line": 77, "request_id": "22af30c4", "session_id": "anonymous", "extra": {"tiene_texto": true, "tiene_archivo": false, "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:11:27.561481+00:00", "level": "INFO", "message": "Enviando consulta a API", "module": "ui", "function": "get_api_response", "line": 24, "request_id": "22af30c4", "session_id": "anonymous", "extra": {"url": "http://api:8008", "pregunta": "hola", "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:11:31.574331+00:00", "level": "ERROR", "message": "Error al procesar consulta", "module": "ui", "function": "procesar_mensaje", "line": 130, "request_id": "22af30c4", "session_id": "anonymous", "extra": {"error": "cannot access local variable 'e' where it is not associated with a value", "tipo_error": "UnboundLocalError", "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:14:32.639626+00:00", "level": "INFO", "message": "Procesando mensaje", "module": "ui", "function": "procesar_mensaje", "line": 77, "request_id": "71df4fa1", "session_id": "anonymous", "extra": {"tiene_texto": true, "tiene_archivo": false, "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:14:32.640291+00:00", "level": "INFO", "message": "Enviando consulta a API", "module": "ui", "function": "get_api_response", "line": 24, "request_id": "71df4fa1", "session_id": "anonymous", "extra": {"url": "http://api:8008", "pregunta": "me pudes dar base de un doc de terraform", "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:14:36.656034+00:00", "level": "ERROR", "message": "Error al procesar consulta", "module": "ui", "function": "procesar_mensaje", "line": 130, "request_id": "71df4fa1", "session_id": "anonymous", "extra": {"error": "cannot access local variable 'e' where it is not associated with a value", "tipo_error": "UnboundLocalError", "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:15:28.678554+00:00", "level": "INFO", "message": "Procesando mensaje", "module": "ui", "function": "procesar_mensaje", "line": 77, "request_id": "67369554", "session_id": "anonymous", "extra": {"tiene_texto": false, "tiene_archivo": true, "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:15:28.679310+00:00", "level": "DEBUG", "message": "Archivo detectado", "module": "ui", "function": "procesar_mensaje", "line": 82, "request_id": "67369554", "session_id": "anonymous", "extra": {"extension": ".pdf", "nombre": "Libro-TF.pdf", "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:15:28.679930+00:00", "level": "INFO", "message": "Procesando archivo de texto", "module": "ui", "function": "procesar_mensaje", "line": 95, "request_id": "67369554", "session_id": "anonymous", "extra": {"extension": ".pdf", "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:15:28.723311+00:00", "level": "INFO", "message": "Enviando consulta a API", "module": "ui", "function": "get_api_response", "line": 24, "request_id": "67369554", "session_id": "anonymous", "extra": {"url": "http://api:8008", "pregunta": "📄 **Archivo adjunto (Libro-TF.pdf):**\n```\n%PDF-1.4\n%âãÏÓ\n1 0 obj<</Author(þÿ\u0000Y\u0000e\u0000v\u0000g\u0000e\u0000n\u0000i\u0000y\u0000 \u0000B\u0000r\u0000i", "source": "ui"}}
+
+{"timestamp": "2025-11-07T11:15:32.728521+00:00", "level": "ERROR", "message": "Error al procesar consulta", "module": "ui", "function": "procesar_mensaje", "line": 130, "request_id": "67369554", "session_id": "anonymous", "extra": {"error": "cannot access local variable 'e' where it is not associated with a value", "tipo_error": "UnboundLocalError", "source": "ui"}}
+

@@ -1,272 +1,196 @@
-# 🌐 Generador automático de infraestructura Azure con IA y RAG
+# 🚀 Terraform RAG Assistant — Azure
 
-## 🧠 Descripción general
+Asistente inteligente (RAG) para **Terraform + Azure** que:
 
-Este proyecto implementa un **asistente inteligente para infraestructura en Azure**, especializado en **Terraform** y basado en la arquitectura **RAG (Retrieval-Augmented Generation)**.  
-
-El sistema utiliza una **base de datos vectorial Qdrant** y modelos **LLM de OpenAI** para responder preguntas, citar fuentes y generar código HCL válido.  
-Incluye además funcionalidades **multimodales** (voz, texto, imagen, audio) y una **interfaz web interactiva** desarrollada con **Gradio**.
-
----
-
-## ⚙️ Principales funcionalidades
-
-### 🤖 Chatbot inteligente
-
-- Responde preguntas en español sobre Terraform y Azure.  
-- Genera fragmentos de código HCL explicados paso a paso.  
-- Cita las fuentes utilizadas en cada respuesta (documentos indexados en Qdrant).  
-- Soporte multimodal: texto, voz, imágenes y archivos.
-
-### 📚 Entrenamiento personalizado
-
-- Permite subir archivos de entrenamiento (`.tf`, `.pdf`, `.docx`, `.txt`, etc.) para enriquecer la base de conocimiento.  
-- Detección automática de duplicados y versiones de documentos.  
-- Gestión y visualización de archivos procesados.
-
-### 🎛️ Panel visual en Gradio
-
-- Interfaz interactiva de chat y entrenamiento.  
-- Integración con la API FastAPI del agente.  
-- Control de audio, archivos y chat en una única vista.
+- recupera contexto desde **Qdrant** (ejemplos y PDFs indexados),
+- genera **código HCL** y respuestas explicadas,
+- expone una **API FastAPI** y una **UI en Gradio**,
+- se ejecuta en **Docker** y tiene **CI/CD** con GitHub Actions.
 
 ---
 
-## 🏗️ Arquitectura y componentes
+## 🧭 Contenidos
 
-| Componente | Tecnología | Descripción |
-|-------------|-------------|-------------|
-| **API Backend** | FastAPI | Exposición de endpoints REST para consultas y health check. |
-| **UI** | Gradio | Interfaz visual multimodal para interacción con el asistente. |
-| **Vector DB** | Qdrant | Almacenamiento de embeddings y búsqueda semántica. |
-| **Agente RAG** | LangChain + OpenAI | Recupera contexto y genera respuestas precisas. |
-| **Contenedores** | Docker + GitHub Actions | Automatización de builds y despliegues. |
-
----
-
-## 💻 Instalación y ejecución local
-
-### 1️⃣ Clonar el repositorio
-
-```bash
-git clone https://github.com/anabbre/jupiter-iaa-azure.git
-cd jupiter-iaa-azure
-```
-
-### 2️⃣ Crear y activar entorno virtual
-
-Requiere **Python 3.10+**.
-
-```bash
-python -m venv .venv
-source .venv/bin/activate     # Linux / Mac
-.venv\Scripts\activate        # Windows
-```
-
-### 3️⃣ Instalar dependencias
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4️⃣ Configurar variables de entorno
-
-Crea un archivo `.env` en la raíz (usa `.env.example` como referencia):
-
-```env
-# ==== APIs ====
-OPENAI_API_KEY=
-PINECONE_API_KEY=
-PINECONE_ENVIRONMENT=us-east-1
-
-# ==== Índices vectoriales ====
-UPLOADS_INDEX_NAME=jupiter_uploads
-KB_INDEX_NAME=kb_terraform
-
-# ==== Logs ====
-LOG_LEVEL=INFO
-LOG_DIR=logs/app
-```
-
-### 5️⃣ Ejecutar la aplicación localmente
-
-```bash
-# Iniciar la API
-uvicorn src.api.main:app --host 0.0.0.0 --port 8008 --reload
-
-# Iniciar la interfaz de usuario
-python src/ui/ui.py
-```
-
-Accede a la interfaz web en:  
-➡️ [http://localhost:7860](http://localhost:7860)
+- [Qué es](#-qué-es)
+- [Funciones principales](#-funciones-principales)
+- [Arquitectura](#-arquitectura)
+- [Configuración (.env)](#-configuración-env)
+- [Arranque rápido con Makefile](#-arranque-rápido-con-makefile)
+- [Servicios y URLs](#-servicios-y-urls)
+- [CI/CD (Workflows)](#-cicd-workflows)
+- [Ejemplos de preguntas](#-ejemplos-de-preguntas)
+- [Notas y troubleshooting](#-notas-y-troubleshooting)
 
 ---
 
-## 🐳 Despliegue con Docker
+## 🧠 Qué es
 
-El proyecto incluye archivos `Dockerfile` tanto para la **API** como para la **UI**, permitiendo el despliegue completo mediante Docker o Docker Compose.
+Este proyecto implementa un **agente RAG** para ayudar con tareas de Terraform en Azure.
+Cuando haces una consulta, el sistema:
 
-### Construcción manual de imágenes
+1) **Busca** en Qdrant los fragmentos más relevantes (carpetas con `.tf`, `.md`, `.txt` y páginas de PDFs).  
+2) **Construye** un contexto con esas fuentes.  
+3) **Genera** la respuesta con un LLM (OpenAI), **incluyendo HCL** cuando procede, y **cita** las fuentes.
 
-```bash
-# API
-docker build -t jupiter-api:test -f src/api/Dockerfile .
-
-# UI
-docker build -t jupiter-ui:test -f src/ui/Dockerfile .
-```
-
-### Ejecución manual
-
-```bash
-# Ejecutar API
-docker run --env-file .env -p 8008:8008 jupiter-api:test
-
-# Ejecutar UI
-docker run -p 7860:7860 jupiter-ui:test
-```
-
-### Docker Compose
-
-También puedes levantar toda la infraestructura (API, UI y Qdrant) con:
-
-```bash
-docker compose up --build
-```
-
-Cuando se ejecuta este comando, se levantan automáticamente tres contenedores:
-
-| Contenedor | Descripción |
-|-------------|-------------|
-| **qdrant_db** | Base de datos vectorial que almacena embeddings y metadatos. Utiliza la imagen oficial `qdrant/qdrant`. |
-| **terraform_rag_api** | Servicio backend desarrollado con FastAPI que gestiona las consultas al asistente y la comunicación con Qdrant. |
-| **terraform_rag_ui** | Interfaz visual desarrollada con Gradio que permite interactuar con el asistente. |
-
-📌 **Nota:**  
-Con el volumen creado ejecutamos `create_book_index.py` para llenar la DB. Ahí deberíamos poder acceder a la UI y que responda citando los chunks consultados vía API.
+> La colección por defecto se define en `docs/examples/manifest.yaml` (p.ej. `collection: jupiter_examples`).
 
 ---
 
-## 🚀 Integración Continua (CI/CD) con GitHub Actions
+## ✨ Funciones principales
 
-El proyecto cuenta con tres workflows principales definidos en `.github/workflows`, que automatizan la validación y construcción de las imágenes.
+- **Chat técnico** en español sobre Terraform/Azure.
+- **Generación de HCL** lista para copiar.
+- **Citas de fuentes** (ruta, sección y páginas).
+- **UI multimodal** (texto/voz/archivos) en Gradio.
+- **API FastAPI** para integrarse con otras apps.
+- **Indexador** de ejemplos/PDFs para poblar Qdrant.
 
 ---
 
-### 🧠 1. Build automático de la imagen Docker del API
+## 🏗️ Arquitectura
 
-**Archivo:** `.github/workflows/docker-api.yml`
+| Capa | Tecnología | Descripción |
+|---|---|---|
+| **UI** | Gradio | Chat visual multimodal que llama a la API. |
+| **API** | FastAPI | Endpoints `/` (health) y `/query` para preguntas. |
+| **RAG** | LangChain + OpenAI | Recupera contexto (Qdrant) y redacta la respuesta. |
+| **Vector DB** | Qdrant | Almacena embeddings y metadatos. |
+| **Contenedores** | Docker Compose | Orquesta Qdrant, API y UI. |
 
-- Construye la imagen Docker del backend (`jupiter-api`).  
-- Se ejecuta al detectar cambios en `src/api/**`, `Dockerfile`, o archivos relevantes.  
-- Publica la imagen en **GitHub Container Registry (GHCR)** al hacer push a `main`.
+---
 
-📦 **Imagen publicada:**  
-`ghcr.io/<usuario>/jupiter-api`
+## 🔐 Configuración (.env)
 
-**Uso local:**
+1. **Duplica** el ejemplo y edítalo:
 
-```bash
-cp .env.example .env
-docker build -t jupiter-api:test -f src/api/Dockerfile .
-docker run --env-file .env -p 8008:8008 jupiter-api:test
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Variables mínimas** a completar en `.env`:
+
+   ```bash
+   # Clave de OpenAI (obligatoria para la generación con LLM)
+   OPENAI_API_KEY=sk-...
+
+   # Qdrant (se usa el contenedor local por defecto)
+   QDRANT_URL=http://qdrant:6333
+   ```
+
+   > Crea tu clave en el panel de OpenAI (API Keys) e insértala en `OPENAI_API_KEY`.
+
+3. **Opcional**: si cambias la colección o el modelo, edita `docs/examples/manifest.yaml`.
+
+---
+
+## ⚙️ Arranque rápido con Makefile
+
+> Recomendado para levantar todo sin recordar comandos largos.
+
+```makefile
+# --- Contenedores ---
+up:            ## Levanta Qdrant + API + UI (build)
+\tdocker compose up -d --build
+
+down:          ## Para y elimina contenedores y volúmenes
+\tdocker compose down -v
+
+logs-api:      ## Logs en vivo de la API
+\tdocker compose logs -f api
+
+logs-ui:       ## Logs en vivo de la UI
+\tdocker compose logs -f ui
+
+# --- RAG / Indexación ---
+rag-index-examples:  ## (Re)indexa según docs/examples/manifest.yaml
+\tdocker compose run --rm api python Scripts/RAG/index_examples.py
+
+rag-reindex-examples: ## Alias explícito
+\t$(MAKE) rag-index-examples
+
+rag-search-test: ## Prueba una búsqueda directa
+\tdocker compose run --rm api python -c "from src.services.search import search_examples; print(search_examples('https en static site de Azure', k=3))"
+
+# --- Health & curl helpers ---
+api-health:    ## Comprueba salud de la API
+\tcurl -s http://localhost:8008 | jq
+
+api-query:     ## Lanza consulta de ejemplo (k_docs=3)
+\tcurl -s -X POST http://localhost:8008/query \\
+\t  -H \"content-type: application/json\" \\
+\t  -d '{\"question\":\"¿Cómo configurar backend remoto en Terraform con S3?\",\"k_docs\":3}' | jq
 ```
 
----
+### ▶️ Pasos
 
-### 🖥️ 2. Build automático de la imagen Docker del UI (Gradio)
+1. **Levantar servicios**
 
-**Archivo:** `.github/workflows/docker-ui.yml`
+   ```bash
+   make up
+   ```
 
-- Construye la imagen Docker de la interfaz (`jupiter-ui`).  
-- Se ejecuta al detectar cambios en `src/ui/**` o en el `Dockerfile`.  
-- Publica la imagen en GHCR cuando se hace push a `main`.
+2. **Indexar ejemplos del manifiesto**
 
-📦 **Imagen publicada:**  
-`ghcr.io/<usuario>/jupiter-ui`
+   ```bash
+   make rag-index-examples
+   ```
 
-**Uso local:**
+3. **Probar**
 
-```bash
-docker build -t jupiter-ui:test -f src/ui/Dockerfile .
-docker run -p 7860:7860 jupiter-ui:test
-```
+   ```bash
+   make api-health
+   make api-query
+   ```
 
-Accede al navegador en:  
-➡️ [http://localhost:7860](http://localhost:7860)
-
----
-
-### 🧩 3. Validación de archivos Terraform (pendiente de integración)
-
-**Archivo:** `.github/workflows/terraform-validate.yml`
-
-Workflow preparado para validar la sintaxis y formato de los archivos `.tf` mediante **Terraform CLI** y **TFLint**.  
-Actualmente no se ejecuta porque el proyecto aún no contiene módulos de infraestructura, pero se integrará en la próxima fase cuando se despliegue la arquitectura en Azure.
-
-## Validación automática de ejemplos Terraform
-
-Mantenemos nuestros ejemplos en `docs/examples/**` (cada ejemplo en su carpeta).
-El repositorio ejecuta una validación **offline** en GitHub Actions cada vez que:
-
-- hay cambios en `docs/examples/**`, o
-- se modifica el workflow `.github/workflows/terraform-validate.yml`.
-
-### ¿Qué comprueba el workflow?
-
-1. **Descubre** todas las carpetas que contengan ficheros `.tf`.
-2. **Formatea** (`terraform fmt -check -recursive`) — falla si hay diffs.
-3. **Inicializa en modo offline** (`terraform init -backend=false`) — _no_ se conecta a Azure ni a backends remotos.
-4. **Valida** (`terraform validate`) la sintaxis y dependencias.
-
-> Nota: hasta que tengamos la cuenta de Azure del máster, todo se valida en **local/offline**. No se crean recursos.
-
-### Estructura recomendada de un ejemplo
-
-```
-docs/examples/azure-static-site/01-storage-static-website/
-├─ main.tf
-├─ variables.tf
-├─ outputs.tf
-├─ terraform.tfvars.example # valores de ejemplo (no sensibles)
-└─ example.md # 2–3 líneas explicando qué hace el ejemplo
-```
-
-### Ejecutar en local
-
-```bash
-cd docs/examples/azure-static-site/01-storage-static-website
-
-# Formato
-terraform fmt -recursive
-
-# Init OFFLINE (sin backend remoto)
-terraform init -backend=false -input=false
-
-# Validación sintáctica
-terraform validate
-
-> Nota: Si terraform plan te pide Azure CLI, no es necesario de momento. Nuestro flujo de CI/CD usa init -backend=false para permanecer offline.
+4. **Abrir la UI**
+   - Gradio: <http://localhost:7860>
 
 ---
 
-## 🧩 Tecnologías principales
+## 🌐 Servicios y URLs
 
-| Área | Tecnología / Herramienta |
-|------|----------------------------|
-| Lenguaje principal | Python 3.12 |
-| Backend | FastAPI |
-| Frontend | Gradio |
-| Vector DB | Qdrant |
-| Modelos LLM | OpenAI + LangChain |
-| Contenedores | Docker & Docker Compose |
-| CI/CD | GitHub Actions |
-| Infraestructura futura | Terraform + Azure |
+- **API (FastAPI)** → <http://localhost:8008>  
+  - Docs OpenAPI: <http://localhost:8008/docs>
+- **UI (Gradio)** → <http://localhost:7860>
+- **Qdrant (Dashboard)** → <http://localhost:6333/dashboard#/>  
+  - REST: `http://localhost:6333`
+
+> Los puertos vienen mapeados en `docker-compose.yml`:
+>
+> - API: `8008:8008`
+> - UI: `7860:7860`
+> - Qdrant: `6333:6333` (y `6334` gRPC)
+
+---
+
+## 🔄 CI/CD (Workflows)
+
+En `.github/workflows/` hay **tres** workflows principales:
+
+1. **`docker-api.yml` — Build de la imagen del backend**
+   - Construye la imagen Docker de la API cuando hay cambios relevantes.
+   - Publica en GHCR (`ghcr.io/<usuario>/jupiter-api`) al hacer push a `main`.
+
+2. **`docker-ui.yml` — Build de la imagen de la UI (Gradio)**
+   - Construye la imagen de la interfaz y la publica en GHCR (`ghcr.io/<usuario>/jupiter-ui`).
+
+3. **`terraform-validate.yml` — Validación de ejemplos Terraform**
+   - Detecta carpetas con `.tf` en `docs/examples/**`.
+   - Ejecuta `terraform fmt -check`, `init -backend=false` y `validate` **offline**.
+
+> Estos workflows facilitan calidad y reproducibilidad sin depender de nubes externas.
 
 ---
 
-Máster en **Inteligencia Artificial, Cloud Computing y DevOps**  
-Pontia Tech · 2025
+## 💬 Ejemplos de preguntas
 
----
+- **HTTPS en Static Web App con Azure Front Door**
+  > _“¿Cómo activo HTTPS en una static web app de Azure según los ejemplos?”_
+
+- **Backend remoto en S3**
+  > _“¿Cómo configurar backend remoto en Terraform con S3?”_
+
+- **Variables y outputs**
+  > _“Dame un ejemplo mínimo de variables y outputs para un módulo de storage en Azure.”_
+
+> Consejo: cuanto más específica sea la consulta, mejor priorizará el RAG los **ejemplos** sobre los PDFs.

@@ -5,6 +5,7 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.config import SETTINGS
 from src.services.search import search_examples
 from src.services.vector_store import qdrant_vector_store
 from src.api.schemas import QueryRequest, QueryResponse, HealthResponse, SourceInfo
@@ -130,10 +131,11 @@ async def query_endpoint(request: QueryRequest):
     """Endpoint principal para consultas al vector store de Terraform RAG"""
     try:
         # 1) nº de docs a recuperar
-        k = request.k_docs or 3
+        k = request.k_docs or SETTINGS.K_DOCS
+        threshold = request.threshold or SETTINGS.THRESHOLD
 
         # 2) Buscar ejemplos en Qdrant (metadatos para UI)
-        hits = search_examples(request.question, k=k)
+        hits = search_examples(request.question, k=k, threshold=threshold)
 
         # 3) Construir sources para respuesta
         sources = []
@@ -151,6 +153,12 @@ async def query_endpoint(request: QueryRequest):
         context_snippets = _gather_context(request.question, k=k)
         context = _trim_context(context_snippets, MAX_CONTEXT_CHARS)
         answer = _llm_answer(request.question, context)
+
+        print ("\n\nPregunta:", request.question)
+        print ("\n\nRespuesta:", answer)
+        print ("\n\nFuentes:", sources)
+        print ("\n\nContexto usado:", context[:500], "...\n")
+        print ("\n\nContexto completo usado:", context_snippets)
 
         # 5) Responder
         return QueryResponse(

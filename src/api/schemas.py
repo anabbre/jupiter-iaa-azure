@@ -2,10 +2,12 @@ from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 
+
 class QueryRequest(BaseModel):
     """Modelo para la petición de consulta"""
     question: str = Field(..., description="Pregunta para el agente RAG")
-    k_docs: Optional[int] = Field(default=3, description="Número de documentos a recuperar")
+    k_docs: Optional[int] = Field(default=None, description="Número de documentos a recuperar")
+    threshold: Optional[float] = Field(default=None, description="Umbral de puntuación para filtrar documentos")
     temperature: Optional[float] = Field(default=0.0, description="Temperatura del LLM")
 
 class SourceInfo(BaseModel):

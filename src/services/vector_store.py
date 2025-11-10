@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 qdrant_url = SETTINGS.QDRANT_URL
 collection_name = SETTINGS.QDRANT_COLLECTION_NAME or "jupiter_examples"
+threshold = SETTINGS.THRESHOLD
 
 # Dimensión del embedding que se usa (e5-small => 384)
 # Se toma de env por si algún usuario cambia el modelo

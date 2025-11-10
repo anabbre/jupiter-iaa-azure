@@ -8,6 +8,7 @@ class Settings:
 
     # Usa la colección donde ya se indexaron los ejemplos
     QDRANT_COLLECTION_NAME: str = os.getenv("QDRANT_COLLECTION", "jupiter_examples")
+    THRESHOLD: float = float(os.getenv("SCORE_THRESHOLD", "0.82"))
 
     # Mismo modelo que se usa al indexar (384 dims)
     EMBEDDINGS_MODEL_NAME: str = os.getenv("EMBEDDING_MODEL", "intfloat/multilingual-e5-small")

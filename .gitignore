@@ -48,3 +48,6 @@ Thumbs.db
 .cache/
 __pycache__/
 *.lock
+
+# === Added ===
+.gradio/

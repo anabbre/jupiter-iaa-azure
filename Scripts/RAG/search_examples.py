@@ -27,6 +27,8 @@ def main():
         sys.exit(1)
     query = sys.argv[1]
     top_k = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+    # THRESHOLD = 0.85
+
 
     manifest = load_manifest()
     collection = manifest["collection"]
@@ -44,7 +46,8 @@ def main():
         collection_name=collection,
         query_vector=embedding,
         limit=top_k,
-        with_payload=True
+        with_payload=True,
+        # score_threshold=THRESHOLD # comentado si no se quiere filtrar
     )
 
     print("\n== Resultados ==")

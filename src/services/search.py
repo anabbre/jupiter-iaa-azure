@@ -1,34 +1,56 @@
 import logging
 from typing import List, Dict, Any
 
-from src.services.vector_store import qdrant_vector_store
+from src.services.vector_store import qdrant_vector_store, threshold
 
 logger = logging.getLogger(__name__)
 
 
-def search_examples(query: str, k: int = 3) -> List[Dict[str, Any]]:
+def search_examples(query: str, k: int = 3, threshold: float = threshold) -> List[Dict[str, Any]]:
     """
     Busca en Qdrant y devuelve metadatos normalizados para el API/UI.
     """
     try:
-        results = qdrant_vector_store.similarity_search(query, k=k)
 
-        # Prioriza 'example' frente a 'pdf' y, dentro, por score si lo hubiera
+        results = qdrant_vector_store.similarity_search_with_score(query, k=k)
+        filtered_results = [(doc, score) for doc, score in results if score >= threshold]
+        logger.debug(f"🔍 {len(filtered_results)}/{len(results)} resultados sobre umbral {threshold} "
+                 f"para consulta '{query}'") if len(results) > 0 else logger.debug(f"🔍 No se encontraron resultados para '{query}'")
+
+        # Imprimir score de cada resultado
+        for doc, score in filtered_results:
+            meta = doc.metadata or {}
+            path = meta.get("path", "N/A")
+            doc_type = meta.get("doc_type", "unknown")
+
+        # Prioriza 'example' sobre 'book', luego por score descendente
         def _doc_type(meta: Dict[str, Any]) -> int:
-            return 0 if (meta or {}).get("doc_type") == "example" else 1
+            if (meta or {}).get("doc_type") == "example":
+                return 0
+            elif (meta or {}).get("doc_type") == "book":
+                return 1
+            else:
+                return 2
 
-        results = sorted(
-            results,
-            key=lambda d: (
-                _doc_type(d.metadata or {}),
-                - (d.metadata or {}).get("score", 0.0),
-            ),
+        final_results = sorted(
+            filtered_results,
+            key=lambda pair: (
+                _doc_type(pair[0].metadata or {}),
+                -pair[1]  # score descendente
+            )
         )
 
         formatted: List[Dict[str, Any]] = []
-        for i, doc in enumerate(results, 1):
+        logger.debug("Resultados finales ordenados (priorizando doc_type='example'):") if len(final_results) > 0 else None
+        for i, (doc, score) in enumerate(final_results, 1):
             meta = doc.metadata or {}
+            path = meta.get("path", "N/A")
+            doc_type = meta.get("doc_type", "unknown")
+            logger.debug(f"  score={score} | path={path} | doc_type={doc_type}")
 
+        formatted: List[Dict[str, Any]] = []
+        for i, (doc, score) in enumerate(final_results, 1):
+            meta = doc.metadata or {}
             # path con alias posibles 
             path = (
                 meta.get("path")
@@ -53,7 +75,7 @@ def search_examples(query: str, k: int = 3) -> List[Dict[str, Any]]:
                 "name": meta.get("name", ""),
                 "tags": meta.get("tags", []),
                 "preview": doc.page_content[:200] + "..." if doc.page_content else "",
-                "score": float(meta.get("score", 0.0)) if isinstance(meta.get("score"), (int, float)) else None,
+                "score": float(score),
                 "doc_type": meta.get("doc_type", ""),   # para priorizar en UI
                 "ref": meta.get("ref", ""),             # útil para links en UI
             })

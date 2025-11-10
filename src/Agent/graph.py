@@ -1,4 +1,3 @@
-# langgraph_agent/graph.py
 """
 Construcción del grafo principal
 """
@@ -6,7 +5,6 @@ from langgraph.graph import StateGraph, END
 from src.Agent.state import AgentState
 from src.Agent.nodes.retrieval import retrieve_documents
 from src.Agent.nodes.generation import generate_answer
-
 
 class Agent:
     """
@@ -27,11 +25,11 @@ class Agent:
         # Inicializar grafo
         workflow = StateGraph(AgentState)
 
-        # ========== NODOS ==========
+        # NODOS 
         workflow.add_node("retrieve", retrieve_documents)
         workflow.add_node("generate", generate_answer)
 
-        # ========== EDGES ==========
+        # EDGES 
         # Punto de entrada
         workflow.set_entry_point("retrieve")
 

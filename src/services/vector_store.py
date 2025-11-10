@@ -1,36 +1,51 @@
-from langchain_qdrant import QdrantVectorStore
-from qdrant_client import QdrantClient
-from src.services.embeddings import embeddings_model
-import os
 import logging
+import os
+
+from qdrant_client import QdrantClient, models
+from qdrant_client.http.exceptions import UnexpectedResponse
+from langchain_qdrant import QdrantVectorStore
+
+from src.services.embeddings import embeddings_model
 from src.config import SETTINGS
 
 logger = logging.getLogger(__name__)
 
-# Cliente de Qdrant - usar variable de entorno para la URL
 qdrant_url = SETTINGS.QDRANT_URL
+collection_name = SETTINGS.QDRANT_COLLECTION_NAME or "jupiter_examples"
+
+# Dimensión del embedding que se usa (e5-small => 384)
+# Se toma de env por si algún usuario cambia el modelo
+EMB_DIM = int(os.getenv("EMBEDDING_DIM", "384"))
+
 qdrant_client = QdrantClient(url=qdrant_url)
 
-# Verificar si la colección existe
-collection_name = SETTINGS.QDRANT_COLLECTION_NAME
+def ensure_collection():
+    """Crea la colección si no existe (evita 404 al arrancar con volumen vacío)."""
+    try:
+        qdrant_client.get_collection(collection_name)
+        logger.info(f"Qdrant: colección '{collection_name}' encontrada.")
+    except UnexpectedResponse:
+        logger.warning(f"Qdrant: colección '{collection_name}' no existe. Creando...")
+        qdrant_client.create_collection(
+            collection_name=collection_name,
+            vectors_config=models.VectorParams(
+                size=EMB_DIM,
+                distance=models.Distance.COSINE
+            ),
+        )
+        logger.info(f"Qdrant: colección '{collection_name}' creada.")
 
-try:
-    # Intentar obtener info de la colección
-    collections = qdrant_client.get_collections()
-    collection_exists = any(c.name == collection_name for c in collections.collections)
+# Garantiza la colección antes de usar el VectorStore
+ensure_collection()
 
-    if not collection_exists:
-        logger.warning(f"Collection '{collection_name}' does not exist in Qdrant. Please run the indexing script first.")
-    else:
-        logger.info(f"Collection '{collection_name}' found in Qdrant")
-except Exception as e:
-    logger.warning(f"Could not verify collection existence: {e}")
-
-### LANGCHAIN - Sin validación al iniciar
 qdrant_vector_store = QdrantVectorStore(
     client=qdrant_client,
     collection_name=collection_name,
-    embedding=embeddings_model
+    embedding=embeddings_model,
+    content_payload_key="page_content",   # match con el indexador
+    metadata_payload_key="metadata",      # match con el indexador
 )
 
-n_docs = 3
+# Número de docs por defecto para retrieval
+n_docs = SETTINGS.K_DOCS or 3
+

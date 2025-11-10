@@ -1,102 +1,50 @@
-# --- Python ---
+# === Python ===
 __pycache__/
-.pytest_cache
-*/__init__.py
 *.py[cod]
 *.pyo
 *.pyd
 *.so
-*.egg
 *.egg-info/
 build/
 dist/
 
-# --- Virtual environments ---
-.env
+# === Entornos virtuales ===
 .venv/
-*.venv/
-ProyectoJupyter/
-env/
 venv/
 ENV/
-*.env
-!.env.example
+env/
+.python-version
 
-# --- Jupyter and notebooks ---
-.ipynb_checkpoints/
-*.nbconvert.ipynb
+# === Config y variables locales ===
+.env
+!.env.example 
+.envrc
 
-# --- Experiment configs ---
-*.tfvars
-*.tfplan
-
-# --- MLflow cache (if used) ---
-mlruns/
-mlartifacts/
-
-# --- VSCode ---
-.vscode/
-
-# --- PyCharm ---
-.idea/
-
-# --- OS-specific ---
-.DS_Store
-Thumbs.db
-
-# --- Test outputs ---
-coverage.xml
-.cache/
-pytest_cache/
-htmlcov/
-*.cover
-*.coverage
-
-# --- Docker ---
+# === Docker ===
 *.pid
 *.log
 docker-compose.override.yml
+qdrant_data/
 
-# --- Terraform (if used) ---
+# === Terraform ===
 **/.terraform/
 *.tfstate
-*.tfstate.backup
+*.tfstate.*
+*.tfvars
+*.terraform.lock.hcl
 
-# --- CI/CD secrets ---
-*.pem
-*.key
-.envrc
-.env.*
+# === Logs ===
+logs/*
+!logs/.gitkeep
+!logs/app/.gitkeep
 
-# --- ML & data artifacts ---
-mlruns/
-artifacts/
-*.log
-*.h5
-*.pkl
-*.joblib
-*.ckpt
+# === IDEs y sistema ===
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 
-# --- Data files ---
-*.csv
-*.tsv
-*.xlsx
-*.parquet
-*.zip
-*.gz
-
-
-# --- Additional files to ignore ---
-qdrant_data/
-.venv_jupyter/
-
-
-Notebooks/
+# === Archivos temporales ===
+.cache/
+__pycache__/
 *.lock
-
-# Terraform locals
-**/terraform.tfvars
-**/.terraform/
-**/.terraform.lock.hcl
-**/*.tfstate
-**/*.tfstate.*

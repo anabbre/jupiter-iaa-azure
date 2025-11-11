@@ -22,6 +22,9 @@ ENV/
 *.env
 !.env.example
 
+# -- LOGS --
+logs/
+
 # --- Jupyter and notebooks ---
 .ipynb_checkpoints/
 *.nbconvert.ipynb

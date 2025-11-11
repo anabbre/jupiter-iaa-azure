@@ -3,7 +3,7 @@ import os
 import time
 import re
 from dotenv import load_dotenv
-from logger_config import logger, get_request_id, set_request_id
+from config.logger_config import logger, get_request_id, set_request_id
 # Configurar paths y cargar variables de entorno
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 load_dotenv()

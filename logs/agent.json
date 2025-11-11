@@ -1,0 +1,36 @@
+{"timestamp": "2025-11-11T17:01:58.399327+00:00", "level": "INFO", "message": "Inicializando Agent", "module": "graph", "function": "__init__", "line": 21, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:01:58.400101+00:00", "level": "INFO", "message": "Inicio crección del grafo", "module": "graph", "function": "_create_graph", "line": 33, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:01:58.401060+00:00", "level": "INFO", "message": "Agregando nodo retrive ", "module": "graph", "function": "_create_graph", "line": 38, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:01:58.401953+00:00", "level": "INFO", "message": "Agregando nodo generate ", "module": "graph", "function": "_create_graph", "line": 40, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:01:58.402454+00:00", "level": "INFO", "message": "Compilando grafo", "module": "graph", "function": "_create_graph", "line": 52, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:01:58.412906+00:00", "level": "INFO", "message": "Agent inicializado correctamente", "module": "graph", "function": "__init__", "line": 23, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:02:22.684602+00:00", "level": "INFO", "message": "Inicializando Agent", "module": "graph", "function": "__init__", "line": 21, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:02:22.685486+00:00", "level": "INFO", "message": "Inicio crección del grafo", "module": "graph", "function": "_create_graph", "line": 33, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:02:22.686513+00:00", "level": "INFO", "message": "Agregando nodo retrive ", "module": "graph", "function": "_create_graph", "line": 38, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:02:22.687243+00:00", "level": "INFO", "message": "Agregando nodo generate ", "module": "graph", "function": "_create_graph", "line": 40, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:02:22.687823+00:00", "level": "INFO", "message": "Compilando grafo", "module": "graph", "function": "_create_graph", "line": 52, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:02:22.699604+00:00", "level": "INFO", "message": "Agent inicializado correctamente", "module": "graph", "function": "__init__", "line": 23, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"source": "agent"}}
+
+{"timestamp": "2025-11-11T17:09:18.867643+00:00", "level": "INFO", "message": "Invocando grafo", "module": "graph", "function": "invoke", "line": 67, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"request_id": "e7859b79", "input_keys": ["question", "documents", "documents_metadata", "answer", "messages"], "source": "agent"}}
+
+{"timestamp": "2025-11-11T17:09:38.312320+00:00", "level": "INFO", "message": "Grafo ejecutado exitosamente", "module": "graph", "function": "invoke", "line": 75, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"request_id": "e7859b79", "duration": "19.444s", "result_keys": ["question", "documents", "documents_metadata", "answer", "messages"], "source": "agent", "process_time": "19.444s"}}
+
+{"timestamp": "2025-11-11T17:11:36.070122+00:00", "level": "INFO", "message": "Invocando grafo", "module": "graph", "function": "invoke", "line": 67, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"request_id": "e7859b79", "input_keys": ["question", "documents", "documents_metadata", "answer", "messages"], "source": "agent"}}
+
+{"timestamp": "2025-11-11T17:11:38.738534+00:00", "level": "INFO", "message": "Grafo ejecutado exitosamente", "module": "graph", "function": "invoke", "line": 75, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"request_id": "e7859b79", "duration": "2.668s", "result_keys": ["question", "documents", "documents_metadata", "answer", "messages"], "source": "agent", "process_time": "2.668s"}}
+
+{"timestamp": "2025-11-11T17:12:24.867464+00:00", "level": "INFO", "message": "Invocando grafo", "module": "graph", "function": "invoke", "line": 67, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"request_id": "e7859b79", "input_keys": ["question", "documents", "documents_metadata", "answer", "messages"], "source": "agent"}}
+
+{"timestamp": "2025-11-11T17:12:39.737290+00:00", "level": "INFO", "message": "Grafo ejecutado exitosamente", "module": "graph", "function": "invoke", "line": 75, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"request_id": "e7859b79", "duration": "14.869s", "result_keys": ["question", "documents", "documents_metadata", "answer", "messages"], "source": "agent", "process_time": "14.869s"}}
+

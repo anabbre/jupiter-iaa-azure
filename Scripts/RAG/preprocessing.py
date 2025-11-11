@@ -4,7 +4,7 @@ from typing import Dict, List, Any, Optional, Tuple
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../config')))
 # from config.logger_config import logger, get_request_id, set_request_id
-from logger_config import logger, get_request_id, set_request_id
+from config.logger_config import logger, get_request_id, set_request_id
 
 
 import json
@@ -383,7 +383,7 @@ def extraer_secciones_por_niveles(
 
 
 if __name__ == "__main__":
-    from logger_config import set_session_id
+    from config.logger_config import set_session_id
     
     # Crear sesión para este proceso
     session_id = f"pdf_extract_{int(time.time())}"

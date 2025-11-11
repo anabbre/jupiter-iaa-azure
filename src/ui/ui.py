@@ -5,7 +5,7 @@ from src.ui.utils.transcribe_audio import transcribe_audio
 from src.ui.utils.process_image import encode_image_to_base64
 from src.ui.utils.process_text_file import read_text_file
 from src.config import SETTINGS
-from logger_config import logger 
+from config.logger_config import logger 
 
 API_URL = SETTINGS.API_URL
 

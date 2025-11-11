@@ -2,7 +2,7 @@ import json
 import time
 from pypdf import PdfReader
 from pypdf.generic import Destination
-from logger_config import logger, get_request_id, set_request_id
+from config.logger_config import logger, get_request_id, set_request_id
 from typing import Dict, List, Any
 from pathlib import Path
 from src.api.schemas import SourceInfo
@@ -117,7 +117,7 @@ def generar_esquema_pdf(nombre_pdf: str) -> str:
 
 if __name__ == "__main__":
     
-    from logger_config import set_session_id
+    from config.logger_config import set_session_id
     
     session_id = f"pdf_schema_{int(time.time())}"
     set_session_id(session_id)

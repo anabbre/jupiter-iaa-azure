@@ -950,3 +950,157 @@
 
 {"timestamp": "2025-11-10T19:11:24.745071+01:00", "level": "INFO", "message": "HTTP Request: PUT http://localhost:6333/collections/Terraform_Book_Index/points?wait=true \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_index_1762798111", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
 
+{"timestamp": "2025-11-11T16:53:21.658273+00:00", "level": "INFO", "message": "HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-initiated-analytics \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "47192154", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T16:53:21.847805+00:00", "level": "INFO", "message": "HTTP Request: GET http://localhost:7860/gradio_api/startup-events \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "f703248d", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T16:53:21.856166+00:00", "level": "INFO", "message": "HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-initiated-analytics \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "36e8d0d1", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T16:53:21.918033+00:00", "level": "INFO", "message": "HTTP Request: HEAD http://localhost:7860/ \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "f703248d", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T16:53:22.086303+00:00", "level": "INFO", "message": "HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-launched-telemetry \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "9910ccfc", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T16:53:22.096879+00:00", "level": "INFO", "message": "HTTP Request: GET https://api.gradio.app/pkg-version \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "2ada915d", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T16:53:22.313582+00:00", "level": "INFO", "message": "HTTP Request: GET https://api.gradio.app/pkg-version \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "3d089735", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T16:54:24.763121+00:00", "level": "INFO", "message": "HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-initiated-analytics \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "a92c41e5", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T16:54:25.289700+00:00", "level": "INFO", "message": "HTTP Request: GET https://api.gradio.app/pkg-version \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "5a4918f2", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:48.195787+00:00", "level": "INFO", "message": "HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-initiated-analytics \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "2f79d4dc", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:48.779066+00:00", "level": "INFO", "message": "HTTP Request: GET https://api.gradio.app/pkg-version \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "02621e5c", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:55.876389+00:00", "level": "INFO", "message": "HTTP Request: GET http://qdrant:6333 \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:55.884497+00:00", "level": "INFO", "message": "HTTP Request: GET http://qdrant:6333/collections \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:55.891481+00:00", "level": "INFO", "message": "HTTP Request: GET http://qdrant:6333/collections/Terraform_Book_Index \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:58.354270+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/embeddings \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:58.415477+00:00", "level": "INFO", "message": "Started server process [1]", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "_serve", "lineno": 84, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:58.415959+00:00", "level": "INFO", "message": "Started server process [1]", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "_serve", "lineno": 84, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:58.416415+00:00", "level": "INFO", "message": "Waiting for application startup.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "startup", "lineno": 48, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:58.416839+00:00", "level": "INFO", "message": "Waiting for application startup.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "startup", "lineno": 48, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:58.417372+00:00", "level": "INFO", "message": "Application startup complete.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "startup", "lineno": 62, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:58.417717+00:00", "level": "INFO", "message": "Application startup complete.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "startup", "lineno": 62, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:58.418303+00:00", "level": "INFO", "message": "Uvicorn running on http://0.0.0.0:8008 (Press CTRL+C to quit)", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "_log_started_message", "lineno": 216, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:01:58.418717+00:00", "level": "INFO", "message": "Uvicorn running on http://0.0.0.0:8008 (Press CTRL+C to quit)", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "_log_started_message", "lineno": 216, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:08.654738+00:00", "level": "INFO", "message": "Shutting down", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "shutdown", "lineno": 264, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:08.655566+00:00", "level": "INFO", "message": "Shutting down", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "shutdown", "lineno": 264, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:08.756796+00:00", "level": "INFO", "message": "Waiting for application shutdown.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "shutdown", "lineno": 67, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:08.757533+00:00", "level": "INFO", "message": "Waiting for application shutdown.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "shutdown", "lineno": 67, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:08.758316+00:00", "level": "INFO", "message": "Application shutdown complete.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "shutdown", "lineno": 76, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:08.759021+00:00", "level": "INFO", "message": "Application shutdown complete.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "shutdown", "lineno": 76, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:08.759783+00:00", "level": "INFO", "message": "Finished server process [1]", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "_serve", "lineno": 94, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:08.760249+00:00", "level": "INFO", "message": "Finished server process [1]", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880515", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "_serve", "lineno": 94, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:21.286729+00:00", "level": "INFO", "message": "HTTP Request: GET http://qdrant:6333 \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:21.294836+00:00", "level": "INFO", "message": "HTTP Request: GET http://qdrant:6333/collections \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:21.300049+00:00", "level": "INFO", "message": "HTTP Request: GET http://qdrant:6333/collections/Terraform_Book_Index \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.521381+00:00", "level": "INFO", "message": "HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-initiated-analytics \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e8c06793", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.651239+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/embeddings \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.690769+00:00", "level": "INFO", "message": "HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-initiated-analytics \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "27f7995b", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.702130+00:00", "level": "INFO", "message": "Started server process [1]", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "_serve", "lineno": 84, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.702599+00:00", "level": "INFO", "message": "Started server process [1]", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "_serve", "lineno": 84, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.703113+00:00", "level": "INFO", "message": "Waiting for application startup.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "startup", "lineno": 48, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.703606+00:00", "level": "INFO", "message": "Waiting for application startup.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "startup", "lineno": 48, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.704221+00:00", "level": "INFO", "message": "Application startup complete.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "startup", "lineno": 62, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.704690+00:00", "level": "INFO", "message": "Application startup complete.", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "on.py", "funcName": "startup", "lineno": 62, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.705503+00:00", "level": "INFO", "message": "Uvicorn running on http://0.0.0.0:8008 (Press CTRL+C to quit)", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "_log_started_message", "lineno": 216, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.706020+00:00", "level": "INFO", "message": "Uvicorn running on http://0.0.0.0:8008 (Press CTRL+C to quit)", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.error", "filename": "server.py", "funcName": "_log_started_message", "lineno": 216, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.706127+00:00", "level": "INFO", "message": "HTTP Request: GET http://localhost:7860/gradio_api/startup-events \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "d21dfd3e", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.769550+00:00", "level": "INFO", "message": "HTTP Request: HEAD http://localhost:7860/ \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "d21dfd3e", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.893450+00:00", "level": "INFO", "message": "HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-launched-telemetry \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "17c45513", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:22.991622+00:00", "level": "INFO", "message": "HTTP Request: GET https://api.gradio.app/pkg-version \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "5c48f0ec", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:02:23.245629+00:00", "level": "INFO", "message": "HTTP Request: GET https://api.gradio.app/pkg-version \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "de9dac16", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:03:24.248259+00:00", "level": "INFO", "message": "172.18.0.1:53628 - \"GET / HTTP/1.1\" 200", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.access", "filename": "h11_impl.py", "funcName": "send", "lineno": 473, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:03:24.465053+00:00", "level": "INFO", "message": "172.18.0.1:53628 - \"GET /favicon.ico HTTP/1.1\" 404", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.access", "filename": "h11_impl.py", "funcName": "send", "lineno": 473, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:03:39.830753+00:00", "level": "INFO", "message": "172.18.0.1:59440 - \"GET / HTTP/1.1\" 200", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.access", "filename": "h11_impl.py", "funcName": "send", "lineno": 473, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:05:15.732977+00:00", "level": "INFO", "message": "172.18.0.1:54418 - \"GET /docx HTTP/1.1\" 404", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.access", "filename": "h11_impl.py", "funcName": "send", "lineno": 473, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:05:20.032769+00:00", "level": "INFO", "message": "172.18.0.1:54418 - \"GET /docs HTTP/1.1\" 200", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.access", "filename": "h11_impl.py", "funcName": "send", "lineno": 473, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:05:20.255611+00:00", "level": "INFO", "message": "172.18.0.1:54418 - \"GET /openapi.json HTTP/1.1\" 200", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.access", "filename": "h11_impl.py", "funcName": "send", "lineno": 473, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:09:19.176839+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/embeddings \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:09:19.204458+00:00", "level": "INFO", "message": "HTTP Request: POST http://qdrant:6333/collections/Terraform_Book_Index/points/query \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:09:38.197366+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/chat/completions \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:09:38.663128+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/embeddings \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:09:38.677684+00:00", "level": "INFO", "message": "HTTP Request: POST http://qdrant:6333/collections/Terraform_Book_Index/points/query \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:09:50.466802+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/chat/completions \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:09:50.472879+00:00", "level": "INFO", "message": "172.18.0.4:42112 - \"POST /query HTTP/1.1\" 200", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.access", "filename": "h11_impl.py", "funcName": "send", "lineno": 473, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:11:37.086330+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/embeddings \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:11:37.101934+00:00", "level": "INFO", "message": "HTTP Request: POST http://qdrant:6333/collections/Terraform_Book_Index/points/query \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:11:38.735472+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/chat/completions \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:11:39.164633+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/embeddings \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:11:39.172448+00:00", "level": "INFO", "message": "HTTP Request: POST http://qdrant:6333/collections/Terraform_Book_Index/points/query \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:11:41.393845+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/chat/completions \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:11:41.397908+00:00", "level": "INFO", "message": "172.18.0.4:40244 - \"POST /query HTTP/1.1\" 200", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.access", "filename": "h11_impl.py", "funcName": "send", "lineno": 473, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:12:25.846809+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/embeddings \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:12:25.860575+00:00", "level": "INFO", "message": "HTTP Request: POST http://qdrant:6333/collections/Terraform_Book_Index/points/query \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:12:39.723718+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/chat/completions \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:12:40.087300+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/embeddings \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:12:40.101607+00:00", "level": "INFO", "message": "HTTP Request: POST http://qdrant:6333/collections/Terraform_Book_Index/points/query \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:12:54.200659+00:00", "level": "INFO", "message": "HTTP Request: POST https://api.openai.com/v1/chat/completions \"HTTP/1.1 200 OK\"", "module": "logger_config", "function": "emit", "line": 199, "request_id": "e7859b79", "session_id": "anonymous", "extra": {"logger_name": "httpx", "filename": "_client.py", "funcName": "_send_single_request", "lineno": 1025, "source": "api"}}
+
+{"timestamp": "2025-11-11T17:12:54.217090+00:00", "level": "INFO", "message": "172.18.0.1:44968 - \"POST /query HTTP/1.1\" 200", "module": "logger_config", "function": "emit", "line": 199, "request_id": "qdrant_init_1762880541", "session_id": "anonymous", "extra": {"logger_name": "uvicorn.access", "filename": "h11_impl.py", "funcName": "send", "lineno": 473, "source": "api"}}
+

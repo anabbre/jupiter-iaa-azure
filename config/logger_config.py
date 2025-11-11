@@ -87,79 +87,19 @@ logger.add(sys.stderr, level="DEBUG", format="{extra[serialized]}")
 
 # ============ ARCHIVOS DE LOGS ============
 # Log general (TODO)
-logger.add(
-    "logs/app.json",
-    format="{extra[serialized]}\n",
-    level="DEBUG",
-    rotation="20 MB",
-    retention="7 days"
-)
+# logger.add(
+#     "logs/app.json",
+#     format="{extra[serialized]}\n",
+#     level="DEBUG",
+#     rotation="20 MB",
+#     retention="7 days"
+# )
 
 # Log solo de errores
 logger.add(
     "logs/errors.json",
     format="{extra[serialized]}\n",
     level="ERROR",
-    rotation="20 MB",
-    retention="7 days"
-)
-
-# Log API (requests/responses)
-logger.add(
-    "logs/api.json",
-    format="{extra[serialized]}\n",
-    level="INFO",
-    filter=lambda record: record["extra"].get("source") == "api",
-    rotation="20 MB",
-    retention="7 days"
-)
-
-# Log LangGraph
-logger.add(
-    "logs/agent.json",
-    format="{extra[serialized]}\n",
-    level="DEBUG",
-    filter=lambda record: record["extra"].get("source") == "agent",
-    rotation="20 MB",
-    retention="7 days"
-)
-
-# Log de PDF Extractor
-logger.add(
-    "logs/pdf_extractor.json",
-    format="{extra[serialized]}\n",
-    level="DEBUG",
-    filter=lambda record: record["extra"].get("source") == "pdf_extractor",
-    rotation="20 MB",
-    retention="7 days"
-)
-
-# Log UI/Gradio
-logger.add(
-    "logs/ui.json",
-    format="{extra[serialized]}\n",
-    level="DEBUG",
-    filter=lambda record: record["extra"].get("source") == "ui",
-    rotation="20 MB",
-    retention="7 days"
-)
-
-# Log de PDF Schema
-logger.add(
-    "logs/pdf_schema.json",
-    format="{extra[serialized]}\n",
-    level="DEBUG",
-    filter=lambda record: record["extra"].get("source") == "pdf_schema",
-    rotation="20 MB",
-    retention="7 days"
-)
-
-# Log de Qdrant Indexing
-logger.add(
-    "logs/qdrant.json",
-    format="{extra[serialized]}\n",
-    level="DEBUG",
-    filter=lambda record: record["extra"].get("source") == "qdrant",
     rotation="20 MB",
     retention="7 days"
 )
@@ -173,6 +113,67 @@ logger.add(
     rotation="20 MB",
     retention="7 days"
 )
+
+# Log API (requests/responses)
+logger.add(
+    "logs/api/api.json",
+    format="{extra[serialized]}\n",
+    level="INFO",
+    filter=lambda record: record["extra"].get("source") == "api",
+    rotation="20 MB",
+    retention="7 days"
+)
+
+# Log LangGraph
+logger.add(
+    "logs/agent/agent.json",
+    format="{extra[serialized]}\n",
+    level="DEBUG",
+    filter=lambda record: record["extra"].get("source") == "agent",
+    rotation="20 MB",
+    retention="7 days"
+)
+
+
+# Log UI/Gradio
+logger.add(
+    "logs/ui/ui.json",
+    format="{extra[serialized]}\n",
+    level="DEBUG",
+    filter=lambda record: record["extra"].get("source") == "ui",
+    rotation="20 MB",
+    retention="7 days"
+)
+# Log de PDF Extractor
+logger.add(
+    "logs/pdf/extractor.json",
+    format="{extra[serialized]}\n",
+    level="DEBUG",
+    filter=lambda record: record["extra"].get("source") == "pdf_extractor",
+    rotation="20 MB",
+    retention="7 days"
+)
+
+# Log de PDF Schema
+logger.add(
+    "logs/pdf/pdf_schema.json",
+    format="{extra[serialized]}\n",
+    level="DEBUG",
+    filter=lambda record: record["extra"].get("source") == "pdf_schema",
+    rotation="20 MB",
+    retention="7 days"
+)
+
+# Log de Qdrant Indexing
+logger.add(
+    "logs/qdrant/qdrant.json",
+    format="{extra[serialized]}\n",
+    level="DEBUG",
+    filter=lambda record: record["extra"].get("source") == "qdrant",
+    rotation="20 MB",
+    retention="7 days"
+)
+
 
 
 # Recuperar logs FastAPI

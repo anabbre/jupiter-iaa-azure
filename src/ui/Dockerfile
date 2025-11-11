@@ -20,7 +20,7 @@ COPY src/ ./src/
 COPY config/ ./config/
 
 # Crear directorios necesarios
-RUN mkdir -p logs
+RUN mkdir -p /app/logs
 
 # Exponer puerto
 EXPOSE 7860

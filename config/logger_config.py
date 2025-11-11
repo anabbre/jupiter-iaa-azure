@@ -191,7 +191,7 @@ class InterceptHandler(logging.Handler):
             except AttributeError:
                 level = logger.info
             
-            # Quitar llaves para evitar conflictos de formato
+            # Quitar llaves para evitar conflictos de formato 
             message = record.getMessage()
             message = message.replace("{", "{{").replace("}", "}}")
             

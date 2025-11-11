@@ -46,6 +46,12 @@ def set_session_id(session_id: str):
 
 # Función para serializar logs en JSON personalizado
 def serialize(record):
+    # Función auxiliar para convertir objetos no serializables a string como los docs PDFs
+    def default_handler(obj):
+        # Si es un objeto Document o similar, conviértelo a string
+        if hasattr(obj, '__dict__'):
+            return str(obj)
+        return str(obj)
     # Estructura
     log_record = {
         "timestamp": record["time"].isoformat(),
@@ -65,7 +71,7 @@ def serialize(record):
             "value": str(exc.value),
             "traceback": "".join(exc.traceback.format())
         }
-    return json.dumps(log_record, ensure_ascii=False)
+    return json.dumps(log_record, ensure_ascii=False, default=default_handler)
 
 # Patch para añadir campo 'serialized' con JSON
 def patching(record):
@@ -176,22 +182,30 @@ class InterceptHandler(logging.Handler):
     y los eredirijo a loguru
     """
     def emit(self, record):
-        # Obtener correspondencia de nivel
+        # Obtener correspondencia de nivel 
         level = record.levelname.lower()
-        try:
-            level = getattr(logger, level)
-        except AttributeError:
-            level = logger.info
         
-        # Loguear con contexto
-        level(
-            record.getMessage(),
-            logger_name=record.name,
-            filename=record.filename,
-            funcName=record.funcName,
-            lineno=record.lineno,
-            source="api"
-        )
+        try:
+            try:
+                level = getattr(logger, level)
+            except AttributeError:
+                level = logger.info
+            
+            # Quitar llaves para evitar conflictos de formato
+            message = record.getMessage()
+            message = message.replace("{", "{{").replace("}", "}}")
+            
+            # Loguear con contexto
+            level(
+                record.getMessage(),
+                logger_name=record.name,
+                filename=record.filename,
+                funcName=record.funcName,
+                lineno=record.lineno,
+                source="api"
+            )
+        except Exception:
+            pass
 
 # Configurar logging del stdlib para capturar FastAPI/Uvicorn
 logging.basicConfig(handlers=[InterceptHandler()], level=logging.DEBUG, force=True)

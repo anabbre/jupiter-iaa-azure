@@ -18,11 +18,10 @@ from glob import glob
 from pypdf import PdfReader
 
 
-def load_pdf_documents(data_path: str) -> list[Document]:
+def load_pdf_documents(data_path: str, request_id: str) -> list[Document]:
     # Carga de documentos 
     print(f"\n📂 Cargando documentos desde: {data_path}")
-    if not request_id:
-        request_id = get_request_id()
+    
     logger.info("Iniciando carga de documentos PDF",data_path=data_path,request_id=request_id,source="qdrant")
 
     try:
@@ -37,7 +36,7 @@ def load_pdf_documents(data_path: str) -> list[Document]:
             combined_content = "\n\n".join([page.page_content for page in pages])
             file_name = os.path.basename(pdf_file)
             source_name = os.path.splitext(file_name)[0]
-            metadata = extract_pdf_metadata(pdf_file, file_name, len(pages))
+            metadata = extract_pdf_metadata(pdf_file, file_name, len(pages), request_id)
             metadata['source'] = source_name
             metadata['file_path'] = pdf_file
             metadata['num_pages'] = len(pages)
@@ -54,7 +53,7 @@ def load_pdf_documents(data_path: str) -> list[Document]:
     return documents
 
 
-def extract_pdf_metadata(pdf_file: str, file_name: str, num_pages: int) -> dict:
+def extract_pdf_metadata(pdf_file: str, file_name: str, num_pages: int,request_id: str) -> dict:
     # Extraer metadatps del PDF
     if not request_id:
         request_id = get_request_id()
@@ -80,7 +79,7 @@ def extract_pdf_metadata(pdf_file: str, file_name: str, num_pages: int) -> dict:
     return metadata
 
 
-def create_or_recreate_collection(qdrant_client: QdrantClient, collection_name: str, vector_size: int = 1536):
+def create_or_recreate_collection(qdrant_client: QdrantClient,request_id: str, collection_name: str, vector_size: int = 1536):
     # Creacion de la coleccion
     if not request_id:
         request_id = get_request_id()
@@ -106,8 +105,11 @@ def create_or_recreate_collection(qdrant_client: QdrantClient, collection_name: 
     logger.info("Colección creada exitosamente",collection_name=collection_name,vector_size=vector_size,request_id=request_id,source="qdrant")
 
 
-def index_documents(qdrant_client: QdrantClient, documents: list[Document], collection_name: str):
+def index_documents(qdrant_client: QdrantClient,request_id: str, documents: list[Document], collection_name: str):
     # Indexa documentos en Qdrant con embeddings
+    total_docs = len(documents)
+    logger.info("Iniciando indexación de documentos",total_documentos=total_docs,collection_name=collection_name,request_id=request_id,source="qdrant")
+    
     if not request_id:
         request_id = get_request_id()
     
@@ -120,10 +122,12 @@ def index_documents(qdrant_client: QdrantClient, documents: list[Document], coll
         )
         logger.info("Vector store inicializado",collection_name=collection_name,request_id=request_id,source="qdrant")
 
-        print(f"\n📥 Insertando {len(documents)} documentos en Qdrant con IDs únicos...")
-        logger.info(f"\n📥 Insertando {len(documents)} documentos en Qdrant con IDs únicos...")
+        
+        print(f"\n📥 Insertando {total_docs} documentos en Qdrant con IDs únicos...")
+        logger.info("Insertando documentos en Qdrant",total_documentos=total_docs,request_id=request_id,source="qdrant")
         indexed_count = 0
         errors_count = 0
+        
         for i, document in enumerate(documents, 1):
             try:
                 start_time = time.time()
@@ -142,6 +146,12 @@ def index_documents(qdrant_client: QdrantClient, documents: list[Document], coll
                 errors_count += 1
                 logger.error("Error indexando documento",numero=i,total=len(documents),error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
                 continue
+            
+        print(f"\n   📊 Documentos indexados: {indexed_count}/{total_docs}")
+        if errors_count > 0:
+            print(f"   ⚠️  Errores: {errors_count}")
+            logger.warning("Indexación completada con errores",indexados=indexed_count,errores=errors_count,request_id=request_id,source="qdrant")
+     
     except Exception as e:
         logger.error("Error crítico durante indexación",collection_name=collection_name,error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
         raise
@@ -169,14 +179,15 @@ def main():
 
         logger.info("Conexión a Qdrant establecida",url=qdrant_url,request_id=request_id,source="qdrant")
         # 1. Cargar documentos
-        documents = load_pdf_documents(data_path)
+        documents = load_pdf_documents(data_path, request_id)
         if not documents:
             logger.error("No se cargaron documentos",data_path=data_path,request_id=request_id,source="qdrant")
             return
         # 2. Crear/recrear colección (usa el cliente creado arriba)
-        create_or_recreate_collection(qdrant_client, collection_name)
+        create_or_recreate_collection(qdrant_client, request_id, collection_name)
+        
         # 3. Indexar documentos
-        index_documents(qdrant_client, documents, collection_name)
+        index_documents(qdrant_client, request_id, documents, collection_name)
 
         print(f"\n{'=' * 60}")
         print("✨ Proceso completado exitosamente")        

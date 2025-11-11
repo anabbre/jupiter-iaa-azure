@@ -107,6 +107,7 @@ class PDFSectionExtractor:
             logger.info("Análisis de agrupación completado",secciones_originales=len(secciones_con_rangos),chunks_unicos=len(chunks_agrupados),chunks_redundantes_eliminados=reduccion,porcentaje_reduccion=f"{(reduccion/len(secciones_con_rangos)*100):.1f}%",request_id=request_id,source="pdf_extractor")
             
             # Crear directorio de salida (limpiar si ya existe)
+            logger.debug("Agrupando por rango de paginas",secciones=len(secciones),request_id=request_id,source="pdf_extractor")
             output_path = PDFSectionExtractor.DATA_DIR / output_dir / pdf_path.stem
 
             # Limpiar carpeta existente antes de generar nuevos chunks
@@ -147,7 +148,6 @@ class PDFSectionExtractor:
         except NameError:
             request_id = get_request_id()
             
-        logger.debug("Agrupando por rango de paginas",secciones=len(secciones),request_id=request_id,source="pdf_extractor")
         
         secciones = []
         for seccion in esquema:
@@ -160,6 +160,14 @@ class PDFSectionExtractor:
                 'pagina': seccion['pagina'],
                 'nivel': seccion['nivel']
             })
+            
+        
+    
+        # DEBUG - Después de procesar
+        print(f"🔍 DEBUG - Secciones filtradas finales: {len(secciones)}\n")
+        logger.debug("Filtrando secciones por nivel", secciones=len(secciones), request_id=request_id, source="pdf_extractor")
+    
+            
         return secciones
 
     @staticmethod
@@ -284,8 +292,9 @@ class PDFSectionExtractor:
             pagina_fin = chunk['pagina_fin']
             titulo_principal = chunk['titulo_principal']
             num_secciones = chunk['num_secciones']
-
-            # Crear nombre descriptivo del archivo
+            
+            # Calcular num_paginas ANTES de usarlo
+            num_paginas = pagina_fin - pagina_inicio
             nombre_limpio = PDFSectionExtractor._limpiar_nombre_archivo(titulo_principal)
 
             # Añadir sufijo si contiene múltiples secciones fusionadas

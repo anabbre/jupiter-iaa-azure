@@ -1,7 +1,7 @@
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from src.services.embeddings import embeddings_model
-from config.logger_config import logger, get_request_id, set_request_id
+from logger_config import logger, get_request_id, set_request_id
 from src.config import SETTINGS
 import os
 import time

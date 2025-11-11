@@ -3,7 +3,7 @@
 Construcción del grafo principal
 """
 import time
-from config.logger_config import logger, get_request_id, set_request_id
+from logger_config import logger, get_request_id, set_request_id
 from langgraph.graph import StateGraph, END
 from src.Agent.state import AgentState
 from src.Agent.nodes.retrieval import retrieve_documents

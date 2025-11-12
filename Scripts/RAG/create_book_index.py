@@ -22,7 +22,7 @@ def load_pdf_documents(data_path: str, request_id: str) -> list[Document]:
     # Carga de documentos 
     print(f"\n📂 Cargando documentos desde: {data_path}")
     
-    logger.info("Iniciando carga de documentos PDF",data_path=data_path,request_id=request_id,source="qdrant")
+    logger.info("ℹ️ Iniciando carga de documentos PDF",data_path=data_path,request_id=request_id,source="qdrant")
 
     try:
         pdf_files = sorted(glob(os.path.join(data_path, "*.pdf")))
@@ -44,11 +44,11 @@ def load_pdf_documents(data_path: str, request_id: str) -> list[Document]:
             documents.append(doc)
 
         print(f"📄 Total de documentos cargados: {len(documents)}")
-        logger.debug("PDF cargado exitosamente",archivo=file_name,paginas=len(pages),request_id=request_id,source="qdrant")
+        logger.info("📄 PDF cargado exitosamente",archivo=file_name,paginas=len(pages),request_id=request_id,source="qdrant")
     except Exception as e:
-        logger.error("Error cargando PDF individual",archivo=os.path.basename(pdf_file),error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
+        logger.error("❌ Error cargando PDF individual",archivo=os.path.basename(pdf_file),error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
     
-    logger.info("Carga de documentos completada",total_documentos=len(documents),request_id=request_id,source="qdrant")
+    logger.info("✅ Carga de documentos completada",total_documentos=len(documents),request_id=request_id,source="qdrant")
         
     return documents
 
@@ -60,7 +60,7 @@ def extract_pdf_metadata(pdf_file: str, file_name: str, num_pages: int,request_i
         
     metadata = {}
     try:
-        logger.debug("Extrayendo metadatos del PDF",archivo=file_name,request_id=request_id,source="qdrant")
+        logger.info(" - Extrayendo metadatos del PDF",archivo=file_name,request_id=request_id,source="qdrant")
         reader = PdfReader(pdf_file)
         metadata_pdf = reader.metadata
         if metadata_pdf and '/Subject' in metadata_pdf:
@@ -72,10 +72,10 @@ def extract_pdf_metadata(pdf_file: str, file_name: str, num_pages: int,request_i
                 pages_range = f"{page_start}-{page_end}" if page_start != page_end else f"{page_start}"
                 metadata['original_pages_range'] = pages_range
                 
-                logger.debug("Rango de páginas detectado",archivo=file_name,rango=pages_range,request_id=request_id,source="qdrant")
+                logger.info("Rango de páginas detectado",archivo=file_name,rango=pages_range,request_id=request_id,source="qdrant")
     except Exception as e:
         print(f"⚠️  No se pudo leer metadatos de {file_name}: {e}")
-        logger.warning("No se pudo leer metadatos del PDF",archivo=file_name,error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
+        logger.warning("⚠️ No se pudo leer metadatos del PDF",archivo=file_name,error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
     return metadata
 
 
@@ -84,17 +84,17 @@ def create_or_recreate_collection(qdrant_client: QdrantClient,request_id: str, c
     if not request_id:
         request_id = get_request_id()
     
-    logger.info("Iniciando creación/recreacion de colección",collection_name=collection_name,vector_size=vector_size,request_id=request_id,source="qdrant")
+    logger.info(" - Iniciando creación/recreacion de colección",collection_name=collection_name,vector_size=vector_size,request_id=request_id,source="qdrant")
     print(f"\n🗑️  Eliminando colección existente (si existe)...")
     
     try:
         qdrant_client.get_collection(collection_name=collection_name)
         qdrant_client.delete_collection(collection_name=collection_name)
         print("✅ Colección eliminada")
-        logger.debug("Colección existente encontrada, eliminando",collection_name=collection_name,request_id=request_id,source="qdrant")
+        logger.info("Colección existente encontrada, eliminando",collection_name=collection_name,request_id=request_id,source="qdrant")
     except Exception:
         print("ℹ️  No existía colección previa")
-        logger.debug("Colección no existia",collection_name=collection_name,request_id=request_id,source="qdrant")
+        logger.info("ℹ️ Colección no existia",collection_name=collection_name,request_id=request_id,source="qdrant")
 
     print(f"\n🔧 Creando colección '{collection_name}' con {vector_size} dimensiones (OpenAI)...")
     qdrant_client.create_collection(
@@ -102,13 +102,13 @@ def create_or_recreate_collection(qdrant_client: QdrantClient,request_id: str, c
         vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
     )
     print("✅ Colección creada")
-    logger.info("Colección creada exitosamente",collection_name=collection_name,vector_size=vector_size,request_id=request_id,source="qdrant")
+    logger.info("✅ Colección creada exitosamente",collection_name=collection_name,vector_size=vector_size,request_id=request_id,source="qdrant")
 
 
 def index_documents(qdrant_client: QdrantClient,request_id: str, documents: list[Document], collection_name: str):
     # Indexa documentos en Qdrant con embeddings
     total_docs = len(documents)
-    logger.info("Iniciando indexación de documentos",total_documentos=total_docs,collection_name=collection_name,request_id=request_id,source="qdrant")
+    logger.info(" Iniciando indexación de documentos",total_documentos=total_docs,collection_name=collection_name,request_id=request_id,source="qdrant")
     
     if not request_id:
         request_id = get_request_id()
@@ -124,7 +124,7 @@ def index_documents(qdrant_client: QdrantClient,request_id: str, documents: list
 
         
         print(f"\n📥 Insertando {total_docs} documentos en Qdrant con IDs únicos...")
-        logger.info("Insertando documentos en Qdrant",total_documentos=total_docs,request_id=request_id,source="qdrant")
+        logger.info(" 📥 Insertando documentos en Qdrant",total_documentos=total_docs,request_id=request_id,source="qdrant")
         indexed_count = 0
         errors_count = 0
         
@@ -139,7 +139,7 @@ def index_documents(qdrant_client: QdrantClient,request_id: str, documents: list
                 original_pages_info = f" | Págs. originales: {original_pages}" if original_pages else ""
                 print(f"   [{i}/{len(documents)}] ✅ ID: {doc_id[:8]}... | {document.metadata.get('source', 'documento')} {pages_info}{original_pages_info}")
                 duration = time.time() - start_time
-                logger.info("Documento indexado exitosamente",numero=f"{i}/{len(documents)}",doc_id=doc_id[:8],paginas=pages_info,paginas_originales=original_pages,duration=f"{duration:.3f}s",request_id=request_id,source="qdrant",process_time=f"{duration:.3f}s")
+                logger.info("✅ Documento indexado exitosamente",numero=f"{i}/{len(documents)}",doc_id=doc_id[:8],paginas=pages_info,paginas_originales=original_pages,duration=f"{duration:.3f}s",request_id=request_id,source="qdrant",process_time=f"{duration:.3f}s")
                 indexed_count += 1
                 time.sleep(0.5)
             except Exception as e:
@@ -153,7 +153,7 @@ def index_documents(qdrant_client: QdrantClient,request_id: str, documents: list
             logger.warning("Indexación completada con errores",indexados=indexed_count,errores=errors_count,request_id=request_id,source="qdrant")
      
     except Exception as e:
-        logger.error("Error crítico durante indexación",collection_name=collection_name,error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
+        logger.error("❌ Error crítico durante indexación",collection_name=collection_name,error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
         raise
 
 

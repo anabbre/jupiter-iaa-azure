@@ -38,7 +38,7 @@ class PDFSchemaService:
             request_id = get_request_id()
                 
         start_time = time.time()    
-        logger.info("Iniciando extracción de esquema PDF",pdf_original=nombre_pdf,request_id=request_id,source="pdf_schema")
+        logger.info("ℹ️ Iniciando extracción de esquema PDF",pdf_original=nombre_pdf,request_id=request_id,source="pdf_schema")
         try:
             
             # Normalizar nombre del archivo
@@ -48,38 +48,38 @@ class PDFSchemaService:
             pdf_path = PDFSchemaService.DATA_DIR / nombre_pdf
 
             if not pdf_path.exists():
-                logger.error("PDF no encontrado",pdf_path=str(pdf_path),request_id=request_id,source="pdf_schema")
+                logger.error("❌ PDF no encontrado",pdf_path=str(pdf_path),request_id=request_id,source="pdf_schema")
                 raise FileNotFoundError(f"No se encontró el archivo: {pdf_path}")
 
             # Extraer esquema
             reader = PdfReader(str(pdf_path))
             esquema = []
-            logger.info("PDF cargado exitosamente",pdf=pdf_path.name,total_paginas=len(reader.pages),tiene_bookmarks=bool(reader.outline),request_id=request_id,source="pdf_schema")
+            logger.info("✅ PDF cargado exitosamente",pdf=pdf_path.name,total_paginas=len(reader.pages),tiene_bookmarks=bool(reader.outline),request_id=request_id,source="pdf_schema")
 
             if reader.outline:
                 PDFSchemaService._procesar_bookmarks(reader, reader.outline, esquema, nivel=0)
-                logger.info("Bookmarks procesados",total_secciones=len(esquema),request_id=request_id,source="pdf_schema")
+                logger.info(" - Bookmarks procesados",total_secciones=len(esquema),request_id=request_id,source="pdf_schema")
             else:
-                logger.warning("El PDF no contiene bookmarks",pdf=pdf_path.name,request_id=request_id,source="pdf_schema")
+                logger.warning("⚠️ El PDF no contiene bookmarks",pdf=pdf_path.name,request_id=request_id,source="pdf_schema")
             
             # Guardar JSON en /data
             json_name = pdf_path.stem + '_esquema.json'
             json_path = PDFSchemaService.DATA_DIR / json_name
-            logger.debug("Guardando esquema en JSON",json_path=str(json_path),secciones=len(esquema),request_id=request_id,source="pdf_schema")
+            logger.info(" - Guardando esquema en JSON",json_path=str(json_path),secciones=len(esquema),request_id=request_id,source="pdf_schema")
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump(esquema, f, indent=2, ensure_ascii=False)
             
             duration = time.time() - start_time
-            logger.info("Esquema guardado exitosamente",json_path=str(json_path),total_secciones=len(esquema),tamaño_kb=f"{json_path.stat().st_size / 1024:.2f}",duration=f"{duration:.3f}s",request_id=request_id,source="pdf_schema",process_time=f"{duration:.3f}s")
+            logger.info("✅ Esquema guardado exitosamente",json_path=str(json_path),total_secciones=len(esquema),tamaño_kb=f"{json_path.stat().st_size / 1024:.2f}",duration=f"{duration:.3f}s",request_id=request_id,source="pdf_schema",process_time=f"{duration:.3f}s")
             return str(json_path)
 
         except FileNotFoundError as e:
-            logger.error("Error: Archivo no encontrado",error=str(e),request_id=request_id,source="pdf_schema")
+            logger.error("❌ Error: Archivo no encontrado",error=str(e),request_id=request_id,source="pdf_schema")
             raise
             
         except Exception as e:
             duration = time.time() - start_time
-            logger.error("Error al extraer esquema", error=str(e),tipo_error=type(e).__name__,pdf=nombre_pdf,duration=f"{duration:.3f}s",request_id=request_id,source="pdf_schema",process_time=f"{duration:.3f}s")       
+            logger.error("❌ Error al extraer esquema", error=str(e),tipo_error=type(e).__name__,pdf=nombre_pdf,duration=f"{duration:.3f}s",request_id=request_id,source="pdf_schema",process_time=f"{duration:.3f}s")       
             raise
 
     @staticmethod
@@ -121,15 +121,15 @@ if __name__ == "__main__":
     
     session_id = f"pdf_schema_{int(time.time())}"
     set_session_id(session_id)
-    logger.info("Iniciando PDF Schema Service - Proceso principal",session_id=session_id,source="pdf_schema")
+    logger.info(" - Iniciando PDF Schema Service - Proceso principal",session_id=session_id,source="pdf_schema")
     
     try:
         json_path = generar_esquema_pdf("Libro-TF.pdf")
-        logger.info("✓ Esquema generado exitosamente",json_path=json_path,session_id=session_id,source="pdf_schema")
-        print(f"✓ Esquema generado en: {json_path}")
+        logger.info("✅ Esquema generado exitosamente",json_path=json_path,session_id=session_id,source="pdf_schema")
+        print(f"✅ Esquema generado en: {json_path}")
     except FileNotFoundError as e:
-        logger.error("Archivo PDF no encontrado",error=str(e),session_id=session_id,source="pdf_schema")
-        print(f"✗ Error: {e}")
+        logger.error("❌ Archivo PDF no encontrado",error=str(e),session_id=session_id,source="pdf_schema")
+        print(f"❌ Error: {e}")
     except Exception as e:
-        logger.error("Error al procesar PDF",error=str(e),tipo_error=type(e).__name__,session_id=session_id,source="pdf_schema")
-        print(f"✗ Error al procesar: {e}")
+        logger.error("❌ Error al procesar PDF",error=str(e),tipo_error=type(e).__name__,session_id=session_id,source="pdf_schema")
+        print(f"❌ Error al procesar: {e}")

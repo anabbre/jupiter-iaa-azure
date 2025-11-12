@@ -27,5 +27,6 @@ dependencies = [
     "pypdf>=6.1.3",
     "python-dotenv>=1.1.1",
     "sentence-transformers>=5.1.0",
-    "loguru"
+    "loguru",
+    "langchain-huggingface"
 ]

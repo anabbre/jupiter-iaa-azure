@@ -18,10 +18,14 @@ class Agent:
     def __init__(self):
         """Inicializa el agente compilando el grafo"""
         
-        logger.info( "Inicializando Agent", source="agent")
-        self.graph = self._create_graph()
-        logger.info("Agent inicializado correctamente",source="agent")
-
+        logger.info("ℹ️ Inicializando Agent", source="agent")
+        try:
+            self.graph = self._create_graph()
+            logger.info("✅ Agent inicializado correctamente",source="agent")
+        except Exception as e:
+            logger.error("❌ Error al inicializar Agent",source="agent",error=str(e),tipo_error=type(e).__name__)
+            raise
+    
     def _create_graph(self):
         """
         Crea y compila el grafo del agente
@@ -29,28 +33,31 @@ class Agent:
         Returns:
             Grafo compilado listo para usar
         """
-        # Inicializar grafo
-        logger.info("Inicio crección del grafo",source="agent")
-        workflow = StateGraph(AgentState)
+            # Inicializar grafo
+        logger.info("🔧 Inicio crección del grafo",source="agent")
+        try:        
+            workflow = StateGraph(AgentState)
 
-        # ========== NODOS ==========
-        
-        logger.info(f"Agregando nodo retrive ",source="agent")
-        workflow.add_node("retrieve", retrieve_documents)
-        logger.info(f"Agregando nodo generate ", source="agent")
-        workflow.add_node("generate", generate_answer)
+            # ========== NODOS ========== 
+            logger.info(f" - Agregando nodo retrive ",source="agent")
+            workflow.add_node("retrieve", retrieve_documents)
+            logger.info(f" - Agregando nodo generate ", source="agent")
+            workflow.add_node("generate", generate_answer)
 
-        # ========== EDGES ==========
-        # Punto de entrada
-        workflow.set_entry_point("retrieve")
+            # ========== EDGES ==========
+            # Punto de entrada
+            workflow.set_entry_point("retrieve")
 
-        # Flujo lineal (por ahora)
-        workflow.add_edge("retrieve", "generate")
-        workflow.add_edge("generate", END)
+            # Flujo lineal (por ahora)
+            workflow.add_edge("retrieve", "generate")
+            workflow.add_edge("generate", END)
 
-        # Compilar
-        logger.info("Compilando grafo", source="agent")
-        return workflow.compile()
+            # Compilar
+            logger.info("📄 Compilando grafo", source="agent")
+            return workflow.compile()
+        except Exception as e:
+            logger.error("❌Error al crear el grafo",source="agent",error=str(e),tipo_error=type(e).__name__)
+            raise
     
 
     def invoke(self, input_data: dict):
@@ -64,34 +71,17 @@ class Agent:
             Resultado de la ejecución del grafo
         """
         request_id = get_request_id()
-        logger.info( "Invocando grafo", request_id=request_id, input_keys=list(input_data.keys()), source="agent")
-        
+        logger.info( "ℹ️ Invocando grafo", request_id=request_id, input_keys=list(input_data.keys()), source="agent")
         start_time = time.time()
         
         #Tracking del grafo
         try: 
             result = self.graph.invoke(input_data)
             duration =time.time() - start_time
-            logger.info(
-                "Grafo ejecutado exitosamente",
-                request_id=request_id,
-                duration=f"{duration:.3f}s",
-                result_keys=list(result.keys()) if isinstance(result, dict) else None,
-                source="agent",
-                process_time=f"{duration:.3f}s"
-            )
+            logger.info("✅ Grafo ejecutado exitosamente",request_id=request_id,duration=f"{duration:.3f}s",result_keys=list(result.keys()) if isinstance(result, dict) else None,source="agent",process_time=f"{duration:.3f}s")
         except Exception as e:
             duration = time.time() - start_time
-            
-            logger.error(
-                "Error al invocar grafo",
-                request_id=request_id,
-                error=str(e),
-                tipo_error=type(e).__name__,
-                duration=f"{duration:.3f}s",
-                source="agent",
-                process_time=f"{duration:.3f}s"
-            )
+            logger.error("❌ Error al invocar grafo",request_id=request_id,error=str(e),tipo_error=type(e).__name__,duration=f"{duration:.3f}s",source="agent",process_time=f"{duration:.3f}s")
             raise
         
         return self.graph.invoke(input_data)
@@ -110,8 +100,11 @@ class Agent:
 
 
 if __name__ == "__main__":
-    logger.info( "Script de graph.py ejecutado directamente",
-        source="agent"
-    )
-    agent = Agent()
-    agent.save_graph_png()
+    logger.info( "ℹ️ Script de graph.py ejecutado directamente", source="agent")
+    
+    try:
+        agent = Agent()
+        agent.save_graph_png()
+    except Exception as e:
+        logger.error("❌ Error en ejecución principal de graph.py",source="agent",error=str(e),tipo_error=type(e).__name__)
+        raise

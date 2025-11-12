@@ -7,16 +7,21 @@ import uuid
 from loguru import logger
 from contextvars import ContextVar
 
+# Estructura de carpetas:
 # logs/
-# ├── app.json              # TODO (mezcla)
-# ├── api.json              # Requests/responses de FastAPI
-# ├── agent.json            # Ejecuciones del grafo
-# ├── ui.json               # Acciones en Gradio
-# ├── pdf_extractor.json    # Procesamiento de PDFs
-# ├── pdf_schema.json       # Esquemas de PDF
-# ├── qdrant.json           # Indexación en Qdrant
-# ├── errors.json           # Solo errores
-# └── performance.json      # Tiempos de ejecución
+# ├── errors.json              # Errores globales
+# ├── performance.json         # Performance global
+# ├── api/
+# │   └── api.json
+# ├── agent/
+# │   └── agent.json
+# ├── ui/
+# │   └── ui.json
+# ├── pdf/
+# │   ├── extractor.json
+# │   └── schema.json
+# └── qdrant/
+#     └── qdrant.json
 
 
 # Variables de contexto para rastrear requests
@@ -128,7 +133,7 @@ logger.add(
 logger.add(
     "logs/agent/agent.json",
     format="{extra[serialized]}\n",
-    level="DEBUG",
+    level="INFO",
     filter=lambda record: record["extra"].get("source") == "agent",
     rotation="20 MB",
     retention="7 days"
@@ -139,7 +144,7 @@ logger.add(
 logger.add(
     "logs/ui/ui.json",
     format="{extra[serialized]}\n",
-    level="DEBUG",
+    level="INFO",
     filter=lambda record: record["extra"].get("source") == "ui",
     rotation="20 MB",
     retention="7 days"
@@ -148,7 +153,7 @@ logger.add(
 logger.add(
     "logs/pdf/extractor.json",
     format="{extra[serialized]}\n",
-    level="DEBUG",
+    level="INFO",
     filter=lambda record: record["extra"].get("source") == "pdf_extractor",
     rotation="20 MB",
     retention="7 days"
@@ -158,7 +163,7 @@ logger.add(
 logger.add(
     "logs/pdf/pdf_schema.json",
     format="{extra[serialized]}\n",
-    level="DEBUG",
+    level="INFO",
     filter=lambda record: record["extra"].get("source") == "pdf_schema",
     rotation="20 MB",
     retention="7 days"
@@ -168,7 +173,7 @@ logger.add(
 logger.add(
     "logs/qdrant/qdrant.json",
     format="{extra[serialized]}\n",
-    level="DEBUG",
+    level="INFO",
     filter=lambda record: record["extra"].get("source") == "qdrant",
     rotation="20 MB",
     retention="7 days"

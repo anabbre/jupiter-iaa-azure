@@ -49,7 +49,7 @@ class PDFSectionExtractor:
         except NameError:
             request_id = get_request_id()
         start_time = time.time()
-        logger.info("Iniciando extracción de secciones PDF",pdf=nombre_pdf,niveles_filtro=niveles_filtro,request_id=request_id,source="pdf_extractor")
+        logger.info("Iniciando extracción de secciones PDF",pdf=nombre_pdf,niveles_filtro=niveles_filtro,request_id=request_id,source="extractor")
         
         try:
             if not nombre_pdf.endswith('.pdf'):
@@ -59,40 +59,40 @@ class PDFSectionExtractor:
             json_path = PDFSectionExtractor.DATA_DIR / f"{pdf_path.stem}_esquema.json"
 
             if not pdf_path.exists():
-                logger.error("❌ PDF no encontrado",pdf_path=str(pdf_path),request_id=request_id,source="pdf_extractor")
+                logger.error("❌ PDF no encontrado",pdf_path=str(pdf_path),request_id=request_id,source="extractor")
                 raise FileNotFoundError(f"No se encontró el PDF: {pdf_path}")
             if not json_path.exists():
-                logger.error("❌ Esquema JSON no encontrado",json_path=str(json_path),request_id=request_id,source="pdf_extractor")
+                logger.error("❌ Esquema JSON no encontrado",json_path=str(json_path),request_id=request_id,source="extractor")
                 raise FileNotFoundError(f"No se encontró el esquema: {json_path}")
 
             # Cargar PDF y esquema
-            logger.info(" - Cargando PDF y esquema", request_id=request_id, source="pdf_extractor")
+            logger.info(" - Cargando PDF y esquema", request_id=request_id, source="extractor")
             reader = PdfReader(str(pdf_path))
             with open(json_path, 'r', encoding='utf-8') as f:
                 esquema = json.load(f)
-            logger.info("ℹ️ Archivos cargados",total_paginas=len(reader.pages),total_secciones_esquema=len(esquema),request_id=request_id,source="pdf_extractor")
+            logger.info("ℹ️ Archivos cargados",total_paginas=len(reader.pages),total_secciones_esquema=len(esquema),request_id=request_id,source="extractor")
 
 
             # Filtrar secciones por nivel
-            logger.info(" - Filtrando secciones por nivel",niveles_solicitados=niveles_filtro, request_id=request_id,source="pdf_extractor")
+            logger.info(" - Filtrando secciones por nivel",niveles_solicitados=niveles_filtro, request_id=request_id,source="extractor")
             secciones = PDFSectionExtractor._filtrar_secciones(esquema, niveles_filtro)
 
             if not secciones:
-                logger.warning("⚠️ No se encontraron secciones después del filtrado",niveles_filtro=niveles_filtro,request_id=request_id,source="pdf_extractor")
+                logger.warning("⚠️ No se encontraron secciones después del filtrado",niveles_filtro=niveles_filtro,request_id=request_id,source="extractor")
                 print("⚠️ No se encontraron secciones con los filtros aplicados.")
                 return []
-            logger.info("✅ Secciones filtradas exitosamente",secciones_filtradas=len(secciones),request_id=request_id,source="pdf_extractor")
+            logger.info("✅ Secciones filtradas exitosamente",secciones_filtradas=len(secciones),request_id=request_id,source="extractor")
             
 
             # Calcular rangos de páginas para cada sección
-            logger.info("Calculando rangos de páginas",request_id=request_id,source="pdf_extractor")
+            logger.info("Calculando rangos de páginas",request_id=request_id,source="extractor")
             secciones_con_rangos = PDFSectionExtractor._calcular_rangos_paginas(
                 secciones, len(reader.pages)
             )
 
             # PASO CLAVE: Agrupar secciones por rango de páginas único
             # Esto elimina la duplicación de chunks que comparten páginas
-            logger.info("Agrupando secciones por rango de páginas",request_id=request_id,source="pdf_extractor")
+            logger.info("Agrupando secciones por rango de páginas",request_id=request_id,source="extractor")
             chunks_agrupados = PDFSectionExtractor._agrupar_por_rango_paginas(
                 secciones_con_rangos
             )
@@ -104,37 +104,37 @@ class PDFSectionExtractor:
 
             # Análisis de agrupación
             reduccion = len(secciones_con_rangos) - len(chunks_agrupados)
-            logger.info("✅Análisis de agrupación completado",secciones_originales=len(secciones_con_rangos),chunks_unicos=len(chunks_agrupados),chunks_redundantes_eliminados=reduccion,porcentaje_reduccion=f"{(reduccion/len(secciones_con_rangos)*100):.1f}%",request_id=request_id,source="pdf_extractor")
+            logger.info("✅Análisis de agrupación completado",secciones_originales=len(secciones_con_rangos),chunks_unicos=len(chunks_agrupados),chunks_redundantes_eliminados=reduccion,porcentaje_reduccion=f"{(reduccion/len(secciones_con_rangos)*100):.1f}%",request_id=request_id,source="extractor")
             
             # Crear directorio de salida (limpiar si ya existe)
-            logger.info(" - Agrupando por rango de paginas",secciones=len(secciones),request_id=request_id,source="pdf_extractor")
+            logger.info(" - Agrupando por rango de paginas",secciones=len(secciones),request_id=request_id,source="extractor")
             output_path = PDFSectionExtractor.DATA_DIR / output_dir / pdf_path.stem
 
             # Limpiar carpeta existente antes de generar nuevos chunks
             if output_path.exists():
-                logger.info("🗑️ Limpiando chunks anteriores",path=str(output_path),request_id=request_id,source="pdf_extractor")
+                logger.info("🗑️ Limpiando chunks anteriores",path=str(output_path),request_id=request_id,source="extractor")
                 print(f"🗑️  Limpiando chunks anteriores en {output_path.name}/")
                 try:
                     shutil.rmtree(output_path)
-                    logger.info("Carpeta limpiada exitosamente",request_id=request_id,source="pdf_extractor")
+                    logger.info("Carpeta limpiada exitosamente",request_id=request_id,source="extractor")
                     print(f"✅ Carpeta limpiada exitosamente\n")
                 except Exception as e:
-                    logger.error("❌ Error al limpiar carpeta",error=str(e),request_id=request_id,source="pdf_extractor")
+                    logger.error("❌ Error al limpiar carpeta",error=str(e),request_id=request_id,source="extractor")
                     print(f"⚠ Advertencia al limpiar carpeta: {e}\n")
 
             output_path.mkdir(parents=True, exist_ok=True)
 
             # Generar PDFs optimizados (un PDF por rango único de páginas)
-            logger.info("ℹ️ Iniciando generación de PDFs optimizados",chunks_a_generar=len(chunks_agrupados),request_id=request_id,source="pdf_extractor")
+            logger.info("ℹ️ Iniciando generación de PDFs optimizados",chunks_a_generar=len(chunks_agrupados),request_id=request_id,source="extractor")
             archivos = PDFSectionExtractor._generar_pdfs_optimizados(
                 reader, chunks_agrupados, output_path
             )
             duration = time.time() - start_time
-            logger.info("✅ Extracción completada exitosamente",archivos_generados=len(archivos),duration=f"{duration:.3f}s",output_path=str(output_path),request_id=request_id,source="pdf_extractor",process_time=f"{duration:.3f}s")
+            logger.info("✅ Extracción completada exitosamente",archivos_generados=len(archivos),duration=f"{duration:.3f}s",output_path=str(output_path),request_id=request_id,source="extractor",process_time=f"{duration:.3f}s")
             return archivos
         except Exception as e:
             duration = time.time() - start_time
-            logger.error("❌ Error en extracción de secciones",error=str(e),tipo_error=type(e).__name__,pdf=nombre_pdf,duration=f"{duration:.3f}s",request_id=request_id,source="pdf_extractor",process_time=f"{duration:.3f}s")
+            logger.error("❌ Error en extracción de secciones",error=str(e),tipo_error=type(e).__name__,pdf=nombre_pdf,duration=f"{duration:.3f}s",request_id=request_id,source="extractor",process_time=f"{duration:.3f}s")
             raise
 
     @staticmethod
@@ -165,7 +165,7 @@ class PDFSectionExtractor:
     
         # info - Después de procesar
         print(f"🔍 info - Secciones filtradas finales: {len(secciones)}\n")
-        logger.info("🔍 Filtrando secciones por nivel", secciones=len(secciones), request_id=request_id, source="pdf_extractor")
+        logger.info("🔍 Filtrando secciones por nivel", secciones=len(secciones), request_id=request_id, source="extractor")
     
             
         return secciones
@@ -188,7 +188,7 @@ class PDFSectionExtractor:
         except NameError:
             request_id = get_request_id()
             
-        logger.info("ℹ️ Calculando rangos de páginas",secciones=len(secciones),total_paginas=total_paginas,request_id=request_id,source="pdf_extractor") 
+        logger.info("ℹ️ Calculando rangos de páginas",secciones=len(secciones),total_paginas=total_paginas,request_id=request_id,source="extractor") 
         for i, seccion in enumerate(secciones):
             if i < len(secciones) - 1:
                 # La sección termina donde comienza la siguiente
@@ -226,7 +226,7 @@ class PDFSectionExtractor:
         except NameError:
             request_id = get_request_id()
             
-        logger.info("ℹ️ Inicio agrupación por rango de páginas",secciones=len(secciones),request_id=request_id,source="pdf_extractor")
+        logger.info("ℹ️ Inicio agrupación por rango de páginas",secciones=len(secciones),request_id=request_id,source="extractor")
         
         # Diccionario para agrupar por rango de páginas (clave: tupla (inicio, fin))
         grupos: Dict[Tuple[int, int], List[Dict[str, Any]]] = defaultdict(list)
@@ -283,7 +283,7 @@ class PDFSectionExtractor:
             request_id = get_request_id()
                 
             
-        logger.info("ℹ️ Iniciando generación de PDFs",chunks_totales=len(chunks),output_path=str(output_path),request_id=request_id,source="pdf_extractor")
+        logger.info("ℹ️ Iniciando generación de PDFs",chunks_totales=len(chunks),output_path=str(output_path),request_id=request_id,source="extractor")
         archivos = []
         errores = 0 # Errores por chunk
 
@@ -306,7 +306,7 @@ class PDFSectionExtractor:
             pdf_file = output_path / f"{idx + 1:03d}_{nombre_limpio}{sufijo}.pdf"
 
             try:
-                logger.info(" - Generando PDF del chunk",chunk_numero=idx,paginas=f"{pagina_inicio+1}-{pagina_fin}",num_paginas=num_paginas,num_secciones=num_secciones,titulo=titulo_principal,request_id=request_id,source="pdf_extractor")
+                logger.info(" - Generando PDF del chunk",chunk_numero=idx,paginas=f"{pagina_inicio+1}-{pagina_fin}",num_paginas=num_paginas,num_secciones=num_secciones,titulo=titulo_principal,request_id=request_id,source="extractor")
                 # Crear writer y agregar páginas del chunk
                 writer = PdfWriter()
 
@@ -334,10 +334,10 @@ class PDFSectionExtractor:
                     print(f"✅ Chunk fusionado: {pdf_file.name}")
                     print(f"  └─ {num_paginas} página(s) | {num_secciones} secciones combinadas")
                     print(f"  └─ Secciones: {', '.join(chunk['titulos_incluidos'][:3])}{'...' if num_secciones > 3 else ''}")  
-                    logger.info("Chunk fusionado generado",archivo=pdf_file.name,num_paginas=num_paginas,num_secciones=num_secciones,secciones=chunk['titulos_incluidos'][:3],request_id=request_id,source="pdf_extractor")
+                    logger.info("Chunk fusionado generado",archivo=pdf_file.name,num_paginas=num_paginas,num_secciones=num_secciones,secciones=chunk['titulos_incluidos'][:3],request_id=request_id,source="extractor")
                 else:
                     print(f"✅ Chunk único: {pdf_file.name} ({num_paginas} página(s))")
-                    logger.info("Chunk único generado",archivo=pdf_file.name,num_paginas=num_paginas,request_id=request_id,source="pdf_extractor")
+                    logger.info("Chunk único generado",archivo=pdf_file.name,num_paginas=num_paginas,request_id=request_id,source="extractor")
 
             except Exception as e:
                 errores += 1
@@ -346,7 +346,7 @@ class PDFSectionExtractor:
 
         print(f"\n✅ Total chunks optimizados generados: {len(archivos)}")
         print(f"📈 Mejora para RAG: Sin duplicación de páginas, chunks semánticamente coherentes")  
-        logger.info("ℹ️ Generación de PDFs completada",archivos_generados=len(archivos),errores=errores,request_id=request_id,source="pdf_extractor")
+        logger.info("ℹ️ Generación de PDFs completada",archivos_generados=len(archivos),errores=errores,request_id=request_id,source="extractor")
         
         return archivos
 
@@ -395,7 +395,7 @@ if __name__ == "__main__":
     print("=" * 70)
     print()
     
-    logger.info("Iniciando PDF extractor - Proceso principal",session_id=session_id,source="pdf_extractor")
+    logger.info("Iniciando PDF extractor - Proceso principal",session_id=session_id,source="extractor")
 
     try:
         archivos = extraer_secciones_por_niveles(
@@ -413,8 +413,8 @@ if __name__ == "__main__":
         print(f"   • Metadatos completos para cada chunk")
         print(f"   • Mayor precisión en recuperación de información")
         print(f"{'='*70}")
-        logger.info("✅ Proceso de PDF extractor completado exitosamente",archivos_generados=len(archivos),session_id=session_id,source="pdf_extractor")
+        logger.info("✅ Proceso de PDF extractor completado exitosamente",archivos_generados=len(archivos),session_id=session_id,source="extractor")
 
     except Exception as e:
         print(f"❌ Error: {e}")
-        logger.error("❌ Error en PDF extractor",error=str(e),tipo_error=type(e).__name__,session_id=session_id,source="pdf_extractor")
+        logger.error("❌ Error en PDF extractor",error=str(e),tipo_error=type(e).__name__,session_id=session_id,source="extractor")

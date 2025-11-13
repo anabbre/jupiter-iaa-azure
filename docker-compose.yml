@@ -1,12 +1,11 @@
-
 services:
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant_db
-    command: "./qdrant --config-path /config/config.yaml"
+    command: './qdrant --config-path /config/config.yaml'
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - '6333:6333'
+      - '6334:6334'
     volumes:
       - qdrant_storage:/qdrant/storage
       - ./qdrant_config/config.yaml:/config/config.yaml
@@ -20,7 +19,7 @@ services:
       dockerfile: src/api/Dockerfile
     container_name: terraform_rag_api
     ports:
-      - "8008:8008"
+      - '8008:8008'
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - QDRANT_URL=http://qdrant:6333
@@ -45,7 +44,7 @@ services:
       dockerfile: src/ui/Dockerfile
     container_name: terraform_rag_ui
     ports:
-      - "7860:7860"
+      - '7860:7860'
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - QDRANT_URL=http://qdrant:6333

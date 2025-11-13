@@ -3,14 +3,11 @@ from pypdf import PdfReader, PdfWriter
 from typing import Dict, List, Any, Optional, Tuple
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../config')))
-# from config.logger_config import logger, get_request_id, set_request_id
 from config.logger_config import logger, get_request_id, set_request_id
-
-
-import json
 from pathlib import Path
-import re
 from collections import defaultdict
+import re
+import json
 import shutil
 import time
 

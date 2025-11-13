@@ -91,14 +91,6 @@ logger = logger.patch(patching)
 logger.add(sys.stderr, level="DEBUG", format="{extra[serialized]}")
 
 # ============ ARCHIVOS DE LOGS ============
-# Log general (TODO)
-# logger.add(
-#     "logs/app.json",
-#     format="{extra[serialized]}\n",
-#     level="DEBUG",
-#     rotation="20 MB",
-#     retention="7 days"
-# )
 
 # Log solo de errores
 logger.add(
@@ -178,8 +170,6 @@ logger.add(
     rotation="20 MB",
     retention="7 days"
 )
-
-
 
 # Recuperar logs FastAPI
 class InterceptHandler(logging.Handler):

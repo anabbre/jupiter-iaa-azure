@@ -4,6 +4,7 @@ import sys
 import json
 import logging
 import uuid
+import traceback
 from loguru import logger
 from contextvars import ContextVar
 
@@ -74,7 +75,7 @@ def serialize(record):
         log_record["exception"] = {
             "type": exc.type.__name__,
             "value": str(exc.value),
-            "traceback": "".join(exc.traceback.format())
+            "traceback": "".join(traceback.format_exception(exc.type, exc.value, exc.traceback))
         }
     return json.dumps(log_record, ensure_ascii=False, default=default_handler)
 
@@ -169,6 +170,16 @@ logger.add(
     filter=lambda record: record["extra"].get("source") == "qdrant",
     rotation="20 MB",
     retention="7 days"
+)
+
+# Log de Conversaciones (preguntas y respuestas)
+logger.add(
+    "logs/conversations/conversations.json",
+    format="{extra[serialized]}\n",
+    level="INFO",
+    filter=lambda record: record["extra"].get("source") == "conversation",
+    rotation="50 MB",
+    retention="30 days"
 )
 
 # Recuperar logs FastAPI

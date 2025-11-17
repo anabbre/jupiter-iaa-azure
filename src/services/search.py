@@ -5,14 +5,14 @@ from config.logger_config import logger, get_request_id, set_request_id
 
 
 
-def search_examples(query: str, k: int = 3) -> List[Dict[str, Any]]:
+def search_examples(query: str, k: int = 3, threshold: float = 0.0) -> List[Dict[str, Any]]:
     """
     Busca en Qdrant y devuelve metadatos normalizados para el API/UI.
     """
     request_id = get_request_id()
     start_time = time.time()
     
-    logger.info("ℹ️ Iniciando búsqueda en Qdrant",source="qdrant",request_id=request_id,query=query,k=k,query_length=len(query))
+    logger.info("ℹ️ Iniciando búsqueda en Qdrant",source="qdrant",request_id=request_id,query=query,k=k,threshold=threshold,query_length=len(query) )
     try:
         search_start = time.time()
         results = qdrant_vector_store.similarity_search(query, k=k)
@@ -33,6 +33,12 @@ def search_examples(query: str, k: int = 3) -> List[Dict[str, Any]]:
         for i, doc in enumerate(results, 1):
             try:
                 meta = doc.metadata or {}
+                score = float(meta.get("score", 0.0)) if isinstance(meta.get("score"), (int, float)) else 0.0
+
+                # Filtro por threshold
+                if threshold > 0.0 and score < threshold:
+                    logger.info(f"Resultado filtrado por threshold",source="qdrant",request_id=request_id,score=score,threshold=threshold)
+                    continue
 
                 # path con alias posibles 
                 path = (
@@ -76,7 +82,8 @@ def search_examples(query: str, k: int = 3) -> List[Dict[str, Any]]:
             }
             for f in formatted
         ]
-        logger.info("Búsqueda en Qdrant completada exitosamente",source="qdrant",request_id=request_id,query=query,total_results=len(formatted),duration=f"{total_duration:.3f}s",search_duration=f"{search_duration:.3f}s",process_time=f"{total_duration:.3f}s",results_summary=results_summary,status="success")
+        logger.info("Búsqueda en Qdrant completada exitosamente",source="qdrant",request_id=request_id,query=query,total_results=len(formatted),duration=f"{total_duration:.3f}s" ,threshold=threshold,search_duration=f"{search_duration:.3f}s",process_time=f"{total_duration:.3f}s",results_summary=results_summary,status="success")
+        
         return formatted
 
     except Exception as e:

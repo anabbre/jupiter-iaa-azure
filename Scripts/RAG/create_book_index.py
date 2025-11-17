@@ -27,7 +27,7 @@ def load_pdf_documents(data_path: str, request_id: str) -> list[Document]:
     try:
         pdf_files = sorted(glob(os.path.join(data_path, "*.pdf")))
         print(f"📄 Total de archivos PDF encontrados: {len(pdf_files)}")
-        logger.info(f"📄 Total de archivos PDF encontrados: {len(pdf_files)}")
+        logger.info(f"📄 Total de archivos PDF encontrados: {len(pdf_files)}",source="qdrant")
         documents = []
 
         for pdf_file in pdf_files:
@@ -91,7 +91,7 @@ def create_or_recreate_collection(qdrant_client: QdrantClient,request_id: str, c
         qdrant_client.get_collection(collection_name=collection_name)
         qdrant_client.delete_collection(collection_name=collection_name)
         print("✅ Colección eliminada")
-        logger.info("Colección existente encontrada, eliminando",collection_name=collection_name,request_id=request_id,source="qdrant")
+        logger.info("✅ Colección existente encontrada, eliminando",collection_name=collection_name,request_id=request_id,source="qdrant")
     except Exception:
         print("ℹ️  No existía colección previa")
         logger.info("ℹ️ Colección no existia",collection_name=collection_name,request_id=request_id,source="qdrant")

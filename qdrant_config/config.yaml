@@ -1,7 +1,9 @@
 log_level: INFO #cómo va a hacer los loggings
 
-storage: #cómo va a guardar los datos
-  node_type: "Normal"  #porque no tenemos un cluster (solo queremos un nodo) - no tenemos alta disponibilidad, ni procesos grandes
+#Almacenamiento
+storage:
+  storage_path: '/qdrant/storage'
+  on_disk_payload: true
 
   performance:
     max_search_threads: 0 # por defecto

@@ -12,16 +12,15 @@ from src.Agent.nodes.generation import generate_answer
 
 class Agent:
     """
-    Clase principal del agente LangGraph
+    Clase principal Terraform Generator
     """
 
     def __init__(self):
         """Inicializa el agente compilando el grafo"""
-        
-        logger.info("ℹ️ Inicializando Agent", source="agent")
+        logger.info("ℹ️ Inicializando Terraform Generator", source="agent")
         try:
             self.graph = self._create_graph()
-            logger.info("✅ Agent inicializado correctamente",source="agent")
+            logger.info("✅ Agent inicializado correctamente", source="agent")
         except Exception as e:
             logger.error("❌ Error al inicializar Agent",source="agent",error=str(e),tipo_error=type(e).__name__)
             raise

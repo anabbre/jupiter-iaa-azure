@@ -7,7 +7,7 @@ from config.logger_config import logger, get_request_id, set_request_id
 # Configurar paths y cargar variables de entorno
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 load_dotenv()
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader, MarkdownLoader
 from langchain_core.documents import Document
 from qdrant_client.models import VectorParams, Distance
 from langchain_qdrant import QdrantVectorStore
@@ -18,36 +18,99 @@ from glob import glob
 from pypdf import PdfReader
 
 
-def load_pdf_documents(data_path: str, request_id: str) -> list[Document]:
+def load_documents(data_path: str, request_id: str) -> list[Document]:
     # Carga de documentos 
     print(f"\n📂 Cargando documentos desde: {data_path}")
     
-    logger.info("ℹ️ Iniciando carga de documentos PDF",data_path=data_path,request_id=request_id,source="qdrant")
+    logger.info("ℹ️ Iniciando carga de documentos ",data_path=data_path,request_id=request_id,source="qdrant")
 
-    try:
-        pdf_files = sorted(glob(os.path.join(data_path, "*.pdf")))
-        print(f"📄 Total de archivos PDF encontrados: {len(pdf_files)}")
-        logger.info(f"📄 Total de archivos PDF encontrados: {len(pdf_files)}",source="qdrant")
-        documents = []
+    documents = []
 
-        for pdf_file in pdf_files:
+    pdf_files = sorted(glob(os.path.join(data_path, "**/*.pdf"), recursive=True))
+    print(f"📄 Total de archivos PDF encontrados: {len(pdf_files)}")
+    logger.info(f"📄 Total de archivos PDF encontrados: {len(pdf_files)}",source="qdrant")
+
+    for pdf_file in pdf_files:
+        try:
             loader = PyPDFLoader(pdf_file)
             pages = loader.load()
             combined_content = "\n\n".join([page.page_content for page in pages])
             file_name = os.path.basename(pdf_file)
             source_name = os.path.splitext(file_name)[0]
+        
             metadata = extract_pdf_metadata(pdf_file, file_name, len(pages), request_id)
-            metadata['source'] = source_name
-            metadata['file_path'] = pdf_file
-            metadata['num_pages'] = len(pages)
+            
+            # Actualizar metadata con info adicional
+            metadata.update({
+            'source': source_name,
+            'file_path': pdf_file,
+            'num_pages': len(pages),
+            'file_type': 'pdf'
+            })
+            if not combined_content.strip():
+                logger.info("⚠️ Documento PDF vacío, ignorado", archivo=file_name, request_id=request_id, source="qdrant")
+                continue
             doc = Document(page_content=combined_content, metadata=metadata)
             documents.append(doc)
-
-        print(f"📄 Total de documentos cargados: {len(documents)}")
-        logger.info("📄 PDF cargado exitosamente",archivo=file_name,paginas=len(pages),request_id=request_id,source="qdrant")
-    except Exception as e:
-        logger.error("❌ Error cargando PDF individual",archivo=os.path.basename(pdf_file),error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
+            logger.info("PDF cargado exitosamente", archivo=file_name, paginas=len(pages), request_id=request_id, source="qdrant")
+        except Exception as e:
+            logger.error("❌ Error cargando PDF individual", archivo=os.path.basename(pdf_file), error=str(e), tipo_error=type(e).__name__, request_id=request_id, source="qdrant")
+            continue
+        
+    # TF (.tf)
+    tf_files = sorted(glob(os.path.join(data_path, "*.tf")))
+    print(f"📄 Total de archivos .tf encontrados: {len(tf_files)}")
+    for tf_file in tf_files:
+        try:
+            with open(tf_file, 'r', encoding="utf-8") as f:
+                content = f.read()
+            file_name = os.path.basename(tf_file)
+            metadata = {
+                "source": file_name,
+                "file_type": "terraform",
+                "file_path": tf_file,
+            }
+            
+            if content.strip() == "":
+                logger.warning("Archivo TF vacío, ignorado", archivo=file_name, request_id=request_id, source="qdrant")
+                continue
+            
+            doc = Document(page_content=content, metadata=metadata)
+            documents.append(doc)
+            logger.info("📄 Archivo TF cargado exitosamente", archivo=file_name, request_id=request_id, source="qdrant")
+        except Exception as e:
+            logger.error("❌ Error cargando TF individual", archivo=os.path.basename(tf_file), error=str(e), tipo_error=type(e).__name__, request_id=request_id, source="qdrant")
+            continue
     
+    #  Markdown (.md) 
+    md_files = sorted(glob(os.path.join(data_path, "*.md")))
+    print(f"📄 Total de archivos .md encontrados: {len(md_files)}")
+    
+    for md_file in md_files:
+        file_name = os.path.basename(md_file)
+        try:
+            loader = MarkdownLoader(md_file)
+            md_docs = loader.load()
+            
+            if not md_docs:
+                logger.warning("Archivo Markdown vacío, ignorado", archivo=file_name, request_id=request_id, source="qdrant")
+                continue
+            
+            for doc in md_docs:
+                doc.metadata.update({
+                    "source": file_name,
+                    "file_type": "markdown",
+                    "file_path": md_file,
+                })
+                if doc.page_content.strip():
+                    documents.append(doc)
+            
+            logger.info("📝 Archivo MD cargado exitosamente", archivo=file_name, chunks=len(md_docs), request_id=request_id, source="qdrant")
+            
+        except Exception as e:
+            logger.error("❌ Error cargando archivo MD", archivo=file_name, error=str(e), tipo_error=type(e).__name__, request_id=request_id, source="qdrant")
+            continue
+
     logger.info("✅ Carga de documentos completada",total_documentos=len(documents),request_id=request_id,source="qdrant")
         
     return documents
@@ -75,7 +138,7 @@ def extract_pdf_metadata(pdf_file: str, file_name: str, num_pages: int,request_i
                 logger.info("Rango de páginas detectado",archivo=file_name,rango=pages_range,request_id=request_id,source="qdrant")
     except Exception as e:
         print(f"⚠️  No se pudo leer metadatos de {file_name}: {e}")
-        logger.warning("⚠️ No se pudo leer metadatos del PDF",archivo=file_name,error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
+        logger.info("⚠️ No se pudo leer metadatos del PDF",archivo=file_name,error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
     return metadata
 
 
@@ -130,6 +193,9 @@ def index_documents(qdrant_client: QdrantClient,request_id: str, documents: list
         
         for i, document in enumerate(documents, 1):
             try:
+                if not document.page_content.strip():
+                    logger.warning("🔎 Documento vacío ignorado", doc_id=document.metadata.get('doc_id', 'desconocido'), request_id=request_id, source="qdrant")
+                    continue
                 start_time = time.time()
                 doc_id = str(uuid4())
                 document.metadata['doc_id'] = doc_id
@@ -137,7 +203,10 @@ def index_documents(qdrant_client: QdrantClient,request_id: str, documents: list
                 pages_info = f"({document.metadata.get('num_pages', '?')} páginas)"
                 original_pages = document.metadata.get('original_pages_range')
                 original_pages_info = f" | Págs. originales: {original_pages}" if original_pages else ""
-                print(f"   [{i}/{len(documents)}] ✅ ID: {doc_id[:8]}... | {document.metadata.get('source', 'documento')} {pages_info}{original_pages_info}")
+                
+                file_type = document.metadata.get("file_type", "desconocido")
+                source_name = document.metadata.get("source", "documento")
+                print(f"   [{i}/{len(documents)}] ✅ ID: {doc_id[:8]}... | {source_name} [{file_type}] {pages_info}{original_pages_info}")
                 duration = time.time() - start_time
                 logger.info("✅ Documento indexado exitosamente",numero=f"{i}/{len(documents)}",doc_id=doc_id[:8],paginas=pages_info,paginas_originales=original_pages,duration=f"{duration:.3f}s",request_id=request_id,source="qdrant",process_time=f"{duration:.3f}s")
                 indexed_count += 1
@@ -153,7 +222,7 @@ def index_documents(qdrant_client: QdrantClient,request_id: str, documents: list
             logger.warning("Indexación completada con errores",indexados=indexed_count,errores=errors_count,request_id=request_id,source="qdrant")
      
     except Exception as e:
-        logger.error("❌ Error crítico durante indexación",collection_name=collection_name,error=str(e),tipo_error=type(e).__name__,request_id=request_id,source="qdrant")
+        logger.error("❌ Error crítico durante indexación",collection_name=collection_name,error=str(e),tipo_error=type(e).__name__,request_id=request_id, source="qdrant")
         raise
 
 
@@ -169,7 +238,7 @@ def main():
     print("=" * 60)
     
     try: 
-        data_path = os.path.join(os.path.dirname(__file__), '../../data/optimized_chunks/Libro-TF')
+        data_path = os.path.join(os.path.dirname(__file__), '../../data')
         collection_name = "Terraform_Book_Index"
 
         # Crear cliente Qdrant localmente para evitar ejecutar código de inicialización
@@ -179,7 +248,7 @@ def main():
 
         logger.info("Conexión a Qdrant establecida",url=qdrant_url,request_id=request_id,source="qdrant")
         # 1. Cargar documentos
-        documents = load_pdf_documents(data_path, request_id)
+        documents = load_documents(data_path, request_id)
         if not documents:
             logger.error("No se cargaron documentos",data_path=data_path,request_id=request_id,source="qdrant")
             return

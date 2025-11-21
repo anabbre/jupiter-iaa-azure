@@ -40,7 +40,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if USE_LLM else None
 
 # Helpers LLM 
 MIN_SCORE_THRESHOLD = 0.5  # Score mínimo de similitud (0-1)
-MIN_RESULTS_REQUIRED = 1   # Mínimo de resultados relevantes
+MIN_RESULTS_REQUIRED = 0   # Mínimo de resultados relevantes
 MAX_CONTEXT_CHARS = 6000  # límite de contexto para el prompt
 CODE_LANG = "hcl"         # resaltado para Terraform
 
@@ -308,3 +308,156 @@ async def query_endpoint(request: QueryRequest):
             error_message=str(e)
         )
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/debug/qdrant-status")
+async def debug_qdrant_status():
+    """Verifica estado y cantidad de documentos en Qdrant"""
+    try:
+        from src.services.vector_store import qdrant_vector_store
+        
+        # Intentar obtener info de la colección
+        collection_info = qdrant_vector_store.client.get_collection(
+            collection_name=qdrant_vector_store.collection_name
+        )
+        
+        logger.info(
+            f"📊 Info Qdrant obtenida",
+            source="api",
+            collection_name=qdrant_vector_store.collection_name,
+            points_count=collection_info.points_count
+        )
+        
+        return {
+            "status": "connected",
+            "collection": qdrant_vector_store.collection_name,
+            "points_count": collection_info.points_count,
+            "vectors_count": collection_info.vectors_count,
+            "url": qdrant_vector_store.client.url
+        }
+    except Exception as e:
+        logger.error(f"❌ Error verificando Qdrant: {e}", source="api")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+@app.post("/debug/test-search")
+async def debug_test_search(question: str = "What is terraform?"):
+    """
+    Prueba la búsqueda en Qdrant directamente
+    Muestra exactamente qué retorna search_examples()
+    """
+    try:
+        logger.info(
+            f"🔍 Test search iniciado",
+            source="api",
+            question=question
+        )
+        
+        from src.services.search import search_examples
+        
+        # Llamar search_examples directamente
+        hits = search_examples(query=question, k=5, threshold=0.0)
+        
+        logger.info(
+            f"Test search completado",
+            source="api",
+            hits_count=len(hits),
+            first_hit=str(hits[0]) if hits else "NO HITS"
+        )
+        
+        return {
+            "question": question,
+            "hits_count": len(hits),
+            "hits": hits,
+            "raw_data": [
+                {
+                    "name": h.get("name"),
+                    "score": h.get("score"),
+                    "doc_type": h.get("doc_type"),
+                    "path": h.get("path")
+                }
+                for h in hits
+            ]
+        }
+    except Exception as e:
+        logger.error(
+            f"❌ Error en test search: {e}",
+            source="api",
+            error_type=type(e).__name__
+        )
+        return {
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
+
+@app.post("/debug/vector-store-search")
+async def debug_vector_store_search(question: str = "What is terraform?"):
+    """
+    Prueba directamente qdrant_vector_store.similarity_search()
+    (Sin procesamiento de search_examples)
+    """
+    try:
+        logger.info(
+            f"🔍 Vector store search iniciado",
+            source="api",
+            question=question
+        )
+        
+        from src.services.vector_store import qdrant_vector_store
+        
+        # Llamar directamente
+        docs = qdrant_vector_store.similarity_search(question, k=5)
+        
+        logger.info(
+            f"Vector store search completado",
+            source="api",
+            docs_count=len(docs)
+        )
+        
+        return {
+            "question": question,
+            "docs_count": len(docs),
+            "docs": [
+                {
+                    "page_content": d.page_content[:200] if d.page_content else "",
+                    "metadata": d.metadata
+                }
+                for d in docs
+            ]
+        }
+    except Exception as e:
+        logger.error(
+            f"❌ Error en vector store search: {e}",
+            source="api",
+            error_type=type(e).__name__
+        )
+        return {
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
+
+@app.get("/debug/embeddings-model")
+async def debug_embeddings_model():
+    """Verifica qué modelo de embeddings está en uso"""
+    try:
+        from src.services.embeddings import embeddings_model
+        
+        logger.info(
+            f"📦 Info modelo embeddings",
+            source="api"
+        )
+        
+        return {
+            "status": "ok",
+            "model": str(embeddings_model),
+            "model_type": type(embeddings_model).__name__
+        }
+    except Exception as e:
+        logger.error(f"❌ Error verificando embeddings: {e}", source="api")
+        return {
+            "error": str(e)
+        }

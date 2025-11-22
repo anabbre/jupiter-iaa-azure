@@ -10,7 +10,7 @@ from config.logger_config import logger, get_request_id, set_request_id
 
 
 load_dotenv()
-QDRANT_URL = "http://qdrant:6333"
+QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 MANIFEST_PATH = os.getenv("EXAMPLES_MANIFEST", "docs/examples/manifest.yaml")
 

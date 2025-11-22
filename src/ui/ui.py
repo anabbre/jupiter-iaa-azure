@@ -299,7 +299,8 @@ if __name__ == "__main__":
     logger.info("🚀 Iniciando Gradio UI", puerto=7860)
     app.launch(
         debug=True,
-        share=False,
+        share=True,
         server_name="0.0.0.0",
-        server_port=7860
+        server_port=7860,
+        show_api=False
     )

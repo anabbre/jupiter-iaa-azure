@@ -2,8 +2,19 @@
 """
 Define el estado del grafo - aquí agregarás más campos según necesites
 """
+
 from typing import TypedDict, List, Optional, Annotated, Dict, Any
 from operator import add
+from dataclasses import dataclass
+
+# Clase para documentos con score de relevancia (usada en retrieval.py)
+@dataclass
+class DocumentScore:
+    content: str
+    metadata: dict
+    relevance_score: float
+    source: str
+    line_number: Optional[int] = None
 
 class AgentState(TypedDict):
     """Estado compartido entre todos los nodos del grafo"""

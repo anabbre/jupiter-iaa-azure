@@ -21,7 +21,7 @@ pypika
 langchain-core
 qdrant-client
 langchain-qdrant
-gradio
+gradio==4.44.0
 gradio-client
 langchain-google-genai
 PyYAML

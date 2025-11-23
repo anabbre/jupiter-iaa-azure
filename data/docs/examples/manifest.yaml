@@ -4,52 +4,52 @@ embeddings_model: intfloat/multilingual-e5-small
 examples:
   - id: ex01
     name: storage-static-website
-    path: docs/examples/azure-static-site/01-storage-static-website
+    path: data/docs/examples/azure-static-site/01-storage-static-website
     tags: [azure, static-site, storage]
 
   - id: ex02
     name: storage-cdn
-    path: docs/examples/azure-static-site/02-storage+cdn
+    path: data/docs/examples/azure-static-site/02-storage+cdn
     tags: [azure, static-site, cdn]
 
   - id: ex03
     name: frontdoor-static
-    path: docs/examples/azure-static-site/03-frontdoor-static
+    path: data/docs/examples/azure-static-site/03-frontdoor-static
     tags: [azure, static-site, frontdoor]
 
   - id: ex04
     name: static-site-app-service
-    path: docs/examples/azure-static-site/04-static-site-app-service
+    path: data/docs/examples/azure-static-site/04-static-site-app-service
     tags: [azure, static-site, app-service]
 
   - id: ex05
     name: static-site-custom-domain
-    path: docs/examples/azure-static-site/05-static-site+custom-domain
+    path: data/docs/examples/azure-static-site/05-static-site+custom-domain
     tags: [azure, static-site, custom-domain]
 
   - id: ex06
     name: static-site-https
-    path: docs/examples/azure-static-site/06-static-site+https
+    path: data/docs/examples/azure-static-site/06-static-site+https
     tags: [azure, static-site, https]
 
   - id: ex07
     name: static-site-logging
-    path: docs/examples/azure-static-site/07-static-site+logging
+    path: data/docs/examples/azure-static-site/07-static-site+logging
     tags: [azure, static-site, logging]
 
   - id: ex08
     name: static-site-diagnostics
-    path: docs/examples/azure-static-site/08-static-site+diagnostics
+    path: data/docs/examples/azure-static-site/08-static-site+diagnostics
     tags: [azure, static-site, diagnostics]
 
   - id: ex09
     name: static-site-alerts
-    path: docs/examples/azure-static-site/09-static-site+alerts
+    path: data/docs/examples/azure-static-site/09-static-site+alerts
     tags: [azure, static-site, alerts]
 
   - id: ex10
     name: static-site-tfvars-ejemplo
-    path: docs/examples/azure-static-site/10-static-site+tfvars-ejemplo
+    path: data/docs/examples/azure-static-site/10-static-site+tfvars-ejemplo
     tags: [azure, static-site, tfvars]
 
   - id: tfbook

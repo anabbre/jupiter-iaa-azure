@@ -13,7 +13,7 @@ class PDFSchemaService:
     """Servicio para extraer esquemas de archivos PDF"""
 
     # Desde scripts/ -> subir 1 nivel hasta la raíz del proyecto
-    DATA_DIR = Path(__file__).parents[2] / "data"
+    DATA_DIR = Path(__file__).parents[2] / "data" / "pdfs"
 
 
     @staticmethod

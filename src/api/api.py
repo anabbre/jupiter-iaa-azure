@@ -270,7 +270,7 @@ async def query_endpoint(request: QueryRequest):
         response_time_ms = (time.time() - start_time) * 1000
         
         # 📝 REGISTRAR RESPUESTA EXITOSA
-        logger.info(question=request.question,answer=answer,is_valid=is_valid,sources_count=len(sources),response_time_ms=response_time_ms)
+        logger.info("📝 Respuesta exitosa", question=request.question, answer=answer, is_valid=is_valid, sources_count=len(sources), response_time_ms=response_time_ms)
         print ("\n\nPregunta:", request.question)
         print ("\n\nRespuesta:", answer)
         print ("\n\nFuentes:", sources)

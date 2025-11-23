@@ -27,7 +27,7 @@ import argparse
 load_dotenv()
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-MANIFEST_PATH = os.getenv("EXAMPLES_MANIFEST", "docs/examples/manifest.yaml")
+MANIFEST_PATH = os.getenv("EXAMPLES_MANIFEST", "data/docs/examples/manifest.yaml")
 
 TEXT_EXTS = {".tf", ".md", ".txt", ".yaml", ".yml", ".tfvars", ".sh"}
 splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120)

@@ -172,16 +172,6 @@ logger.add(
     retention="7 days"
 )
 
-# Log de Conversaciones (preguntas y respuestas)
-logger.add(
-    "logs/conversations/conversations.json",
-    format="{extra[serialized]}\n",
-    level="INFO",
-    filter=lambda record: record["extra"].get("source") == "conversation",
-    rotation="50 MB",
-    retention="30 days"
-)
-
 # Recuperar logs FastAPI
 class InterceptHandler(logging.Handler):
     """

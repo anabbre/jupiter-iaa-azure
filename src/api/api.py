@@ -12,7 +12,6 @@ from src.services.vector_store import qdrant_vector_store
 from src.api.schemas import QueryRequest, QueryResponse, HealthResponse, SourceInfo
 from src.Agent.graph import Agent  
 from config.logger_config import logger
-# from src.services.conversation_store import log_query, log_response, log_error
 
 # OpenAI (v1 SDK). Si no hay API key, haremos fallback.
 from openai import OpenAI

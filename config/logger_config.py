@@ -70,6 +70,7 @@ def serialize(record):
         "session_id": get_session_id(),
         "extra": record["extra"]
     }
+    print(f"{log_record['timestamp']} | {log_record['level']} | {log_record['module']}:{log_record['function']}:{log_record['line']} | {log_record['message']}")
     if record["exception"]:
         exc = record["exception"]
         log_record["exception"] = {
@@ -79,23 +80,89 @@ def serialize(record):
         }
     return json.dumps(log_record, ensure_ascii=False, default=default_handler)
 
+def serialize_visual(record):
+    """
+    Serializa el registro de log en un formato visual y legible.
+    """
+    log_record = [
+        f"[{record['time'].strftime('%Y-%m-%d %H:%M:%S')}] [{record['level'].name}]",
+        f"Module: {record['module']} | Function: {record['function']} | Line: {record['line']}",
+        f"Request ID: {get_request_id()} | Session ID: {get_session_id()}",
+        f"Message: {record['message']}"
+    ]
+
+    if record["exception"]:
+        exc = record["exception"]
+        log_record.append("Exception:")
+        log_record.append(f"  Type: {exc.type.__name__}")
+        log_record.append(f"  Value: {exc.value}")
+        log_record.append("  Traceback:")
+        log_record.append("    " + "\n    ".join(traceback.format_exception(exc.type, exc.value, exc.traceback)))
+
+    if record["extra"]:
+        log_record.append("Extra:")
+        for key, value in record["extra"].items():
+            log_record.append(f"  {key}: {value}")
+
+    return "\n".join(log_record)
+
+def serialize_compact(record):
+    """
+    Serializa el registro de log en un formato compacto y legible en una o dos líneas.
+    """
+    log_record = (
+        f"[{record['time'].strftime('%Y-%m-%d %H:%M:%S')}] [{record['level'].name}] "
+        f"Module: {record['module']} | Function: {record['function']} | Line: {record['line']} | "
+        f"Request ID: {get_request_id()} | Session ID: {get_session_id()} | "
+        f"Message: {record['message']}"
+    )
+
+    if record["exception"]:
+        exc = record["exception"]
+        traceback_str = " ".join(traceback.format_exception(exc.type, exc.value, exc.traceback)).replace("\n", " ")
+        log_record += (
+            f" | Exception: Type: {exc.type.__name__}, Value: {exc.value}, Traceback: {traceback_str}"
+        )
+
+    if record["extra"]:
+        extra_data = ", ".join([f"{key}: {value}" for key, value in record["extra"].items()])
+        log_record += f" | Extra: {extra_data}"
+
+    return log_record
+
 # Patch para añadir campo 'serialized' con JSON
 def patching(record):
     # agrega el campo serializado
     record["extra"]["serialized"] = serialize(record)
 
-# ======== Inicializar logger global ========= 
+# Patch para añadir campo 'serialized' con formato visual
+
+def patching_visual(record):
+    """
+    Agrega el campo serializado con formato visual.
+    """
+    record["extra"]["serialized"] = serialize_visual(record)
+
+# Patch para añadir campo 'serialized' con formato compacto
+
+def patching_compact(record):
+    """
+    Agrega el campo serializado con formato compacto.
+    """
+    record["extra"]["serialized"] = serialize_compact(record)
+
+# Reemplazar el logger global con el nuevo formato compacto
 logger.remove()  # Elimina la configuración por defecto
-logger = logger.patch(patching)
+logger = logger.patch(patching_compact)
 
-# handler para consola
-logger.add(sys.stderr, level="DEBUG", format="{extra[serialized]}")
+# handler para consola con formato compacto
+logger.add(sys.stderr, level="DEBUG", format="{extra[serialized]}\n")
 
-# ============ ARCHIVOS DE LOGS ============
+# ============ ARCHIVOS DE LOGS CON FORMATO COMPACTO ============
 
 # Log solo de errores
 logger.add(
-    "logs/errors.json",
+    "logs/errors.log",
     format="{extra[serialized]}\n",
     level="ERROR",
     rotation="20 MB",
@@ -104,7 +171,7 @@ logger.add(
 
 # Log timing
 logger.add(
-    "logs/performance.json",
+    "logs/performance.log",
     format="{extra[serialized]}\n",
     level="INFO",
     filter=lambda record: "process_time" in record["extra"] or "duration" in record["extra"],
@@ -114,7 +181,7 @@ logger.add(
 
 # Log API (requests/responses)
 logger.add(
-    "logs/api/api.json",
+    "logs/api/api.log",
     format="{extra[serialized]}\n",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "api",
@@ -124,7 +191,7 @@ logger.add(
 
 # Log LangGraph
 logger.add(
-    "logs/agent/agent.json",
+    "logs/agent/agent.log",
     format="{extra[serialized]}\n",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "agent",
@@ -132,19 +199,19 @@ logger.add(
     retention="7 days"
 )
 
-
 # Log UI/Gradio
 logger.add(
-    "logs/ui/ui.json",
+    "logs/ui/ui.log",
     format="{extra[serialized]}\n",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "ui",
     rotation="20 MB",
     retention="7 days"
 )
+
 # Log de PDF Extractor
 logger.add(
-    "logs/pdf/extractor.json",
+    "logs/pdf/extractor.log",
     format="{extra[serialized]}\n",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "pdf_extractor",
@@ -154,7 +221,7 @@ logger.add(
 
 # Log de PDF Schema
 logger.add(
-    "logs/pdf/pdf_schema.json",
+    "logs/pdf/pdf_schema.log",
     format="{extra[serialized]}\n",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "pdf_schema",
@@ -164,22 +231,12 @@ logger.add(
 
 # Log de Qdrant Indexing
 logger.add(
-    "logs/qdrant/qdrant.json",
+    "logs/qdrant/qdrant.log",
     format="{extra[serialized]}\n",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "qdrant",
     rotation="20 MB",
     retention="7 days"
-)
-
-# Log de Conversaciones (preguntas y respuestas)
-logger.add(
-    "logs/conversations/conversations.json",
-    format="{extra[serialized]}\n",
-    level="INFO",
-    filter=lambda record: record["extra"].get("source") == "conversation",
-    rotation="50 MB",
-    retention="30 days"
 )
 
 # Recuperar logs FastAPI
@@ -231,4 +288,4 @@ for logger_name in LOGGERS_TO_INTERCEPT:
     logging_logger = logging.getLogger(logger_name)
     logging_logger.handlers = [InterceptHandler()]
     logging_logger.setLevel(logging.DEBUG)
-    
+

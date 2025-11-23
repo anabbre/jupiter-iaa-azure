@@ -236,13 +236,7 @@ async def query_endpoint(request: QueryRequest):
             response_time_ms = (time.time() - start_time) * 1000
             answer = f"❌ {validation_msg}"
             #  RESPUESTA RECHAZADA
-            log_response(
-                question=request.question,
-                answer=answer,
-                is_valid=False,
-                sources_count=0,
-                response_time_ms=response_time_ms
-            )
+            logger.info("⚠️ Respuesta rechazada",source="api",question=request.question[:100],answer_length=len(answer),is_valid=False,sources_count=0,response_time_ms=round(response_time_ms, 2))
             # Retornar respuesta clara de rechazo
             return QueryResponse(
                 answer=f"❌ {validation_msg}",
@@ -269,19 +263,13 @@ async def query_endpoint(request: QueryRequest):
         context = _trim_context(context_snippets, MAX_CONTEXT_CHARS)
         logger.info(f"⌛ Generando respuesta",source="api",context_size=len(context) )
         
-        answer = _llm_answer_no_hallucination(request.question, context)
+        answer = _llm_answer_no_hallucination(request.question, context, hits)
         logger.info(f"✅ Respuesta generada",source="api",question=request.question )
         
         response_time_ms = (time.time() - start_time) * 1000
         
         # 📝 REGISTRAR RESPUESTA EXITOSA
-        log_response(
-            question=request.question,
-            answer=answer,
-            is_valid=is_valid,
-            sources_count=len(sources),
-            response_time_ms=response_time_ms
-        )
+        logger.info(question=request.question,answer=answer,is_valid=is_valid,sources_count=len(sources),response_time_ms=response_time_ms)
         print ("\n\nPregunta:", request.question)
         print ("\n\nRespuesta:", answer)
         print ("\n\nFuentes:", sources)
@@ -298,14 +286,7 @@ async def query_endpoint(request: QueryRequest):
     except HTTPException:
             raise
     except Exception as e:
-        logger.error(f"❌ Error en /query: {e}",source="api",error_type=type(e).__name__)
-        
-        # REGISTRAR ERROR conver
-        log_error(
-            question=request.question if 'request' in locals() and hasattr(request, 'question') else "desconocida",
-            error_type=type(e).__name__,
-            error_message=str(e)
-        )
+        logger.error("❌ Error crítico en /query",source="api",question=request.question[:100] if hasattr(request, 'question') else "desconocida",error_type=type(e).__name__,error_message=str(e))   
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/debug/qdrant-status")

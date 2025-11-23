@@ -5,23 +5,23 @@ Define el estado del grafo - aquí agregarás más campos según necesites
 
 from typing import TypedDict, List, Optional, Annotated, Dict, Any
 from operator import add
-from dataclasses import dataclass
+from dataclasses import dataclass 
 
-# Clase para documentos con score de relevancia (usada en retrieval.py)
 @dataclass
 class DocumentScore:
+    """Documento con score de relevancia"""
     content: str
-    metadata: dict
+    metadata: Dict[str, Any]
     relevance_score: float
     source: str
     line_number: Optional[int] = None
-
 class AgentState(TypedDict):
     """Estado compartido entre todos los nodos del grafo"""
     # Input
     question: str
 
     # Retrieval
+    raw_documents: List[DocumentScore]
     documents: List[str]
     documents_metadata: List[Dict[str, Any]]
 

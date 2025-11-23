@@ -156,14 +156,14 @@ logger.remove()  # Elimina la configuración por defecto
 logger = logger.patch(patching_compact)
 
 # handler para consola con formato compacto
-logger.add(sys.stderr, level="DEBUG", format="{extra[serialized]}\n")
+logger.add(sys.stderr, level="DEBUG", format="{extra[serialized]}")
 
 # ============ ARCHIVOS DE LOGS CON FORMATO COMPACTO ============
 
 # Log solo de errores
 logger.add(
     "logs/errors.log",
-    format="{extra[serialized]}\n",
+    format="{extra[serialized]}",
     level="ERROR",
     rotation="20 MB",
     retention="7 days"
@@ -172,7 +172,7 @@ logger.add(
 # Log timing
 logger.add(
     "logs/performance.log",
-    format="{extra[serialized]}\n",
+    format="{extra[serialized]}",
     level="INFO",
     filter=lambda record: "process_time" in record["extra"] or "duration" in record["extra"],
     rotation="20 MB",
@@ -182,7 +182,7 @@ logger.add(
 # Log API (requests/responses)
 logger.add(
     "logs/api/api.log",
-    format="{extra[serialized]}\n",
+    format="{extra[serialized]}",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "api",
     rotation="20 MB",
@@ -192,7 +192,7 @@ logger.add(
 # Log LangGraph
 logger.add(
     "logs/agent/agent.log",
-    format="{extra[serialized]}\n",
+    format="{extra[serialized]}",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "agent",
     rotation="20 MB",
@@ -202,7 +202,7 @@ logger.add(
 # Log UI/Gradio
 logger.add(
     "logs/ui/ui.log",
-    format="{extra[serialized]}\n",
+    format="{extra[serialized]}",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "ui",
     rotation="20 MB",
@@ -212,7 +212,7 @@ logger.add(
 # Log de PDF Extractor
 logger.add(
     "logs/pdf/extractor.log",
-    format="{extra[serialized]}\n",
+    format="{extra[serialized]}",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "pdf_extractor",
     rotation="20 MB",
@@ -222,7 +222,7 @@ logger.add(
 # Log de PDF Schema
 logger.add(
     "logs/pdf/pdf_schema.log",
-    format="{extra[serialized]}\n",
+    format="{extra[serialized]}",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "pdf_schema",
     rotation="20 MB",
@@ -232,7 +232,7 @@ logger.add(
 # Log de Qdrant Indexing
 logger.add(
     "logs/qdrant/qdrant.log",
-    format="{extra[serialized]}\n",
+    format="{extra[serialized]}",
     level="INFO",
     filter=lambda record: record["extra"].get("source") == "qdrant",
     rotation="20 MB",

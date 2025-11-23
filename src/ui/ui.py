@@ -28,8 +28,9 @@ def get_api_response(pregunta: str) -> dict:
             timeout=60
         )
         response.raise_for_status()
-        logger.info("ℹ️ Respuesta recibida de API",status_code=response.status_code,tiene_fuentes=bool(response.get("sources"),), source="ui")
-        return response.json()
+        response_data = response.json()
+        logger.info("ℹ️ Respuesta recibida de API", status_code=response.status_code, tiene_fuentes=bool(response_data.get("sources")), source="ui")
+        return response_data
 
     
     except requests.exceptions.ConnectionError:

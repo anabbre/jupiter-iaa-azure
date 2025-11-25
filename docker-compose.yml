@@ -12,6 +12,12 @@ services:
     restart: always
     networks:
       - terraform-rag-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
 
   api:
     build:
@@ -37,6 +43,12 @@ services:
     restart: always
     networks:
       - terraform-rag-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+        compress: "true"
 
   ui:
     build:
@@ -63,6 +75,12 @@ services:
     restart: always
     networks:
       - terraform-rag-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
 
 volumes:
   qdrant_storage:

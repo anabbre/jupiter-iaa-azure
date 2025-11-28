@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 
-from src.config import SETTINGS
+from config.config import SETTINGS
 
 load_dotenv()
 

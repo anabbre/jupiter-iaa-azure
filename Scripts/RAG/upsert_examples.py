@@ -11,7 +11,7 @@ import time
 from typing import Dict, Any, List
 
 from src.services.embeddings import embeddings_model
-from src.config import SETTINGS
+from config.config import SETTINGS
 from config.logger_config import logger, get_request_id, set_request_id
 
 # Usamos directamente las clases de LangChain para Qdrant,

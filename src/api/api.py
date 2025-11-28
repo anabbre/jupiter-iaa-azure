@@ -2,19 +2,27 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-
-from src.config import SETTINGS
+import sys
+from src.Agent.graph import Agent
+sys.path.append('/app')  # Asegura que /app esté en PYTHONPATH
+from config.config import SETTINGS
 from src.services.search import search_examples
-from src.services.vector_store import qdrant_vector_store
-from src.api.schemas import QueryRequest, QueryResponse, HealthResponse, SourceInfo
-from src.Agent.graph import Agent  
 from config.logger_config import logger
-
+from src.services.vector_store import vector_store as qdrant_vector_store
+from src.services.search import search_examples
+from src.services.embeddings import embeddings_model
 # OpenAI (v1 SDK). Si no hay API key, haremos fallback.
 from openai import OpenAI
+from .schemas import (
+    HealthResponse,
+    QueryRequest,
+    QueryResponse,
+    SourceInfo,
+)
+
+
 
 app = FastAPI(
     title="Terraform RAG Assistant API",
@@ -103,46 +111,6 @@ def _validate_results_quality(hits: List[dict], min_threshold: float = MIN_SCORE
         )
     
     return True, "OK"
-
-
-# def _llm_answer(question: str, context: str) -> str:
-#     """
-#     Si hay OPENAI_API_KEY usa el LLM. Si no, devuelve fallback con snippets.
-#     """
-#     if not USE_LLM:
-#         # Fallback: muestra instrucciones + el mejor contexto en bloque de código
-#         return (
-#             "No tengo acceso al LLM en este entorno, te propongo este fragmento "
-#             "extraído de los ejemplos para que lo adaptes:\n\n"
-#             f"```{CODE_LANG}\n{context[:1200]}\n```"
-#         )
-
-#     system = (
-#         "Eres un asistente DevOps experto en Terraform. Responde SOLO con HCL válido "
-#         "cuando el usuario pida código. Usa el contexto proporcionado, no inventes "
-#         "recursos ni nombres que no estén en el contexto. Si faltan datos, indícalo brevemente."
-#     )
-
-#     user = (
-#         f"Pregunta: {question}\n\n"
-#         "Genera un bloque HCL conciso (y opcionalmente variables/locales) basado en el contexto.\n"
-#         "Si el tema es habilitar HTTPS en Azure Static Web Apps, incluye los recursos y referencias mínimas.\n\n"
-#         "Contexto:\n"
-#         f"{context}"
-#     )
-
-#     # Modelo ligero recomendado para código+instrucciones
-#     resp = openai_client.chat.completions.create(
-#         model="gpt-4o-mini",
-#         temperature=SETTINGS.LLM_TEMPERATURE,
-#         messages=[
-#             {"role": "system", "content": system},
-#             {"role": "user", "content": user},
-#         ],
-#     )
-
-#     text = resp.choices[0].message.content.strip()
-#     return text
 
 def _llm_answer_no_hallucination(question: str, context: str, hits: List[dict]) -> str:
     """
@@ -269,7 +237,8 @@ async def query_endpoint(request: QueryRequest):
         response_time_ms = (time.time() - start_time) * 1000
         
         # 📝 REGISTRAR RESPUESTA EXITOSA
-        logger.info(question=request.question,answer=answer,is_valid=is_valid,sources_count=len(sources),response_time_ms=response_time_ms)
+        logger.info("📊 Respuesta completada", source="api", question=request.question, answer_length=len(answer), is_valid=is_valid, response_time_ms=response_time_ms)
+        
         print ("\n\nPregunta:", request.question)
         print ("\n\nRespuesta:", answer)
         print ("\n\nFuentes:", sources)
@@ -329,15 +298,9 @@ async def debug_test_search(question: str = "What is terraform?"):
     Muestra exactamente qué retorna search_examples()
     """
     try:
-        logger.info(
-            f"🔍 Test search iniciado",
-            source="api",
-            question=question
-        )
-        
+        logger.info(f"🔍 Test search iniciado",source="api",question=question)
         from src.services.search import search_examples
-        
-        # Llamar search_examples directamente
+        # Llamar search_examples d irectamente
         hits = search_examples(query=question, k=5, threshold=0.0)
         
         logger.info(
@@ -426,10 +389,7 @@ async def debug_embeddings_model():
     try:
         from src.services.embeddings import embeddings_model
         
-        logger.info(
-            f"📦 Info modelo embeddings",
-            source="api"
-        )
+        logger.info(f"📦 Info modelo embeddings",source="api")
         
         return {
             "status": "ok",

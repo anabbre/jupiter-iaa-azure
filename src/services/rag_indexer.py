@@ -13,11 +13,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 import hashlib
 import re
+from qdrant_client import QdrantClient
+from services.vector_store import (
+    ensure_collection, add_documents_to_collection, delete_collection
+)
 
 from dotenv import load_dotenv
-from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance
-from langchain_qdrant import QdrantVectorStore
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -117,8 +118,23 @@ class MetadataEnricher:
             "modules": [],
             "has_variables": False,
             "has_outputs": False,
-            "has_locals": False
+            "has_locals": False,
+            "cloud_provider": "unknown",
+            "azure_resources": []
         }
+        
+        # Detectar provider
+        if "azurerm" in content:
+            metadata["cloud_provider"] = "azure"
+        elif "aws" in content:
+            metadata["cloud_provider"] = "aws"
+        elif "google" in content:
+            metadata["cloud_provider"] = "gcp"
+            
+        # Extraer recursos de Azure específicos
+        azure_pattern = r'resource\s+"azurerm_([^"]+)"'
+        azure_resources = re.findall(azure_pattern, content)
+        metadata["azure_resources"] = list(set(azure_resources))
         
         # Extraer tipos de recursos
         resource_pattern = r'resource\s+"([^"]+)"\s+"([^"]+)"'
@@ -245,11 +261,12 @@ class DocumentLoader:
         
         return documents
     
+    
     def load_terraform_files(self, tf_dir: Path, is_example: bool = False) -> List[Document]:
-        """Carga archivos Terraform"""
+        """Carga archivos Terraform SIN CHUNKING (archivos completos)"""
         documents = []
         tf_files = sorted(tf_dir.glob("**/*.tf"))
-        logger.info(f"🔧 Cargando {len(tf_files)} archivos Terraform", source="qdrant", tf_count=len(tf_files), is_example = is_example)
+        logger.info(f"🔧 Cargando {len(tf_files)} archivos Terraform", source="qdrant", tf_count=len(tf_files), is_example=is_example)
         
         # Cargar y procesar cada TF
         for tf_file in tf_files:
@@ -264,40 +281,47 @@ class DocumentLoader:
                 tf_metadata = self.metadata_enricher.extract_terraform_metadata(content, tf_file)
                 quality_metrics = self.metadata_enricher.extract_code_quality_metrics(content)
                 
-                # Usar splitter apropiado
-                splitter_type = "example" if is_example else "terraform"
-                temp_doc = Document(page_content=content, metadata={"source": str(tf_file)})
-                chunks = self.splitters[splitter_type].split_documents([temp_doc])
-                chunks = [c for c in chunks if c and c.page_content and c.page_content.strip()]
-                if not chunks:
-                    continue
+                # ✅ CAMBIO CLAVE: NO usar splitter, crear documento completo directamente
+                doc = Document(
+                    page_content=content,  # Contenido completo sin dividir
+                    metadata={
+                        "source": tf_file.name,
+                        "file_path": str(tf_file),
+                        "file_type": "terraform",
+                        "doc_type": "example" if is_example else "terraform_code",
+                        "is_complete": True,  # ✅ Marca que es archivo completo
+                        "chunk_id": 0,
+                        "total_chunks": 1,  # Solo 1 chunk = archivo completo
+                        # Metadatos específicos de Terraform
+                        **tf_metadata,
+                        **quality_metrics,
+                        # ✅ MEJORA: Search context sin limitar a 150 chars
+                        "search_context": f"Terraform {tf_file.stem} - Resources: {', '.join(tf_metadata['resource_types'][:5])}"
+                    }
+                )
                 
-                logger.info(f"🔧 TF dividido en chunks", source="qdrant", file=tf_file.name, chunks=len(chunks),resources=len(tf_metadata["resource_types"]))
-                
-                for i, chunk in enumerate(chunks):
-                    if not self.deduplicator.is_duplicate(
-                        chunk.page_content, 
-                        {"source": str(tf_file), "chunk_id": i}
-                    ):
-                        # ✅ METADATOS ENRIQUECIDOS
-                        chunk.metadata.update({
-                            "source": tf_file.name,
-                            "file_path": str(tf_file),
-                            "file_type": "terraform",
-                            "doc_type": "example" if is_example else "terraform_code",
-                            "chunk_id": i,
-                            "total_chunks": len(chunks),
-                            # Metadatos específicos de Terraform
-                            **tf_metadata,
-                            **quality_metrics,
-                            # ✅ Campo de búsqueda enriquecido
-                            "search_context": f"Terraform {tf_file.stem} - Resources: {', '.join(tf_metadata['resource_types'][:3])} - {chunk.page_content[:150]}"
-                        })
-                        documents.append(chunk)
-                logger.info(f"✅ TF procesado", source="qdrant", file=tf_file.name, chunks_indexed=len(chunks))
+                # Verificar duplicados (ahora con el archivo completo)
+                if not self.deduplicator.is_duplicate(
+                    doc.page_content, 
+                    {"source": str(tf_file)}
+                ):
+                    documents.append(doc)
+                    logger.info(f"✅ TF completo indexado", 
+                            source="qdrant", 
+                            file=tf_file.name, 
+                            size=len(content),
+                            resources=len(tf_metadata["resource_types"]))
+                else:
+                    logger.info(f"⏭️ TF duplicado omitido", 
+                            source="qdrant", 
+                            file=tf_file.name)
+            
             except Exception as e:
                 logger.error(f"❌ Error cargando TF", source="qdrant", file=tf_file.name, error=str(e))
+        
+        logger.info(f"✅ Total TF procesados", source="qdrant", files=len(tf_files), docs_indexed=len(documents))
         return documents
+    
     
     def load_markdown_files(self, md_dir: Path, is_example: bool = False) -> List[Document]:
         """Carga archivos Markdown"""
@@ -401,9 +425,33 @@ class QdrantIndexer:
     """Orquestador de indexación en Qdrant"""
     def __init__(self, config: IndexConfig):
         self.config = config
-        self.client = self._create_client()
         self.loader = DocumentLoader(config)
         self.request_id = get_request_id()
+    
+    def prepare_collection(self, collection_name: str, recreate: bool = False):
+        if recreate:
+            delete_collection(collection_name)
+        ensure_collection()
+    
+    def index_documents(self, documents: List[Document], collection_name: str, batch_size: int = 50):
+        if not documents:
+            logger.warning("⚠️ No hay documentos", source="qdrant")
+            return
+        
+        batch_size = batch_size or self.config.batch_size
+        total = len(documents)
+        logger.info(f"📥 Indexando {total} docs", source="qdrant", collection=collection_name)
+            
+        indexed = 0
+        for i in range(0, total, batch_size):
+            batch = documents[i:i+batch_size]
+            add_documents_to_collection(batch, collection_name)
+            indexed += len(batch)
+            progress = (indexed / total) * 100
+            print(f"  [{progress:5.1f}%] {indexed}/{total}")
+        
+        logger.info(f"✅ {indexed} docs indexados", source="qdrant", collection=collection_name)
+    
     
     def _create_client(self) -> QdrantClient:
         """Crea cliente Qdrant"""
@@ -418,71 +466,6 @@ class QdrantIndexer:
             logger.error("❌ Error conectando Qdrant", source="qdrant", error=str(e))
             raise
     
-    def prepare_collection(self, collection_name: str, recreate: bool = False):
-        """Prepara colección (crea o recrea según necesidad)"""
-        try:
-            existing = [c.name for c in self.client.get_collections().collections]
-            
-            if collection_name in existing and recreate:
-                logger.info(f"🗑️ Eliminando colección '{collection_name}'", 
-                           source="qdrant", collection=collection_name)
-                self.client.delete_collection(collection_name)
-            
-            if collection_name not in existing or recreate:
-                logger.info(f"🔧 Creando colección '{collection_name}'", 
-                           source="qdrant", collection=collection_name)
-                self.client.create_collection(
-                    collection_name=collection_name,
-                    vectors_config=VectorParams(
-                        size=384,
-                        distance=Distance.COSINE
-                    )
-                )
-                logger.info(f"✅ Colección '{collection_name}' creada con índices", source="qdrant", collection=collection_name)
-            else:
-                logger.info(f"ℹ️ Colección '{collection_name}' ya existe", source="qdrant", collection=collection_name)
-        
-        except Exception as e:
-            logger.error(f"❌ Error preparando colección", source="qdrant", collection=collection_name, error=str(e))
-            raise
-    
-    def index_documents(self, documents: List[Document], collection_name: str,batch_size: Optional[int] = None):
-        """Indexa documentos en Qdrant"""
-        if not documents:
-            logger.warning("⚠️ No hay documentos para indexar", source="qdrant", collection=collection_name)
-            return
-        
-        batch_size = batch_size or self.config.batch_size
-        total = len(documents)
-        logger.info(f"📥 Indexando {total} documentos en '{collection_name}'", source="qdrant", collection=collection_name, docs_count=total, batch_size=batch_size)
-        
-        try:
-            vector_store = QdrantVectorStore(
-                client=self.client,
-                collection_name=collection_name,
-                embedding=embeddings_model
-            )
-            
-            # Procesar en batches
-            indexed = 0
-            errors = 0
-            for i in range(0, total, batch_size):
-                batch = documents[i:i+batch_size]
-                try:
-                    vector_store.add_documents(batch)
-                    indexed += len(batch)
-                    progress = (indexed / total) * 100
-                    logger.info(f"✅ Batch {i//batch_size + 1} completado", source="qdrant", documents=indexed, progress=f"{progress:.1f}%")
-                    print(f"  [{progress:5.1f}%] {indexed}/{total} documentos indexados")
-                
-                except Exception as e:
-                    logger.error(f"❌ Error en batch", source="qdrant", batch=i//batch_size + 1, error=str(e))
-            
-            logger.info(f"✅ Indexación completada", source="qdrant", collection=collection_name, docs_indexed=indexed)
-        
-        except Exception as e:
-            logger.error(f"❌ Error crítico en indexación", source="qdrant", collection=collection_name, error=str(e))
-            raise
     
     def index_all(self, recreate_collections: bool = False):
         """Indexa todos los tipos de documentos"""
@@ -521,19 +504,19 @@ class QdrantIndexer:
                 self.index_documents(pdfs, self.config.collections["pdfs"])
                 print(f"✅ {len(pdfs)} chunks de PDFs indexados\n")
             
-            # ===== FASE 2: Archivos Terraform =====
-            print("🔧 FASE 2: Cargando archivos Terraform (código)...")
-            print("-" * 80)
-            tfs = self.loader.load_terraform_files(self.config.data_dir / "terraform", is_example=False)
-            stats["terraform"] = len(tfs)
+            # # ===== FASE 2: Archivos Terraform ===== Cargamos desde el manifest de momento
+            # print("🔧 FASE 2: Cargando archivos Terraform (código)...")
+            # print("-" * 80)
+            # tfs = self.loader.load_terraform_files(self.config.data_dir / "terraform", is_example=False)
+            # stats["terraform"] = len(tfs)
             
-            self.prepare_collection(self.config.collections["code"], recreate_collections)
-            if tfs:
-                self.index_documents(tfs, self.config.collections["code"])
-                print(f"✅ {len(tfs)} chunks de Terraform indexados\n")
+            # self.prepare_collection(self.config.collections["code"], recreate_collections)
+            # if tfs:
+            #     self.index_documents(tfs, self.config.collections["code"])
+            #     print(f"✅ {len(tfs)} chunks de Terraform indexados\n")
             
             # ===== FASE 3: Markdown =====
-            print("📝 FASE 3: Cargando archivos Markdown (docs adicionales)...")
+            print("📝 FASE 2: Cargando archivos Markdown (docs adicionales)...")
             print("-" * 80)
             mds = self.loader.load_markdown_files(self.config.data_dir / "docs", is_example=False)
             stats["markdown"] = len(mds)
@@ -544,7 +527,7 @@ class QdrantIndexer:
                 print(f"✅ {len(mds)} chunks de Markdown indexados\n")
             
             #  ===== FASE 4: Manifest =====
-            print("📋 FASE 4: Cargando ejemplos desde manifest (casos de uso)...")
+            print("📋 FASE 3: Cargando ejemplos desde manifest (casos de uso)...")
             print("-" * 80)
             examples = self.loader.load_from_manifest()
             stats["examples"] = len(examples)

@@ -225,39 +225,29 @@ def search_examples(
     query: str,
     k: int = 5,
     threshold: float = 0.7,
-    with_scores: bool = True,
-    include_content: bool = True
+    include_content: bool = True,
+    collections: List[str] = None
 ) -> List[Dict[str, Any]]:
     """Búsqueda principal en Qdrant con auto-detección de API"""
     request_id = get_request_id()
     
-    logger.info(
-        "🔍 search_examples iniciado",
-        source="search",
-        query=query[:100],
-        k=k,
-        threshold=threshold,
-        request_id=request_id
-    )
+    # Determinar colecciones
+    if collections is None:
+        collections = get_collections_to_search(query)
+
+    logger.info("🔍 search_examples iniciado",source="search",query=query[:50],collections=collections,threshold = threshold,k=k,request_id=request_id)
     
     try:
         from src.services.relevance_filter import is_query_in_scope, filter_results_by_relevance
+        
         is_valid, reason = is_query_in_scope(query, min_keywords=0)
         if not is_valid:
-            logger.warning(
-                "⚠️ Consulta fuera de scope rechazada",
-                source="search",
-                query=query,
-                reason=reason,
-                request_id=request_id
-            )
+            logger.warning("⚠️ Consulta fuera de scope rechazada",source="search",query=query,reason=reason,request_id=request_id)
             return []
         
         # 1. Configuración
         manifest = load_manifest()
-        collection = manifest["collection"]
         model_name = manifest.get("embeddings_model", "intfloat/multilingual-e5-small")
-        
         # 2. Cliente y modelo
         client = get_qdrant_client()
         model = get_embeddings_model(model_name)
@@ -265,39 +255,40 @@ def search_examples(
         # 3. Generar embedding
         query_with_prefix = f"query: {query}"
         embedding = model.encode(query_with_prefix)
-        
-        logger.info("✅ Embedding generado", source="search", 
-                   query_length=len(query), embedding_dim=len(embedding), 
-                   request_id=request_id)
-        
-        # 4. Buscar (auto-detección)
-        logger.info("🔎 Ejecutando búsqueda en Qdrant", source="search", 
-                   collection=collection, k=k, request_id=request_id)
-        
         embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
         
-        results = search_in_qdrant(client, collection, embedding_list, k)
+        logger.info("✅ Embedding generado", source="search",embedding_dim=len(embedding), request_id=request_id)
         
-        logger.info(f"✅ Búsqueda completada", source="search", 
-                   results_count=len(results), request_id=request_id)
+        all_results = []
+        
+        for collection in collections:
+            logger.info(f"🔎 Buscando en {collection}", source="search", collection=collection, k=k, request_id=request_id)
+            
+            try:
+                results = search_in_qdrant(client, collection, embedding_list, k)
+                
+                # Guardar como tupla (resultado, colección)
+                for result in results:
+                    all_results.append((result, collection))
+                
+                logger.info(f"✅ {collection}: {len(results)} resultados", source="search", request_id=request_id)
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Error en colección {collection}: {e}", source="search", request_id=request_id)
+                continue
+        
+        logger.info(f"✅ Búsqueda completada en {len(collections)} colecciones", source="search", total_results=len(all_results), request_id=request_id)
         
         # 5. Procesar resultados
         hits = []
         
-        for rank, result in enumerate(results, 1):
+        for rank, (result, collection_name) in enumerate(all_results, 1):
             score = float(result.score) if hasattr(result, 'score') else 0.0
             payload = result.payload
             metadata = payload.get("metadata", {})
             
             # Filtrar por threshold
             if score < threshold:
-                logger.debug(
-                    f"⊘ Resultado descartado por threshold",
-                    source="search",
-                    score=score,
-                    threshold=threshold,
-                    request_id=request_id
-                )
                 continue
             
             # Construir respuesta
@@ -310,7 +301,8 @@ def search_examples(
                 "path": metadata.get("path", metadata.get("file_path", "N/A")),
                 "doc_type": metadata.get("doc_type", "unknown"),
                 "tags": metadata.get("tags", []),
-                "metadata": metadata
+                "metadata": metadata,
+                "collection": collection_name
             }
             
             if include_content:
@@ -318,9 +310,16 @@ def search_examples(
             
             hits.append(hit)
             
-            logger.info(f"✓ Resultado {rank} procesado", source="search", 
-                       score=score, name=hit["name"], request_id=request_id)
+            logger.info(f"✓ Resultado {rank} procesado", source="search", score=score, name=hit["name"], request_id=request_id)
         
+        # Ordenar por score (mayor primero)
+        hits.sort(key=lambda x: x["score"], reverse=True)
+        
+        # Re-numerar ranks después de ordenar
+        for i, hit in enumerate(hits, 1):
+            hit["rank"] = i
+        
+        # Filtrar por relevancia
         original_count = len(hits)
         hits = filter_results_by_relevance(
             query=query,
@@ -330,22 +329,14 @@ def search_examples(
         )
         
         if len(hits) < original_count:
-            logger.info(
-                f"📉 Filtrados por relevancia: {original_count} → {len(hits)}",
-                source="search",
-                query=query[:50],
-                removed=original_count - len(hits),
-                request_id=request_id
-            )
-        logger.info(f"✅ search_examples completado", source="search", 
-                   total_results=len(hits), request_id=request_id)
+            logger.info(f"📉 Filtrados: {original_count} → {len(hits)}", source="search", request_id=request_id)
+
+        logger.info(f"✅ search_examples completado", source="search", total_results=len(hits), request_id=request_id)
         
         return hits
     
     except Exception as e:
-        logger.error(f"❌ Error en search_examples: {e}", source="search", 
-                    query=query[:100], error_type=type(e).__name__, 
-                    request_id=request_id)
+        logger.error(f"❌ Error en search_examples: {e}", source="search", query=query[:100], error_type=type(e).__name__, request_id=request_id)
         import traceback
         traceback.print_exc()
         raise

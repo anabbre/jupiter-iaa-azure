@@ -18,7 +18,7 @@
 # # )
 
 from dotenv import load_dotenv
-from src.config import SETTINGS
+from config.config import SETTINGS
 from langchain_huggingface import HuggingFaceEmbeddings
 
 load_dotenv()

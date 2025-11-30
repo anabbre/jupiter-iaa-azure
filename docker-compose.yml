@@ -12,6 +12,7 @@ services:
     restart: always
     networks:
       - terraform-rag-network
+  
 
   api:
     build:
@@ -26,9 +27,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
     volumes:
-      - ./src:/app/src
       - ./config:/app/config
-      - ./Scripts:/app/Scripts
       - ./docs:/app/docs
       - ./logs:/app/logs
       - ./data:/app/data
@@ -37,6 +36,7 @@ services:
     restart: always
     networks:
       - terraform-rag-network
+    
 
   ui:
     build:
@@ -63,6 +63,7 @@ services:
     restart: always
     networks:
       - terraform-rag-network
+    
 
 volumes:
   qdrant_storage:

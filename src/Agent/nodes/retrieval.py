@@ -65,11 +65,16 @@ def retrieve_documents(state: AgentState) -> AgentState:
         
         # Usar TU search_examples actual
         # Retorna: List[Dict] con keys: score, content, metadata, path, doc_type, etc
-        hits = search_examples(question, k=k, threshold=0.8)
-        
+        hits = search_examples(
+            question, 
+            k=k, 
+            threshold=0.7,
+            collections=state.get("target_collections")  
+        )
+
         logger.info(f"✅ search_examples retornó {len(hits)} resultados",source="retrieval",hits_count=len(hits))
         
-        # Convertir hits (Dict) a DocumentScore (para LangGraph)
+        # Convertir hits a DocumentScore (para LangGraph)
         raw_documents = []
         for rank, hit in enumerate(hits, 1):
             doc_score = DocumentScore(
@@ -87,6 +92,8 @@ def retrieve_documents(state: AgentState) -> AgentState:
         
         # Actualizar estado
         state["raw_documents"] = raw_documents
+        state["documents"] = [doc.content for doc in raw_documents]
+        state["documents_metadata"] = [{"metadata": doc.metadata, "source": doc.source, "score": doc.relevance_score} for doc in raw_documents]
         state["messages"].append(
             f"📚 Recuperados {len(raw_documents)} documentos crudos"
         )

@@ -60,7 +60,7 @@ def is_query_in_scope(query: str, min_keywords: int = 0) -> Tuple[bool, str]:
     """
     query_lower = query.lower()
     
-     # 1. Verificar si es una consulta fuera de scope (saludos, etc.)
+    # 1. Verificar si es una consulta fuera de scope (saludos, etc.)
     for pattern in OUT_OF_SCOPE_PATTERNS:
         if re.match(pattern, query_lower, re.IGNORECASE):
             return False, "La consulta parece ser conversacional y no técnica"
@@ -145,7 +145,6 @@ def get_rejection_message(query: str) -> str:
         Mensaje de rechazo amigable
     """
     query_lower = query.lower()
-    
     # Saludos
     if re.search(r"\b(hola|hi|hello|hey)\b", query_lower):
         return (

@@ -27,7 +27,9 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
     volumes:
+      - ./src:/app/src
       - ./config:/app/config
+      - ./Scripts:/app/Scripts
       - ./docs:/app/docs
       - ./logs:/app/logs
       - ./data:/app/data

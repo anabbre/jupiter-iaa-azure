@@ -58,16 +58,16 @@ def retrieve_documents(state: AgentState) -> AgentState:
         Estado actualizado con documentos crudos (sin filtrar)
     """
     question = state["question"]
-    k = 10  # Traer más documentos para que filtering los seleccione
+    k_max = 10  # Traer más documentos para que filtering los seleccione
     
     try:
-        logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k)
+        logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k_max)
         
         # Usar TU search_examples actual
         # Retorna: List[Dict] con keys: score, content, metadata, path, doc_type, etc
         hits = search_examples(
             question, 
-            k=k, 
+            k=k_max, 
             threshold=0.7,
             collections=state.get("target_collections")  
         )

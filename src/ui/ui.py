@@ -1,6 +1,6 @@
 import os
-import gradio as gr
 import requests
+import gradio as gr
 from src.ui.utils.transcribe_audio import transcribe_audio
 from src.ui.utils.process_image import encode_image_to_base64
 from src.ui.utils.process_text_file import read_text_file
@@ -33,13 +33,13 @@ def get_api_response(pregunta: str) -> dict:
         return response_data
 
     
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
         logger.error("❌ Error de conexión con API",api_url=API_URL,error=str(e), source="ui")
         return {
             "answer": "❌ Error: No se puede conectar con la API. Asegúrate de que esté ejecutándose en " + API_URL,
             "sources": []
         }
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as e:
         logger.error("❌ Timeout en consulta a API", timeout=60, error=str(e), source="ui")
         return {
             "answer": "❌ Error: La consulta tardó demasiado tiempo. Intenta con una pregunta más específica.",

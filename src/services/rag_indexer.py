@@ -14,7 +14,7 @@ from collections import defaultdict
 import hashlib
 import re
 from qdrant_client import QdrantClient
-from services.vector_store import (
+from src.services.vector_store import (
     ensure_collection, add_documents_to_collection, delete_collection
 )
 

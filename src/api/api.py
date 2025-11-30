@@ -1,28 +1,26 @@
 import os
-import time
-from concurrent.futures import ThreadPoolExecutor
-from typing import List
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 import sys
+import time
+from typing import List
+from datetime import datetime
+from fastapi import FastAPI, HTTPException
+from concurrent.futures import ThreadPoolExecutor
+from fastapi.middleware.cors import CORSMiddleware
+
+from networkx import hits
 from src.Agent.graph import Agent
 sys.path.append('/app')  # Asegura que /app esté en PYTHONPATH
 from config.config import SETTINGS
-from src.services.search import search_examples
 from config.logger_config import logger
-from src.services.vector_store import vector_store as qdrant_vector_store
 from src.services.search import search_examples
-from src.services.embeddings import embeddings_model
+from src.services.vector_store import vector_store as qdrant_vector_store
 # OpenAI (v1 SDK). Si no hay API key, haremos fallback.
 from openai import OpenAI
-from .schemas import (
+from src.api.schemas import (
     HealthResponse,
     QueryRequest,
     QueryResponse,
-    SourceInfo,
 )
-
-
 
 app = FastAPI(
     title="Terraform RAG Assistant API",
@@ -177,80 +175,59 @@ async def root():
 
 
 @app.post("/query", response_model=QueryResponse)
-async def query_endpoint(request: QueryRequest):
+async def send_question(request: QueryRequest):
     """Endpoint principal para consultas al vector store de Terraform RAG"""
     start_time = time.time()
+
     try:
         
         logger.info(f"📨 Nueva consulta recibida",source="api",question=request.question,k_docs=request.k_docs,threshold=request.threshold)
         
-        # 1) nº de docs a recuperar
+        
+        #! TODO -- meter estos parámetros en las fuentes que traemos
+        # 1) seteamos parámetros iniciales
         k = request.k_docs or SETTINGS.K_DOCS
         threshold = request.threshold or SETTINGS.THRESHOLD
         logger.info(f"Parámetros procesados",source="api",k=k,threshold=threshold)
         
-        # 2) Buscar ejemplos en Qdrant (metadatos para UI)
+        # 2) Invocar agente
         try:
-            hits = search_examples(request.question, k=k, threshold=threshold)
-            logger.info(f"✅ Búsqueda exitosa",source="api",hits_count=len(hits))
-        except TypeError as te:
-            logger.error(f"❌ Error de parámetros en search_examples: {te}",source="api",error_type="TypeError")
-            raise HTTPException(status_code=500,detail=f"Error en búsqueda: {str(te)}")
+            agent = Agent()
+            result = agent.invoke(request.question)
+            logger.info(f"✅ Búsqueda exitosa",source="api",hits_count=len(result))
+        except Exception as e:
+            logger.error(f"❌ Error al llamar al agente: {e}",source="api",error_type="Exception")
+            raise HTTPException(status_code=500,detail=f"Error al llamar al agente: {str(e)}")
 
-        # VALIDACIÓN DE CALIDAD ✅ CRÍTICO
-        is_valid, validation_msg = _validate_results_quality(hits, min_threshold=threshold)
-        if not is_valid:
-            logger.info(f"⚠️ Resultados rechazados por calidad",source="api",reason=validation_msg,question=request.question)
-           
-            response_time_ms = (time.time() - start_time) * 1000
-            answer = f"❌ {validation_msg}"
-            #  RESPUESTA RECHAZADA
-            logger.info("⚠️ Respuesta rechazada",source="api",question=request.question[:100],answer_length=len(answer),is_valid=False,sources_count=0,response_time_ms=round(response_time_ms, 2))
-            # Retornar respuesta clara de rechazo
-            return QueryResponse(
-                answer=f"❌ {validation_msg}",
-                sources=[],
-                question=request.question,
-            )
-        
-            
-        # 3) Construir sources para respuesta
-        sources = []
-        for h in hits:
-            sources.append(
-                SourceInfo(
-                    section=h.get("section", ""),
-                    pages=h.get("pages", "-"),
-                    path=h.get("path", ""),
-                    name=h.get("name", ""),
-                )
-            )
-        logger.info(f"Sources construidos",source="api",sources_count=len(sources))
-
-        # 4) Contexto + LLM / Fallback
-        context_snippets = _gather_context(request.question, k=k)
-        context = _trim_context(context_snippets, MAX_CONTEXT_CHARS)
-        logger.info(f"⌛ Generando respuesta",source="api",context_size=len(context) )
-        
-        answer = _llm_answer_no_hallucination(request.question, context, hits)
-        logger.info(f"✅ Respuesta generada",source="api",question=request.question )
+        answer = result['answer']
         
         response_time_ms = (time.time() - start_time) * 1000
         
-        # 📝 REGISTRAR RESPUESTA EXITOSA
-        logger.info("📊 Respuesta completada", source="api", question=request.question, answer_length=len(answer), is_valid=is_valid, response_time_ms=response_time_ms)
+        # 3) Registrar respuesta exitosa
+        logger.info("📊 Respuesta completada", source="api", question=request.question, answer_length=len(answer), is_valid=result.get('is_valid_scope', True), response_time_ms=response_time_ms)
         
-        print ("\n\nPregunta:", request.question)
-        print ("\n\nRespuesta:", answer)
-        print ("\n\nFuentes:", sources)
-        print ("\n\nContexto usado:", context[:500], "...\n")
-        print ("\n\nContexto completo usado:", context_snippets)
+        logger.info(f"\n🔍 Scope válido: {result.get('is_valid_scope', True)}", source="api")
+        logger.info(f"🎯 Intent: {result.get('intent', 'N/A')}", source="api")
+        logger.info(f"📊 Multi-intent: {result.get('is_multi_intent', False)}", source="api")
+        logger.info(f"🔀 Action: {result.get('response_action', 'N/A')}", source="api")
+        logger.info(f"📚 Documentos: {len(result.get('documents', []))}", source="api")
+        logger.info(f"🗂️ Colecciones: {result.get('target_collections', [])}", source="api")
+        
 
-        # 5) Responder
+        print(result.get('raw_documents', []))
+        print(result.get('documents', []))
+        print(result.get('documents_metadata', []))
+
+        sources = []
+        for source in result.get('raw_documents', []):
+            sources.append(source)
+
+        # 4) Responder
         return QueryResponse(
             answer=answer,
             sources=sources,
             question=request.question,
+            timestamp=datetime.now()
         )
         
     except HTTPException:
@@ -259,30 +236,27 @@ async def query_endpoint(request: QueryRequest):
         logger.error("❌ Error crítico en /query",source="api",question=request.question[:100] if hasattr(request, 'question') else "desconocida",error_type=type(e).__name__,error_message=str(e))   
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
 @app.get("/debug/qdrant-status")
 async def debug_qdrant_status():
     """Verifica estado y cantidad de documentos en Qdrant"""
     try:
-        from src.services.vector_store import qdrant_vector_store
+        from src.services.vector_store import vector_store as qdrant_vector_store
         
         # Intentar obtener info de la colección
         collection_info = qdrant_vector_store.client.get_collection(
             collection_name=qdrant_vector_store.collection_name
         )
         
-        logger.info(
-            f"📊 Info Qdrant obtenida",
-            source="api",
-            collection_name=qdrant_vector_store.collection_name,
-            points_count=collection_info.points_count
-        )
+        logger.info(f"📊 Info Qdrant obtenida", source="api",  collection_name=qdrant_vector_store.collection_name, points_count=collection_info.points_count)
         
         return {
             "status": "connected",
             "collection": qdrant_vector_store.collection_name,
             "points_count": collection_info.points_count,
-            "vectors_count": collection_info.vectors_count,
-            "url": qdrant_vector_store.client.url
+            "segments_count": collection_info.segments_count if hasattr(collection_info, 'segments_count') else 'No disponible',
+            "url": qdrant_vector_store.client._init_options["url"],
         }
     except Exception as e:
         logger.error(f"❌ Error verificando Qdrant: {e}", source="api")
@@ -301,7 +275,7 @@ async def debug_test_search(question: str = "What is terraform?"):
     try:
         logger.info(f"🔍 Test search iniciado",source="api",question=question)
         from src.services.search import search_examples
-        # Llamar search_examples d irectamente
+        # Llamar search_examples directamente
         hits = search_examples(query=question, k=5, threshold=0.0)
         
         logger.info(
@@ -350,7 +324,7 @@ async def debug_vector_store_search(question: str = "What is terraform?"):
             question=question
         )
         
-        from src.services.vector_store import qdrant_vector_store
+        from src.services.vector_store import vector_store as qdrant_vector_store
         
         # Llamar directamente
         docs = qdrant_vector_store.similarity_search(question, k=5)

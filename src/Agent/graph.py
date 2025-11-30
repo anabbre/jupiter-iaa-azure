@@ -151,7 +151,7 @@ def query(self, question: str) -> str:
         result = self.invoke(question)
         return result.get("answer", "No se pudo generar respuesta.")
     
-# TEst
+# Test
 if __name__ == "__main__":
     import sys
     

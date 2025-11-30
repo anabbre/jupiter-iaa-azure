@@ -7,7 +7,7 @@ from config.logger_config import logger, get_request_id, set_request_id
 # Configurar paths y cargar variables de entorno
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 load_dotenv()
-from langchain_community.document_loaders import PyPDFLoader, MarkdownLoader
+from langchain_community.document_loaders import PyPDFLoader #, MarkdownLoader #! TODO MarkdownLoader
 from langchain_core.documents import Document
 from qdrant_client.models import VectorParams, Distance
 from langchain_qdrant import QdrantVectorStore
@@ -142,7 +142,7 @@ def extract_pdf_metadata(pdf_file: str, file_name: str, num_pages: int,request_i
     return metadata
 
 
-def create_or_recreate_collection(qdrant_client: QdrantClient,request_id: str, collection_name: str, vector_size: int = 1536):
+def create_or_recreate_collection(qdrant_client: QdrantClient,request_id: str, collection_name: str, vector_size: int = 384):
     # Creacion de la coleccion
     if not request_id:
         request_id = get_request_id()
@@ -182,6 +182,7 @@ def index_documents(qdrant_client: QdrantClient,request_id: str, documents: list
             client=qdrant_client,
             collection_name=collection_name,
             embedding=embeddings_model
+            # force_recreate=True
         )
         logger.info("Vector store inicializado",collection_name=collection_name,request_id=request_id,source="qdrant")
 

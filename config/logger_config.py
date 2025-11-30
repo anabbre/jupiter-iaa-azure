@@ -61,7 +61,7 @@ LOG_FORMAT = (
     "<level>{level: <8}</level> | "
     "<cyan>{module}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
     "<yellow>req_id={extra[request_id]}</yellow> | "
-    "<level>{message}</level>"
+    "<white>{message}</white>"
 )
 
 # Formato para archivos (sin colores)
@@ -187,7 +187,7 @@ def patching(record):
 
 # Logger configuration
 logger.remove()  # Elimina la configuración por defecto
-logger = logger.patch(patching_compact)
+logger = logger.patch(patching)
 
 # Handler para consola (stderr) - CON COLORES
 logger.add(

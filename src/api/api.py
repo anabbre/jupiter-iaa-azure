@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from concurrent.futures import ThreadPoolExecutor
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.responses import FileResponse
 from networkx import hits
 from src.Agent.graph import Agent
 sys.path.append('/app')  # Asegura que /app esté en PYTHONPATH
@@ -172,6 +173,14 @@ async def root():
         vector_db_status="connected",
         documents_count=None,
     )
+
+
+@app.get("/viewer/{path:path}")
+def serve_doc(path: str):
+    file_path = os.path.join('data', path)
+    if not os.path.exists(file_path):
+        return {"error": "File not found", "path": file_path}
+    return FileResponse(file_path)
 
 
 @app.post("/query", response_model=QueryResponse)

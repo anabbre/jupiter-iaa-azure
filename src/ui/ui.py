@@ -8,7 +8,7 @@ from config.config import SETTINGS
 from config.logger_config import logger 
 
 API_URL = SETTINGS.API_URL
- 
+
 
 def _normalize_source(src_item: dict) -> dict:
     # src_item puede ser dataclass DocumentScore o dict
@@ -22,14 +22,16 @@ def _normalize_source(src_item: dict) -> dict:
         or "Documento"
     )
     path = metadata.get("file_path") or src.get("source", "") or metadata.get("path") or ""
-    section = metadata.get("section") or src.get("section") or metadata.get("pages") or "Contenido relevante"
+    section = metadata.get("section") or src.get("section") or metadata.get("pages") or ""
     score = src.get("relevance_score") or src.get("score")
+    ref = metadata.get("ref") or src.get("ref")
     line_number = src.get("line_number")
     return {
         "name": name,
         "path": path,
         "section": section,
         "score": score,
+        "ref": ref,
         "line_number": line_number,
     }
 
@@ -139,7 +141,7 @@ def procesar_mensaje(history, texto, archivo):
             seen = set()
             deduped = []
             for s in normalized:
-                key = (s["name"], s["section"], s["path"])
+                key = (s["name"], s["section"], s["path"], s["ref"])
                 if key in seen:
                     continue
                 seen.add(key)
@@ -156,10 +158,10 @@ def procesar_mensaje(history, texto, archivo):
                 if isinstance(s.get("line_number"), int):
                     extras.append(f"línea {s['line_number']}")
                 extra_txt = f" • {' | '.join(extras)}" if extras else ""
-                path_txt = f" ({s['path']})" if s.get("path") else ""
-                respuesta += f"\n {i}. {s['name']}{path_txt} — {s['section']}{extra_txt}"
-
-
+                ref = s.get("ref")
+                ref_url = f"\t🔗 [{s['name']}]({ref})" if ref else ""
+                respuesta += f"\n {i}. {s['name']} — {s['section']}{extra_txt}\n\t {ref_url}"
+            
     except Exception as e:
         logger.error("❌ Error al procesar la consulta", error=str(e), tipo_error=type(e).__name__, source="ui")
         respuesta = f"❌ Error al procesar la consulta: {str(e)}"

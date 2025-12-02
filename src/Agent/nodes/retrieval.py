@@ -41,6 +41,7 @@
 #         state["messages"].append(f"❌ Error en recuperación: {str(e)}",source="agent")
 #         raise
 
+from config.config import SETTINGS
 from src.Agent.state import AgentState, DocumentScore
 from src.services.search import search_examples  # ← Tu search.py
 from config.logger_config import logger
@@ -83,14 +84,22 @@ def retrieve_documents(state: AgentState) -> AgentState:
             path = md.get("file_path") or hit.get("path") or ""
             pages = md.get("pages") or md.get("page")
             # Heurística: construir un enlace local o GitHub si hay base URL configurada
-            base_url = os.getenv("DOCS_BASE_URL", "http://localhost:7860/viewer")  # URL base para visor local
+            base_url = SETTINGS.API_URL  # URL base para visor local
             ref = ""
             if path:
                 # Si hay páginas, añadir query para el visor
-                if pages:
-                    ref = f"{base_url.rstrip('/')}/{path}?page={pages}"
+                # Normalizar path a ruta relativa (desde /data/docs/)
+                rel_path = ""
+                if "data/" in path.replace("\\", "/"):
+                    # Extraer desde data/docs/ en adelante
+                    rel_path = path.replace("\\", "/").split("data/", 1)[-1]
+                    rel_path = f"viewer/{rel_path.replace('docs', 'docs/examples').replace('/', '%2F')}"
                 else:
-                    ref = f"{base_url.rstrip('/')}/{path}"
+                    rel_path = path.replace("\\", "/")
+                if pages:
+                    ref = f"{base_url.rstrip('/')}/{rel_path}?page={pages}"
+                else:
+                    ref = f"{base_url.rstrip('/')}/{rel_path}"
 
             # Guardar ref en metadata
             if ref:

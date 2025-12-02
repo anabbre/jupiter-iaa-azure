@@ -184,7 +184,7 @@ async def send_question(request: QueryRequest):
         logger.info(f"📨 Nueva consulta recibida",source="api",question=request.question,k_docs=request.k_docs,threshold=request.threshold)
         
         
-        #! TODO -- meter estos parámetros en las fuentes que traemos
+        # TODO -- #!meter estos parámetros en las fuentes que traemos
         # 1) seteamos parámetros iniciales
         k = request.k_docs or SETTINGS.K_DOCS
         threshold = request.threshold or SETTINGS.THRESHOLD
@@ -212,11 +212,6 @@ async def send_question(request: QueryRequest):
         logger.info(f"🔀 Action: {result.get('response_action', 'N/A')}", source="api")
         logger.info(f"📚 Documentos: {len(result.get('documents', []))}", source="api")
         logger.info(f"🗂️ Colecciones: {result.get('target_collections', [])}", source="api")
-        
-
-        print(result.get('raw_documents', []))
-        print(result.get('documents', []))
-        print(result.get('documents_metadata', []))
 
         sources = []
         for source in result.get('raw_documents', []):

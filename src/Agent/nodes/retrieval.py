@@ -44,6 +44,7 @@
 from src.Agent.state import AgentState, DocumentScore
 from src.services.search import search_examples  # ← Tu search.py
 from config.logger_config import logger
+import os
 
 
 def retrieve_documents(state: AgentState) -> AgentState:
@@ -77,9 +78,30 @@ def retrieve_documents(state: AgentState) -> AgentState:
         # Convertir hits a DocumentScore (para LangGraph)
         raw_documents = []
         for rank, hit in enumerate(hits, 1):
+            # Enriquecer metadata con un campo "ref" clicable si es posible
+            md = hit.get("metadata", {}) or {}
+            path = md.get("file_path") or hit.get("path") or ""
+            pages = md.get("pages") or md.get("page")
+            # Heurística: construir un enlace local o GitHub si hay base URL configurada
+            base_url = os.getenv("DOCS_BASE_URL", "http://localhost:7860/viewer")  # URL base para visor local
+            ref = ""
+            if path:
+                # Si hay páginas, añadir query para el visor
+                if pages:
+                    ref = f"{base_url.rstrip('/')}/{path}?page={pages}"
+                else:
+                    ref = f"{base_url.rstrip('/')}/{path}"
+
+            # Guardar ref en metadata
+            if ref:
+                try:
+                    md["ref"] = ref
+                except Exception:
+                    pass
+
             doc_score = DocumentScore(
                 content=hit.get("content", ""),
-                metadata=hit.get("metadata", {}),
+                metadata=md,
                 relevance_score=float(hit.get("score", 0.0)),  # Score de Qdrant
                 source=hit.get("path", "unknown"),
                 line_number=None  # No aplica para Terraform
@@ -93,7 +115,16 @@ def retrieve_documents(state: AgentState) -> AgentState:
         # Actualizar estado
         state["raw_documents"] = raw_documents
         state["documents"] = [doc.content for doc in raw_documents]
-        state["documents_metadata"] = [{"metadata": doc.metadata, "source": doc.source, "score": doc.relevance_score} for doc in raw_documents]
+        # Propagar el campo `ref` en los metadatos
+        state["documents_metadata"] = [
+            {
+                "metadata": doc.metadata,
+                "source": doc.source,
+                "score": doc.relevance_score,
+                "ref": doc.metadata.get("ref", "")  # Incluir el enlace clicable
+            }
+            for doc in raw_documents
+        ]
         state["messages"].append(
             f"📚 Recuperados {len(raw_documents)} documentos crudos"
         )

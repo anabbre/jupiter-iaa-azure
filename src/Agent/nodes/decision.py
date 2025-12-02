@@ -2,6 +2,7 @@
 """
 Nodo de decisión basado en la intención detectada
 """
+from config.config import SETTINGS
 from src.Agent.state import AgentState
 from config.logger_config import logger, get_request_id, set_request_id
 from typing import Literal
@@ -9,7 +10,7 @@ from src.Agent.nodes.intent_classifier import is_multi_intent
 from src.api.schemas import SourceInfo
 
 # Umbral minimo score para devolver template code directamente
-TEMPLATE_SCORE_THRESHOLD = 0.80
+TEMPLATE_SCORE_THRESHOLD = SETTINGS.THRESHOLD
 
 def _has_terraform_code(content: str) -> bool:
     """Verifica si el contenido tiene código Terraform"""

@@ -11,7 +11,7 @@ from config.logger_config import logger, get_request_id
 load_dotenv()
 
 # Configuración
-QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+QDRANT_URL = os.getenv("QDRANT_URL", "http://qdrant:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 MANIFEST_PATH = os.getenv("EXAMPLES_MANIFEST", "data/docs/examples/manifest.yaml")
 EMBEDDINGS_MODEL = None  # Se carga lazy
@@ -73,32 +73,22 @@ def classify_query_intent(query: str) -> str:
     
 def get_collections_to_search(query: str, force_collection: Optional[str] = None) -> List[str]:
     """Determina en qué colecciones buscar según la consulta"""
-    if force_collection:
-        collection_map = {
-            "docs": ["terraform_book"],
-            "code": ["terraform_code"],
-            "all": ["terraform_book", "terraform_code"]
-        }
-        return collection_map.get(force_collection, ["terraform_book", "terraform_code"])
-    
-    intent = classify_query_intent(query)
-    
-    collection_map = {
-        "docs": ["terraform_book"],
-        "code": ["terraform_code"],
-        "all": ["terraform_book", "terraform_code"]
+    # Colecciones con datos
+    COLLECTIONS = {
+        "docs": "terraform_book",
+        "examples": "examples_terraform",
     }
     
-    collections = collection_map[intent]
+    if force_collection:
+        collection_map = {
+            "docs": [COLLECTIONS["docs"]],
+            "examples": [COLLECTIONS["examples"]],
+            "all": list(COLLECTIONS.values())
+        }
+        return collection_map.get(force_collection, list(COLLECTIONS.values()))
     
-    logger.info(
-        "📚 Colecciones seleccionadas",
-        source="search",
-        intent=intent,
-        collections=collections
-    )
-    
-    return collections   
+    # Para cualquier consulta, buscar en ambas colecciones
+    return list(COLLECTIONS.values())
 
 def load_manifest() -> Dict[str, Any]:
     """Carga el manifest con configuración de la colección"""
@@ -123,13 +113,11 @@ def get_qdrant_client() -> QdrantClient:
         
         # Diagnóstico: imprimir métodos disponibles
         available_methods = [m for m in dir(client) if 'search' in m.lower() or 'query' in m.lower()]
-        logger.info("✅ Conexión Qdrant establecida", source="search", 
-                   url=QDRANT_URL, available_search_methods=available_methods)
+        logger.info("✅ Conexión Qdrant establecida", source="search", url=QDRANT_URL, available_search_methods=available_methods)
         
         return client
     except Exception as e:
-        logger.error(f"❌ Error conectando Qdrant: {e}", source="search", 
-                    url=QDRANT_URL, error_type=type(e).__name__)
+        logger.error(f"❌ Error conectando Qdrant: {e}", source="search", url=QDRANT_URL, error_type=type(e).__name__)
         raise
 
 
@@ -251,7 +239,6 @@ def search_examples(
         # 2. Cliente y modelo
         client = get_qdrant_client()
         model = get_embeddings_model(model_name)
-        
         # 3. Generar embedding
         query_with_prefix = f"query: {query}"
         embedding = model.encode(query_with_prefix)

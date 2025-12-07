@@ -2,7 +2,6 @@
 """
 Nodo de decisión basado en la intención detectada
 """
-from config.config import SETTINGS
 from src.Agent.state import AgentState
 from config.logger_config import logger, get_request_id, set_request_id
 from typing import Literal
@@ -10,7 +9,7 @@ from src.Agent.nodes.intent_classifier import is_multi_intent
 from src.api.schemas import SourceInfo
 
 # Umbral minimo score para devolver template code directamente
-TEMPLATE_SCORE_THRESHOLD = SETTINGS.THRESHOLD
+TEMPLATE_SCORE_THRESHOLD = 0.80
 
 def _has_terraform_code(content: str) -> bool:
     """Verifica si el contenido tiene código Terraform"""
@@ -44,14 +43,7 @@ def _find_best_template(raw_documents: list, threshold: float) -> tuple:
 def decide_response_type(state: AgentState) -> AgentState:
     """
     Decide la acción a tomar basada en la intención detectada
-
-    Args:
-        state: Estado con intentos y documentos
-
-    Returns:
-        Estado actualizado con la acción decidida
     """
-    
     try:
         # Extraer datos del estado
         intent = state.get("intent", "")
@@ -60,7 +52,6 @@ def decide_response_type(state: AgentState) -> AgentState:
         response_action = state.get("response_action", "")
 
         logger.info("🤔 Evaluando tipo de respuesta", source="decision", intent=intent, is_multi_intent=is_multi_intent, num_docs=len(raw_documents), current_action=response_action)
-
         
         # Caso 1 - Hybrid
         if is_multi_intent or response_action == "hybrid_response":
@@ -101,9 +92,6 @@ def get_next_node(state: AgentState) -> Literal["generate", "format_template", "
     Router condicional para LangGraph.
     
     Determina qué nodo de generación ejecutar basado en response_action.
-    
-    Returns:
-        Nombre del siguiente nodo
     """
     action = state.get("response_action", "generate_answer")
     
@@ -159,7 +147,7 @@ if __name__ == "__main__":
     doc_bajo = DocumentScore(
         content='resource "azurerm_storage_account" "main" { }',
         metadata={},
-        relevance_score=0.75,  # Bajo threshold
+        relevance_score=0.75,  
         source="main.tf"
     )
     state3 = {

@@ -289,13 +289,12 @@ class DocumentLoader:
                         "file_path": str(tf_file),
                         "file_type": "terraform",
                         "doc_type": "example" if is_example else "terraform_code",
-                        "is_complete": True,  # ✅ Marca que es archivo completo
+                        "is_complete": True,  
                         "chunk_id": 0,
                         "total_chunks": 1,  # Solo 1 chunk = archivo completo
                         # Metadatos específicos de Terraform
                         **tf_metadata,
                         **quality_metrics,
-                        # ✅ MEJORA: Search context sin limitar a 150 chars
                         "search_context": f"Terraform {tf_file.stem} - Resources: {', '.join(tf_metadata['resource_types'][:5])}"
                     }
                 )
@@ -360,7 +359,6 @@ class DocumentLoader:
                             "chunk_id": i,
                             "total_chunks": len(chunks),
                             "section": section,
-                            # ✅ Campo de búsqueda enriquecido
                             "search_context": f"{section} - {chunk.page_content[:200]}"
                         })
                         documents.append(chunk)
@@ -409,7 +407,6 @@ class DocumentLoader:
                         "tags": ex.get("tags", []),
                         "category": ex.get("category", "general"),
                         "difficulty": ex.get("difficulty", "intermediate"),
-                        # ✅ Mejorar búsqueda con info del manifest
                         "search_context": f"{ex.get('name')} - {ex.get('description', '')} - {doc.metadata.get('search_context', '')}"
                     })
                 documents.extend(docs)

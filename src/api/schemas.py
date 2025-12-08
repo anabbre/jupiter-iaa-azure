@@ -23,7 +23,6 @@ class QueryResponse(BaseModel):
     """Modelo para la respuesta del agente"""
     answer: str = Field(..., description="Respuesta generada por el agente")
     sources: List[DocumentScore] = Field(..., description="Fuentes consultadas")
-    timestamp: datetime = Field(default_factory=datetime.now)
     question: str = Field(..., description="Pregunta original")
 
 class HealthResponse(BaseModel):

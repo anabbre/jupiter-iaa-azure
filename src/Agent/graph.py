@@ -45,26 +45,24 @@ class Agent:
                         └─→ reject ──────────────────────────────────────────────────→ END
         """
         logger.info("🔧 Creando grafo", source="agent")
-        
+
         workflow = StateGraph(AgentState)
-        
+
         # ========== NODOS ==========
         workflow.add_node("validate_scope", validate_scope)
         workflow.add_node("reject", reject_query)
         workflow.add_node("classify_intent", classify_intent)
-
-        # NODOS 
         workflow.add_node("retrieve", retrieve_documents)
         workflow.add_node("decide", decide_response_type)
         workflow.add_node("generate", generate_answer)
         workflow.add_node("format_template", format_template)
         workflow.add_node("format_hybrid", format_hybrid)
-        
+
         # ========== EDGES ==========
-        
+
         # 1. Entry point: validate_scope
         workflow.set_entry_point("validate_scope")
-        
+
         # 2. Branching desde validate_scope
         workflow.add_conditional_edges(
             "validate_scope",
@@ -74,11 +72,11 @@ class Agent:
                 "reject": "reject"
             }
         )
-        
+
         # 3. Flujo principal
         workflow.add_edge("classify_intent", "retrieve")
         workflow.add_edge("retrieve", "decide")
-        
+
         # 4. Branching desde decide
         workflow.add_conditional_edges(
             "decide",
@@ -89,23 +87,16 @@ class Agent:
                 "format_hybrid": "format_hybrid"
             }
         )
-        
+
         # 5. Todos terminan en END
         workflow.add_edge("reject", END)
-
-        # EDGES 
-        # Punto de entrada
-        workflow.set_entry_point("retrieve")
-
-        # Flujo lineal (por ahora)
-        workflow.add_edge("retrieve", "generate")
         workflow.add_edge("generate", END)
         workflow.add_edge("format_template", END)
         workflow.add_edge("format_hybrid", END)
-        
+
         logger.info("✅ Grafo compilado", source="agent")
         return workflow.compile()
-    
+        
     def invoke(self, question: str, k_docs: int, threshold: float) -> dict:
         """
         Ejecuta el grafo con una pregunta.
@@ -115,7 +106,7 @@ class Agent:
         # Estado inicial
         state = {
             "question": question,
-            "k_docs": k_docs,  # Aseguramos que k_docs se incluya en el estado
+            "k_docs": k_docs,
             "threshold": threshold,
             "messages": [],
             # Scope
@@ -176,7 +167,7 @@ if __name__ == "__main__":
     print(f"\n📝 Query: {question}")
     print("-"*60)
     
-    result = agent.invoke(question, k_docs=5, threshold=0.5)
+    result = agent.invoke(question, k_docs=5, threshold=0.1)
     
     # Mostrar resultados
     print(f"\n🔍 Scope válido: {result.get('is_valid_scope', True)}")

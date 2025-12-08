@@ -36,19 +36,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-agent = Agent()  # reservado para fases posteriores
-executor = ThreadPoolExecutor(max_workers=5)
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-USE_LLM = bool(OPENAI_API_KEY)
-openai_client = OpenAI(api_key=OPENAI_API_KEY) if USE_LLM else None
-
-# Helpers LLM 
-MIN_SCORE_THRESHOLD = 0.5  # Score mínimo de similitud (0-1)
-MIN_RESULTS_REQUIRED = 0   # Mínimo de resultados relevantes
-MAX_CONTEXT_CHARS = 6000  # límite de contexto para el prompt
-CODE_LANG = "hcl"         # resaltado para Terraform
-
 
 # Endpoints 
 @app.get("/", response_model=HealthResponse)
@@ -74,7 +61,7 @@ async def query_endpoint(request: QueryRequest):
         logger.info(f"📨 Nueva consulta recibida",source="api",question=request.question,k_docs=request.k_docs,threshold=request.threshold)
         
         # 1) seteamos parámetros iniciales
-        k = request.k_docs or SETTINGS.K_DOCS
+        k = request.k_docs or SETTINGS.K_DOCS #! mirar si coge los de por defecto
         threshold = request.threshold or SETTINGS.THRESHOLD
         logger.info(f"Parámetros procesados",source="api",k=k,threshold=threshold)
         
@@ -83,26 +70,24 @@ async def query_endpoint(request: QueryRequest):
             agent = Agent()
             result = agent.invoke(request.question, request.k_docs, request.threshold)
             # Extraer respuesta
-            answer = result.get("answer", "No se pudo generar respuesta.")
-            # Construir sources desde documents_metadata
-            sources = []
-            for doc_meta in result.get("documents_metadata", [])[:6]:
-                meta = doc_meta.get("metadata", {})
-                sources.append(
-                    SourceInfo(
-                        section=meta.get("section", ""),
-                        pages=str(meta.get("page", "-")),
-                        path=doc_meta.get("source", meta.get("file_path", "")),
-                        name=meta.get("source", meta.get("name", "N/A")),
-                    )
-                )
-                response_time_ms = (time.time() - start_time) * 1000
-                logger.info("Respuesta generada",source="api",intent=result.get("intent"),action=result.get("response_action"),is_valid_scope=result.get("is_valid_scope"),docs_count=len(result.get("documents", [])),response_time_ms=round(response_time_ms, 2))
+            answer = result.get("answer", "No se pudo generar respuesta.")            
+            response_time_ms = (time.time() - start_time) * 1000
+            logger.info("Respuesta generada",source="api",intent=result.get("intent"),action=result.get("response_action"),is_valid_scope=result.get("is_valid_scope"),docs_count=len(result.get("documents", [])),response_time_ms=round(response_time_ms, 2))
         except Exception as e:
             logger.error(f"❌ Error al llamar al agente: {e}",source="api",error_type="Exception")
             raise HTTPException(status_code=500,detail=f"Error al llamar al agente: {str(e)}")
         
-        # 3) Respuesta
+        # 3) Proceso las fuentes
+        try:
+            # Construir sources desde documents_metadata
+            sources = []
+            for source in result.get('raw_documents', []):
+                sources.append(source)
+            logger.info(f"Fuentes procesadas",source="api",sources_count=len(sources))
+        except Exception as e:
+            logger.error(f"❌ Error procesando fuentes: {e}",source="api",error_type="Exception")
+            
+        # 4) Respuesta       
         return QueryResponse(
             answer=answer,
             sources=sources,
@@ -129,6 +114,7 @@ async def debug_test_agent(question: str = "que es terraform?"):
     """Prueba el Agent completo y muestra el flujo"""
     try:
         start = time.time()
+        agent = Agent()
         result = agent.invoke(question)
         duration = time.time() - start
         

@@ -143,14 +143,6 @@ def get_vector_store(collection_name: str) -> QdrantVectorStore:
         metadata_payload_key="metadata",
     )
 
-def list_collections() -> List[str]:
-    """Lista todas las colecciones en Qdrant."""
-    try:
-        collections = qdrant_client.get_collections()
-        return [c.name for c in collections.collections]
-    except Exception as e:
-        logger.error("❌ Error listando colecciones", source="qdrant", error=str(e))
-        return []
 
 
 # Inicialización: asegurar que las colecciones principales existen

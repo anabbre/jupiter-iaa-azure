@@ -8,11 +8,6 @@ def retrieve_documents(state: AgentState) -> AgentState:
     Busca documentos usando search_examples() 
     (la función de búsqueda de tu API actual)
     
-    Args:
-        state: Estado actual del grafo
-    
-    Returns:
-        Estado actualizado con documentos crudos (sin filtrar)
     """
     question = state["question"]
     k = 10  # Traer más documentos para que filtering los seleccione

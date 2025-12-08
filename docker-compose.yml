@@ -34,7 +34,7 @@ services:
       - ./logs:/app/logs
       - ./data:/app/data
     depends_on:
-      - qdrant
+      - qdrant           
     restart: always
     networks:
       - terraform-rag-network
@@ -60,8 +60,8 @@ services:
       - ./config:/app/config
       - ./logs:/app/logs
     depends_on:
-      - qdrant
-      - api
+      - qdrant           
+      - api              
     restart: always
     networks:
       - terraform-rag-network

@@ -1,4 +1,3 @@
-# langgraph_agent/graph.py
 """
 Construcción del grafo principal
 """
@@ -21,7 +20,6 @@ def reject_query(state: AgentState) -> AgentState:
     logger.info("🚫 Query rechazada (fuera de scope)", source="agent")
     state["messages"].append("🚫 Query rechazada")
     return state
-
 
 class Agent:
     """
@@ -54,6 +52,8 @@ class Agent:
         workflow.add_node("validate_scope", validate_scope)
         workflow.add_node("reject", reject_query)
         workflow.add_node("classify_intent", classify_intent)
+
+        # NODOS 
         workflow.add_node("retrieve", retrieve_documents)
         workflow.add_node("decide", decide_response_type)
         workflow.add_node("generate", generate_answer)
@@ -92,6 +92,13 @@ class Agent:
         
         # 5. Todos terminan en END
         workflow.add_edge("reject", END)
+
+        # EDGES 
+        # Punto de entrada
+        workflow.set_entry_point("retrieve")
+
+        # Flujo lineal (por ahora)
+        workflow.add_edge("retrieve", "generate")
         workflow.add_edge("generate", END)
         workflow.add_edge("format_template", END)
         workflow.add_edge("format_hybrid", END)

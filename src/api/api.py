@@ -5,6 +5,8 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import sys
+
+from fastapi.responses import FileResponse
 from src.Agent.graph import Agent
 sys.path.append('/app')  # Asegura que /app esté en PYTHONPATH
 from config.config import SETTINGS
@@ -38,6 +40,15 @@ app.add_middleware(
 
 
 # Endpoints 
+
+@app.get("/viewer/{path:path}")
+def serve_doc(path: str):
+    file_path = os.path.join('data', path)
+    if not os.path.exists(file_path):
+        return {"error": "File not found", "path": file_path}
+    return FileResponse(file_path)
+
+
 @app.get("/", response_model=HealthResponse)
 async def root():
     """Health check endpoint"""
@@ -61,7 +72,7 @@ async def query_endpoint(request: QueryRequest):
         logger.info(f"📨 Nueva consulta recibida",source="api",question=request.question,k_docs=request.k_docs,threshold=request.threshold)
         
         # 1) seteamos parámetros iniciales
-        k = request.k_docs or SETTINGS.K_DOCS #! mirar si coge los de por defecto
+        k = request.k_docs or SETTINGS.K_DOCS
         threshold = request.threshold or SETTINGS.THRESHOLD
         logger.info(f"Parámetros procesados",source="api",k=k,threshold=threshold)
         
@@ -102,6 +113,7 @@ async def query_endpoint(request: QueryRequest):
 @app.get("/debug/agent-status")
 async def debug_agent_status():
     """Verifica que el Agent este inicializado"""
+    agent = Agent()
     return {
         "status": "ok",
         "agent_initialized": agent is not None,

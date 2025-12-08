@@ -4,10 +4,11 @@ from dataclasses import dataclass
 @dataclass
 class Settings:
     # Dentro de Docker la URL de Qdrant es el nombre del servicio del compose
-    QDRANT_URL: str = os.getenv("QDRANT_URL", "http://qdrant_db:6333")
+    QDRANT_URL: str = os.getenv("QDRANT_URL", "http://localhost:6333")
 
     # Usa la colección donde ya se indexaron los ejemplos
     QDRANT_COLLECTION_NAME: str = os.getenv("QDRANT_COLLECTION", "jupiter_examples")
+    THRESHOLD: float = float(os.getenv("SCORE_THRESHOLD", "0.82"))
 
     # Mismo modelo que se usa al indexar (384 dims)
     EMBEDDINGS_MODEL_NAME: str = os.getenv("EMBEDDING_MODEL", "intfloat/multilingual-e5-small")

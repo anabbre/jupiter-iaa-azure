@@ -4,31 +4,27 @@ pinecone-client
 pypdf>=4.0.0
 
 
-# LangChain 0.3.x (usa langchain-core < 0.4)
 langchain==0.3.16
 langchain-openai==0.2.14
 langchain-community==0.3.16
 langchain-pinecone
-langchain-huggingface>=0.1.0
+langchain-huggingface
 
-# OpenAI SDK v1.x
-openai>=1.55,<2
+openai
 fastapi
 uvicorn
 tiktoken
 pandas
 gtts
-pypika==0.48.9
-
-# Google GenAI para LangChain (compatible con core < 0.4)
-langchain-google-genai==2.0.3
-
-# Qdrant
-qdrant-client==1.15.*
-langchain-qdrant==0.2.1
-gradio==5.49.1
-gradio-client==1.13.3
-PyYAML>=6.0
-sentence-transformers==2.7.*
-typing-extensions>=4.12
-langgraph==0.2.34
+loguru
+pypika
+langchain-core
+qdrant-client
+langchain-qdrant
+gradio
+gradio-client
+langchain-google-genai
+PyYAML
+sentence-transformers
+typing-extensions
+langgraph

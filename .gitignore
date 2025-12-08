@@ -15,6 +15,13 @@ ENV/
 env/
 .python-version
 
+# -- LOGS --
+logs/
+
+# --- Jupyter and notebooks ---
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
 # === Config y variables locales ===
 .env
 !.env.example 

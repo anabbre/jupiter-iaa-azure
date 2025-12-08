@@ -1,22 +1,31 @@
-from concurrent.futures import ThreadPoolExecutor
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-
+import sys
+from src.Agent.graph import Agent
+sys.path.append('/app')  # Asegura que /app esté en PYTHONPATH
+from config.config import SETTINGS
 from src.services.search import search_examples
-from src.services.vector_store import qdrant_vector_store
-from src.api.schemas import QueryRequest, QueryResponse, HealthResponse, SourceInfo
-from src.Agent.graph import Agent  
-
+from config.logger_config import logger
+from src.services.vector_store import vector_store as qdrant_vector_store
+from src.services.search import search_examples
+from src.services.embeddings import embeddings_model
 # OpenAI (v1 SDK). Si no hay API key, haremos fallback.
 from openai import OpenAI
+from src.api.schemas import (
+    HealthResponse,
+    QueryRequest,
+    QueryResponse,
+    SourceInfo,
+)
 
 app = FastAPI(
     title="Terraform RAG Assistant API",
-    description="API para consultar documentación de Terraform usando RAG",
-    version="1.0.0",
+    description="API para consultar documentacion de Terraform usando RAG con LangGraph",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -27,99 +36,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-agent = Agent()  # reservado para fases posteriores
-executor = ThreadPoolExecutor(max_workers=5)
+# Inicializar Agent
+agent = Agent()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-USE_LLM = bool(OPENAI_API_KEY)
-openai_client = OpenAI(api_key=OPENAI_API_KEY) if USE_LLM else None
-
-# Helpers LLM 
-
-MAX_CONTEXT_CHARS = 6000  # límite de contexto para el prompt
-CODE_LANG = "hcl"         # resaltado para Terraform
-
-
-def _gather_context(query: str, k: int) -> List[str]:
-    """
-    Devuelve una lista de fragmentos de texto (page_content) de los k documentos más relevantes.
-    """
-    docs = qdrant_vector_store.similarity_search(query, k=k)
-    snippets: List[str] = []
-
-    for d in docs:
-        meta = d.metadata or {}
-        header = f"# {meta.get('name', meta.get('path', 'snippet'))}"
-        if meta.get("page") is not None:
-            header += f" (pág. {meta.get('page')})"
-        block = f"{header}\n{d.page_content.strip()}"
-        snippets.append(block)
-
-    return snippets
-
-
-def _trim_context(snippets: List[str], max_chars: int = MAX_CONTEXT_CHARS) -> str:
-    """
-    Concatena y recorta para no exceder el tamaño máximo.
-    """
-    joined, acc = [], 0
-    for s in snippets:
-        if acc + len(s) > max_chars:
-            joined.append(s[: max(0, max_chars - acc)])
-            break
-        joined.append(s)
-        acc += len(s)
-    return "\n\n---\n\n".join(joined)
-
-
-def _llm_answer(question: str, context: str) -> str:
-    """
-    Si hay OPENAI_API_KEY usa el LLM. Si no, devuelve fallback con snippets.
-    """
-    if not USE_LLM:
-        # Fallback: muestra instrucciones + el mejor contexto en bloque de código
-        return (
-            "No tengo acceso al LLM en este entorno, te propongo este fragmento "
-            "extraído de los ejemplos para que lo adaptes:\n\n"
-            f"```{CODE_LANG}\n{context[:1200]}\n```"
-        )
-
-    system = (
-        "Eres un asistente DevOps experto en Terraform. Responde SOLO con HCL válido "
-        "cuando el usuario pida código. Usa el contexto proporcionado, no inventes "
-        "recursos ni nombres que no estén en el contexto. Si faltan datos, indícalo brevemente."
-    )
-
-    user = (
-        f"Pregunta: {question}\n\n"
-        "Genera un bloque HCL conciso (y opcionalmente variables/locales) basado en el contexto.\n"
-        "Si el tema es habilitar HTTPS en Azure Static Web Apps, incluye los recursos y referencias mínimas.\n\n"
-        "Contexto:\n"
-        f"{context}"
-    )
-
-    # Modelo ligero recomendado para código+instrucciones
-    resp = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.1,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-    )
-
-    text = resp.choices[0].message.content.strip()
-    return text
-
-
-# Endpoints 
+# Endpoints
 
 @app.get("/", response_model=HealthResponse)
 async def root():
     """Health check endpoint"""
     return HealthResponse(
         status="healthy",
-        message="Terraform RAG Assistant API is running",
+        message="Terraform RAG Assistant API LangGraph",
         vector_db_status="connected",
         documents_count=None,
     )
@@ -127,37 +54,143 @@ async def root():
 
 @app.post("/query", response_model=QueryResponse)
 async def query_endpoint(request: QueryRequest):
-    """Endpoint principal para consultas al vector store de Terraform RAG"""
+    """
+    Endpoint principal - Ejecuta el Agent de LangGraph
+    """
+    start_time = time.time()
+    
     try:
-        # 1) nº de docs a recuperar
-        k = request.k_docs or 3
-
-        # 2) Buscar ejemplos en Qdrant (metadatos para UI)
-        hits = search_examples(request.question, k=k)
-
-        # 3) Construir sources para respuesta
+        logger.info("Nueva consulta recibida",source="api",question=request.question[:100])
+        # Ejecutar Agent
+        result = agent.invoke(request.question)
+        # Extraer respuesta
+        answer = result.get("answer", "No se pudo generar respuesta.")
+        # Construir sources desde documents_metadata
         sources = []
-        for h in hits:
+        for doc_meta in result.get("documents_metadata", [])[:6]:
+            meta = doc_meta.get("metadata", {})
             sources.append(
                 SourceInfo(
-                    section=h.get("section", ""),
-                    pages=h.get("pages", "-"),
-                    path=h.get("path", ""),
-                    name=h.get("name", ""),
+                    section=meta.get("section", ""),
+                    pages=str(meta.get("page", "-")),
+                    path=doc_meta.get("source", meta.get("file_path", "")),
+                    name=meta.get("source", meta.get("name", "N/A")),
                 )
             )
-
-        # 4) Contexto + LLM / Fallback
-        context_snippets = _gather_context(request.question, k=k)
-        context = _trim_context(context_snippets, MAX_CONTEXT_CHARS)
-        answer = _llm_answer(request.question, context)
-
-        # 5) Responder
+        response_time_ms = (time.time() - start_time) * 1000
+        logger.info("Respuesta generada",source="api",intent=result.get("intent"),action=result.get("response_action"),is_valid_scope=result.get("is_valid_scope"),docs_count=len(result.get("documents", [])),response_time_ms=round(response_time_ms, 2))
         return QueryResponse(
             answer=answer,
             sources=sources,
             question=request.question,
         )
-
+        
     except Exception as e:
+        logger.error("Error en /query",source="api",question=request.question[:100] if request else "unknown",error=str(e),error_type=type(e).__name__)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Endpoints de debug
+@app.get("/debug/agent-status")
+async def debug_agent_status():
+    """Verifica que el Agent este inicializado"""
+    return {
+        "status": "ok",
+        "agent_initialized": agent is not None,
+        "graph_compiled": agent.graph is not None if agent else False
+    }
+
+
+@app.post("/debug/test-agent")
+async def debug_test_agent(question: str = "que es terraform?"):
+    """Prueba el Agent completo y muestra el flujo"""
+    try:
+        start = time.time()
+        result = agent.invoke(question)
+        duration = time.time() - start
+        
+        return {
+            "question": question,
+            "duration_seconds": round(duration, 2),
+            "is_valid_scope": result.get("is_valid_scope"),
+            "intent": result.get("intent"),
+            "intents": result.get("intents"),
+            "is_multi_intent": result.get("is_multi_intent"),
+            "response_action": result.get("response_action"),
+            "target_collections": result.get("target_collections"),
+            "documents_count": len(result.get("documents", [])),
+            "answer_preview": result.get("answer", "")[:500],
+            "messages": result.get("messages", [])
+        }
+    except Exception as e:
+        return {"error": str(e), "error_type": type(e).__name__}
+
+
+@app.get("/debug/qdrant-status")
+async def debug_qdrant_status():
+    """Verifica estado de Qdrant y colecciones"""
+    try:
+        from src.services.vector_store import qdrant_client, COLLECTIONS, list_collections
+        
+        all_collections = list_collections()
+        # Info de cada coleccion configurada
+        collections_info = {}
+        for key, name in COLLECTIONS.items():
+            try:
+                info = qdrant_client.get_collection(name)
+                collections_info[name] = {
+                    "points_count": info.points_count,
+                    "status": info.status.value if info.status else "unknown"
+                }
+            except Exception as e:
+                collections_info[name] = {"error": str(e)}
+        
+        return {
+            "status": "connected",
+            "url": SETTINGS.QDRANT_URL,
+            "all_collections": all_collections,
+            "configured_collections": collections_info
+        }
+    except Exception as e:
+        logger.error(f"Error verificando Qdrant: {e}", source="api")
+        return {"status": "error", "error": str(e)}
+
+
+@app.post("/debug/test-search")
+async def debug_test_search(question: str = "que es terraform?"):
+    """Prueba search_examples directamente"""
+    try:
+        from src.services.search import search_examples
+        hits = search_examples(query=question, k=5, threshold=0.0)
+        
+        return {
+            "question": question,
+            "hits_count": len(hits),
+            "hits": [
+                {
+                    "name": h.get("name"),
+                    "score": h.get("score"),
+                    "doc_type": h.get("doc_type"),
+                    "collection": h.get("collection"),
+                    "content_preview": h.get("content", "")[:200]
+                }
+                for h in hits
+            ]
+        }
+    except Exception as e:
+        return {"error": str(e), "error_type": type(e).__name__}
+
+
+@app.get("/debug/embeddings-model")
+async def debug_embeddings_model():
+    """Verifica modelo de embeddings"""
+    try:
+        from src.services.embeddings import embeddings_model
+        
+        return {
+            "status": "ok",
+            "model": str(embeddings_model),
+            "model_type": type(embeddings_model).__name__
+        }
+    except Exception as e:
+        return {"error": str(e)}

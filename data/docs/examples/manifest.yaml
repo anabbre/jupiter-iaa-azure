@@ -1,0 +1,102 @@
+collection: jupiter_examples
+embeddings_model: intfloat/multilingual-e5-small
+
+examples:
+  - id: ex01
+    name: storage-static-website
+    path: data/terraform/01-storage-static-website
+    tags: [azure, static-site, storage]
+    category: storage
+    difficulty: beginner
+    cloud_provider: azure
+    description: 'Storage Account básico con static_website habilitado'
+
+  - id: ex02
+    name: storage-cdn
+    path: data/terraform/02-storage+cdn
+    tags: [azure, static-site, cdn]
+    category: cdn
+    difficulty: intermediate
+    cloud_provider: azure
+    description: 'Storage con Azure CDN para distribución global'
+
+  - id: ex03
+    name: frontdoor-static
+    path: data/terraform/03-frontdoor-static
+    tags: [azure, static-site, frontdoor]
+    category: cdn
+    difficulty: advanced
+    cloud_provider: azure
+    description: 'Azure Front Door con routing avanzado y WAF'
+
+  - id: ex04
+    name: static-site-app-service
+    path: data/terraform/04-static-site-app-service
+    tags: [azure, static-site, app-service]
+    category: web
+    difficulty: intermediate
+    cloud_provider: azure
+    description: 'Sitio estático usando Azure App Service con Linux'
+
+  - id: ex05
+    name: static-site-custom-domain
+    path: data/terraform/05-static-site+custom-domain
+    tags: [azure, static-site, custom-domain]
+    category: networking
+    difficulty: intermediate
+    cloud_provider: azure
+    description: 'Configuración de dominio personalizado'
+
+  - id: ex06
+    name: static-site-https
+    path: data/terraform/06-static-site+https
+    tags: [azure, static-site, https]
+    category: security
+    difficulty: advanced
+    cloud_provider: azure
+    description: 'SSL/TLS con certificados automáticos'
+
+  - id: ex07
+    name: static-site-logging
+    path: data/terraform/07-static-site+logging
+    tags: [azure, static-site, logging]
+    category: monitoring
+    difficulty: intermediate
+    cloud_provider: azure
+    description: 'Configuración de logs y auditoría'
+
+  - id: ex08
+    name: static-site-diagnostics
+    path: data/terraform/08-static-site+diagnostics
+    tags: [azure, static-site, diagnostics]
+    category: monitoring
+    difficulty: intermediate
+    cloud_provider: azure
+    description: 'Diagnósticos avanzados y métricas'
+
+  - id: ex09
+    name: static-site-alerts
+    path: data/terraform/09-static-site+alerts
+    tags: [azure, static-site, alerts]
+    category: monitoring
+    difficulty: advanced
+    cloud_provider: azure
+    description: 'Alertas y notificaciones automáticas'
+
+  - id: ex10
+    name: static-site-tfvars-ejemplo
+    path: data/terraform/10-static-site+tfvars-ejemplo
+    tags: [azure, static-site, tfvars]
+    category: web
+    difficulty: beginner
+    cloud_provider: azure
+    description: 'Ejemplo de parametrización con terraform.tfvars'
+
+  - id: tfbook
+    name: terraform-up-and-running
+    path: data/pdfs/Libro-TF.pdf
+    tags: [terraform, book, pdf, documentation]
+    category: documentation
+    difficulty: all
+    cloud_provider: multi
+    description: 'Libro completo de Terraform - conceptos y best practices'

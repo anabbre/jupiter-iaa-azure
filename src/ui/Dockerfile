@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Variables de entorno
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:$PYTHONPATH
 ENV GRADIO_SERVER_NAME=0.0.0.0
 ENV GRADIO_SERVER_PORT=7860
 
@@ -20,7 +20,7 @@ COPY src/ ./src/
 COPY config/ ./config/
 
 # Crear directorios necesarios
-RUN mkdir -p logs
+RUN mkdir -p /app/logs
 
 # Exponer puerto
 EXPOSE 7860

@@ -36,11 +36,132 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inicializar Agent
-agent = Agent()
+agent = Agent()  # reservado para fases posteriores
+executor = ThreadPoolExecutor(max_workers=5)
 
-# Endpoints
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+USE_LLM = bool(OPENAI_API_KEY)
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if USE_LLM else None
 
+# Helpers LLM 
+MIN_SCORE_THRESHOLD = 0.5  # Score mínimo de similitud (0-1)
+MIN_RESULTS_REQUIRED = 0   # Mínimo de resultados relevantes
+MAX_CONTEXT_CHARS = 6000  # límite de contexto para el prompt
+CODE_LANG = "hcl"         # resaltado para Terraform
+
+
+def _gather_context(query: str, k: int) -> List[str]:
+    """
+    Devuelve una lista de fragmentos de texto (page_content) de los k documentos más relevantes.
+    """
+    docs = qdrant_vector_store.similarity_search(query, k=k)
+    snippets: List[str] = []
+
+    for d in docs:
+        meta = d.metadata or {}
+        header = f"# {meta.get('name', meta.get('path', 'snippet'))}"
+        if meta.get("page") is not None:
+            header += f" (pág. {meta.get('page')})"
+        block = f"{header}\n{d.page_content.strip()}"
+        snippets.append(block)
+
+    return snippets
+
+
+def _trim_context(snippets: List[str], max_chars: int = MAX_CONTEXT_CHARS) -> str:
+    """
+    Concatena y recorta para no exceder el tamaño máximo.
+    """
+    joined, acc = [], 0
+    for s in snippets:
+        if acc + len(s) > max_chars:
+            joined.append(s[: max(0, max_chars - acc)])
+            break
+        joined.append(s)
+        acc += len(s)
+    return "\n\n---\n\n".join(joined)
+
+def _validate_results_quality(hits: List[dict], min_threshold: float = MIN_SCORE_THRESHOLD) -> tuple[bool, str]:
+    """
+    Valida si los resultados tienen suficiente calidad.
+    
+    Returns:
+        (es_valido, mensaje)
+    """
+    if not hits:
+        return False, "No se encontraron documentos en la base de datos."
+    
+    # Verificar que al menos hay un resultado con buen score
+    good_results = [h for h in hits if (h.get("score") or 0) >= min_threshold]
+    
+    if not good_results:
+        avg_score = sum(h.get("score", 0) for h in hits) / len(hits)
+        return False, (
+            f"La información encontrada no es lo suficientemente relevante. "
+            f"Score promedio: {avg_score:.2f} (mínimo requerido: {min_threshold}). "
+            f"Intenta reformular tu pregunta."
+        )
+    
+    if len(good_results) < MIN_RESULTS_REQUIRED:
+        return False, (
+            f"Se encontraron solo {len(good_results)} resultado(s) relevante(s). "
+            f"Se requieren al menos {MIN_RESULTS_REQUIRED}."
+        )
+    
+    return True, "OK"
+
+def _llm_answer_no_hallucination(question: str, context: str, hits: List[dict]) -> str:
+    """
+    Genera respuesta SIN HALLUCINATIONS.
+    Si no hay contexto suficiente, lo rechaza.
+    """
+    if not USE_LLM:
+        return (
+            "Información disponible basada en la base de datos:\n\n"
+            f"```{CODE_LANG}\n{context[:1200]}\n```"
+        )
+
+    system = (
+        "REGLAS CRÍTICAS:\n"
+        "1. SOLO responde basándote en el contexto proporcionado\n"
+        "2. NO inventes recursos, módulos ni configuraciones que no estén en el contexto\n"
+        "3. NO hagas suposiciones ni generalizaciones\n"
+        "4. Si el contexto no responde a la pregunta, di: 'No tengo información sobre esto en mi base de datos'\n"
+        "5. Si necesitas información externa, indícalo claramente\n"
+        "6. Responde de forma estructurada y concisa\n"
+        "7. Cuando muestres código, asegúrate de que está EXACTAMENTE en el contexto\n"
+        "\n"
+        "Eres un asistente de documentación de Terraform. Tu única fuente de verdad es el contexto."
+    )
+
+    user = (
+        f"PREGUNTA: {question}\n\n"
+        f"CONTEXTO DISPONIBLE:\n{context}\n\n"
+        f"INSTRUCCIONES:\n"
+        f"- Responde SOLO con lo que está en el contexto\n"
+        f"- Si la pregunta no se responde con el contexto, recházala\n"
+        f"- Estructura la respuesta de forma clara\n"
+        f"- Cita la fuente cuando sea posible"
+    )
+
+    try:
+        resp = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.1,  # MUY bajo para evitar hallucinations
+            max_tokens=2000,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        )
+        
+        text = resp.choices[0].message.content.strip()
+        return text
+    except Exception as e:
+        logger.error(f"Error en LLM: {e}", source="api")
+        return "Error al procesar la respuesta. Intenta de nuevo."
+
+# Endpoints 
 @app.get("/", response_model=HealthResponse)
 async def root():
     """Health check endpoint"""
@@ -60,31 +181,44 @@ async def query_endpoint(request: QueryRequest):
     start_time = time.time()
     
     try:
-        logger.info("Nueva consulta recibida",source="api",question=request.question[:100])
-        # Ejecutar Agent
-        result = agent.invoke(request.question)
-        # Extraer respuesta
-        answer = result.get("answer", "No se pudo generar respuesta.")
-        # Construir sources desde documents_metadata
-        sources = []
-        for doc_meta in result.get("documents_metadata", [])[:6]:
-            meta = doc_meta.get("metadata", {})
-            sources.append(
-                SourceInfo(
-                    section=meta.get("section", ""),
-                    pages=str(meta.get("page", "-")),
-                    path=doc_meta.get("source", meta.get("file_path", "")),
-                    name=meta.get("source", meta.get("name", "N/A")),
+        
+        logger.info(f"📨 Nueva consulta recibida",source="api",question=request.question,k_docs=request.k_docs,threshold=request.threshold)
+        
+        # 1) seteamos parámetros iniciales
+        k = request.k_docs or SETTINGS.K_DOCS
+        threshold = request.threshold or SETTINGS.THRESHOLD
+        logger.info(f"Parámetros procesados",source="api",k=k,threshold=threshold)
+        
+        # 2) Invocar agente
+        try:
+            agent = Agent()
+            result = agent.invoke(request.question, request.k_docs, request.threshold)
+            # Extraer respuesta
+            answer = result.get("answer", "No se pudo generar respuesta.")
+            # Construir sources desde documents_metadata
+            sources = []
+            for doc_meta in result.get("documents_metadata", [])[:6]:
+                meta = doc_meta.get("metadata", {})
+                sources.append(
+                    SourceInfo(
+                        section=meta.get("section", ""),
+                        pages=str(meta.get("page", "-")),
+                        path=doc_meta.get("source", meta.get("file_path", "")),
+                        name=meta.get("source", meta.get("name", "N/A")),
+                    )
                 )
-            )
-        response_time_ms = (time.time() - start_time) * 1000
-        logger.info("Respuesta generada",source="api",intent=result.get("intent"),action=result.get("response_action"),is_valid_scope=result.get("is_valid_scope"),docs_count=len(result.get("documents", [])),response_time_ms=round(response_time_ms, 2))
+                response_time_ms = (time.time() - start_time) * 1000
+                logger.info("Respuesta generada",source="api",intent=result.get("intent"),action=result.get("response_action"),is_valid_scope=result.get("is_valid_scope"),docs_count=len(result.get("documents", [])),response_time_ms=round(response_time_ms, 2))
+        except Exception as e:
+            logger.error(f"❌ Error al llamar al agente: {e}",source="api",error_type="Exception")
+            raise HTTPException(status_code=500,detail=f"Error al llamar al agente: {str(e)}")
+        
+        # 3) Respuesta
         return QueryResponse(
             answer=answer,
             sources=sources,
             question=request.question,
         )
-        
     except Exception as e:
         logger.error("Error en /query",source="api",question=request.question[:100] if request else "unknown",error=str(e),error_type=type(e).__name__)
         raise HTTPException(status_code=500, detail=str(e))
@@ -161,7 +295,15 @@ async def debug_test_search(question: str = "que es terraform?"):
     """Prueba search_examples directamente"""
     try:
         from src.services.search import search_examples
-        hits = search_examples(query=question, k=5, threshold=0.0)
+        # Llamar search_examples directamente
+        hits = search_examples(query=question, k=SETTINGS.K_DOCS, threshold=SETTINGS.THRESHOLD)
+        
+        logger.info(
+            f"Test search completado",
+            source="api",
+            hits_count=len(hits),
+            first_hit=str(hits[0]) if hits else "NO HITS"
+        )
         
         return {
             "question": question,

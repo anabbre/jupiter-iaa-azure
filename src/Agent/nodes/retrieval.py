@@ -10,7 +10,8 @@ def retrieve_documents(state: AgentState) -> AgentState:
     
     """
     question = state["question"]
-    k = 10  # Traer más documentos para que filtering los seleccione
+    k_max = state["k_docs"] + 5  # Traer más documentos para que filtering los seleccione
+    threshold = state["threshold"]
     
     try:
         logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k)
@@ -19,8 +20,8 @@ def retrieve_documents(state: AgentState) -> AgentState:
         # Retorna: List[Dict] con keys: score, content, metadata, path, doc_type, etc
         hits = search_examples(
             question, 
-            k=k, 
-            threshold=0.8,
+            k=k_max, 
+            threshold=threshold,
             collections=state.get("target_collections")  
         )
 

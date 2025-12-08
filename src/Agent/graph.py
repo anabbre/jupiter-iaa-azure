@@ -106,7 +106,7 @@ class Agent:
         logger.info("✅ Grafo compilado", source="agent")
         return workflow.compile()
     
-    def invoke(self, question: str) -> dict:
+    def invoke(self, question: str, k_docs: int, threshold: float) -> dict:
         """
         Ejecuta el grafo con una pregunta.
         """
@@ -115,6 +115,8 @@ class Agent:
         # Estado inicial
         state = {
             "question": question,
+            "k_docs": k_docs,
+            "threshold": threshold,
             "messages": [],
             # Scope
             "is_valid_scope": True,
@@ -153,10 +155,6 @@ class Agent:
             logger.error("❌ Error en grafo", source="agent", error=str(e))
             raise
         
-def query(self, question: str) -> str:
-        """Método simple que devuelve solo la respuesta."""
-        result = self.invoke(question)
-        return result.get("answer", "No se pudo generar respuesta.")
     
 # Test
 if __name__ == "__main__":
@@ -177,7 +175,7 @@ if __name__ == "__main__":
     print(f"\n📝 Query: {question}")
     print("-"*60)
     
-    result = agent.invoke(question)
+    result = agent.invoke(question, k_docs=5, threshold=0.5)
     
     # Mostrar resultados
     print(f"\n🔍 Scope válido: {result.get('is_valid_scope', True)}")

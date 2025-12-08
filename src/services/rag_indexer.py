@@ -428,7 +428,7 @@ class QdrantIndexer:
     def prepare_collection(self, collection_name: str, recreate: bool = False):
         if recreate:
             delete_collection(collection_name)
-        ensure_collection()
+        ensure_collection(collection_name)
     
     def index_documents(self, documents: List[Document], collection_name: str, batch_size: int = 50):
         if not documents:

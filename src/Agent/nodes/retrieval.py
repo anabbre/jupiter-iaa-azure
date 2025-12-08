@@ -44,7 +44,7 @@ def retrieve_documents(state: AgentState) -> AgentState:
                 if "data/" in path.replace("\\", "/"):
                     # Extraer desde data/docs/ en adelante
                     rel_path = path.replace("\\", "/").split("data/", 1)[-1]
-                    rel_path = f"viewer/{rel_path.replace('docs', 'docs/examples').replace('/', '%2F')}"
+                    rel_path = f"viewer/{rel_path.replace('/', '%2F')}"
                 else:
                     rel_path = path.replace("\\", "/")
                 if pages:

@@ -7,14 +7,14 @@ def retrieve_documents(state: AgentState) -> AgentState:
     """
     Busca documentos usando search_examples() 
     (la función de búsqueda de tu API actual)
-    
     """
+    print(state)
     question = state["question"]
     k_max = state["k_docs"] + 5  # Traer más documentos para que filtering los seleccione
     threshold = state["threshold"]
     
     try:
-        logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k)
+        logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k_max)
         
         # Usar TU search_examples actual
         # Retorna: List[Dict] con keys: score, content, metadata, path, doc_type, etc

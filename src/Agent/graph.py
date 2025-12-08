@@ -115,7 +115,7 @@ class Agent:
         # Estado inicial
         state = {
             "question": question,
-            "k_docs": k_docs,
+            "k_docs": k_docs,  # Aseguramos que k_docs se incluya en el estado
             "threshold": threshold,
             "messages": [],
             # Scope
@@ -140,6 +140,7 @@ class Agent:
         logger.info("▶️ Ejecutando grafo", source="agent", question=question[:80])
         
         try:
+            print(state)
             result = self.graph.invoke(state)
             duration = time.time() - start_time
             

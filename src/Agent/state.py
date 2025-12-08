@@ -22,6 +22,8 @@ class AgentState(TypedDict):
     """Estado compartido entre todos los nodos del grafo"""
     # Input
     question: str
+    k_docs: int                     # Número de documentos a recuperar
+    threshold: float                 # Umbral de relevancia
     
     # Intent Classification 
     intent: str                         # Intent primario: explanation, code_template, full_example

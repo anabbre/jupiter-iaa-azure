@@ -7,20 +7,21 @@ from qdrant_client.http.exceptions import UnexpectedResponse
 from langchain_qdrant import QdrantVectorStore
 
 from config.config import SETTINGS  # ✅ Ruta correcta
-from .embeddings import embeddings_model
+from src.services.embeddings import embeddings_model
 from config.logger_config import logger
 
 qdrant_url = SETTINGS.QDRANT_URL
 collection_name = SETTINGS.QDRANT_COLLECTION_NAME or "jupiter_examples"
 
 # Dimensión del embedding que se usa (e5-small => 384)
-EMB_DIM = 384  # ✅ Hardcodeado pero comentado que se puede cambiar
+EMB_DIM = 384  
 
 qdrant_client = QdrantClient(url=qdrant_url)
 logger.info(f"ℹ️ Cliente Qdrant inicializado", source="qdrant", url=qdrant_url)
 COLLECTIONS = {
     "docs": "terraform_book",
     "examples": "examples_terraform",
+    "default": collection_name,
 }
 def ensure_collection(collection_name: str ) -> bool:
     """
@@ -47,10 +48,6 @@ def ensure_collection(collection_name: str ) -> bool:
         except Exception as e:
             logger.error(f"❌ Error creando colección", source="qdrant", collection=target, error=str(e))
             return False
-
-
-logger.info("⚙️ Verificando/creando colección de Qdrant", source="qdrant", collection=collection_name)
-ensure_collection()
 
 def delete_collection(collection_name: str ) -> bool:
     """
@@ -151,7 +148,7 @@ def list_collections() -> List[str]:
 logger.info("⚙️ Verificando colecciones de Qdrant...", source="qdrant")
 for key, name in COLLECTIONS.items():
     ensure_collection(name)
-    vector_store = get_vector_store(COLLECTIONS["docs"])
-    logger.info("✅ Vector store por defecto inicializado",source="qdrant",collection=COLLECTIONS["docs"],)
     
+vector_store = get_vector_store(COLLECTIONS["docs"])
+logger.info("✅ Vector store por defecto inicializado",source="qdrant",collection=COLLECTIONS["docs"],)
 K_DOCS_DEFAULT = SETTINGS.K_DOCS or 3

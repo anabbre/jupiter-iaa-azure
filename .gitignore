@@ -55,3 +55,6 @@ Thumbs.db
 .cache/
 __pycache__/
 *.lock
+
+# === Archivos de gradio ===
+.gradio/

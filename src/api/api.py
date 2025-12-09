@@ -5,6 +5,8 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import sys
+
+from fastapi.responses import FileResponse
 from src.Agent.graph import Agent
 sys.path.append('/app')  # Asegura que /app esté en PYTHONPATH
 from config.config import SETTINGS
@@ -36,10 +38,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inicializar Agent
-agent = Agent()
 
-# Endpoints
+# Endpoints 
+
+@app.get("/viewer/{path:path}")
+def serve_doc(path: str):
+    file_path = os.path.join('data', path)
+    if not os.path.exists(file_path):
+        return {"error": "File not found", "path": file_path}
+    return FileResponse(file_path)
+
 
 @app.get("/", response_model=HealthResponse)
 async def root():
@@ -60,31 +68,42 @@ async def query_endpoint(request: QueryRequest):
     start_time = time.time()
     
     try:
-        logger.info("Nueva consulta recibida",source="api",question=request.question[:100])
-        # Ejecutar Agent
-        result = agent.invoke(request.question)
-        # Extraer respuesta
-        answer = result.get("answer", "No se pudo generar respuesta.")
-        # Construir sources desde documents_metadata
-        sources = []
-        for doc_meta in result.get("documents_metadata", [])[:6]:
-            meta = doc_meta.get("metadata", {})
-            sources.append(
-                SourceInfo(
-                    section=meta.get("section", ""),
-                    pages=str(meta.get("page", "-")),
-                    path=doc_meta.get("source", meta.get("file_path", "")),
-                    name=meta.get("source", meta.get("name", "N/A")),
-                )
-            )
-        response_time_ms = (time.time() - start_time) * 1000
-        logger.info("Respuesta generada",source="api",intent=result.get("intent"),action=result.get("response_action"),is_valid_scope=result.get("is_valid_scope"),docs_count=len(result.get("documents", [])),response_time_ms=round(response_time_ms, 2))
+        
+        logger.info(f"📨 Nueva consulta recibida",source="api",question=request.question,k_docs=request.k_docs,threshold=request.threshold)
+        
+        # 1) seteamos parámetros iniciales
+        k = request.k_docs or SETTINGS.K_DOCS
+        threshold = request.threshold or SETTINGS.THRESHOLD
+        logger.info(f"Parámetros procesados",source="api",k=k,threshold=threshold)
+        
+        # 2) Invocar agente
+        try:
+            agent = Agent()
+            result = agent.invoke(request.question, request.k_docs, request.threshold)
+            # Extraer respuesta
+            answer = result.get("answer", "No se pudo generar respuesta.")            
+            response_time_ms = (time.time() - start_time) * 1000
+            logger.info("Respuesta generada",source="api",intent=result.get("intent"),action=result.get("response_action"),is_valid_scope=result.get("is_valid_scope"),docs_count=len(result.get("documents", [])),response_time_ms=round(response_time_ms, 2))
+        except Exception as e:
+            logger.error(f"❌ Error al llamar al agente: {e}",source="api",error_type="Exception")
+            raise HTTPException(status_code=500,detail=f"Error al llamar al agente: {str(e)}")
+        
+        # 3) Proceso las fuentes
+        try:
+            # Construir sources desde documents_metadata
+            sources = []
+            for source in result.get('raw_documents', []):
+                sources.append(source)
+            logger.info(f"Fuentes procesadas",source="api",sources_count=len(sources))
+        except Exception as e:
+            logger.error(f"❌ Error procesando fuentes: {e}",source="api",error_type="Exception")
+            
+        # 4) Respuesta       
         return QueryResponse(
             answer=answer,
             sources=sources,
             question=request.question,
         )
-        
     except Exception as e:
         logger.error("Error en /query",source="api",question=request.question[:100] if request else "unknown",error=str(e),error_type=type(e).__name__)
         raise HTTPException(status_code=500, detail=str(e))
@@ -94,6 +113,7 @@ async def query_endpoint(request: QueryRequest):
 @app.get("/debug/agent-status")
 async def debug_agent_status():
     """Verifica que el Agent este inicializado"""
+    agent = Agent()
     return {
         "status": "ok",
         "agent_initialized": agent is not None,
@@ -106,6 +126,7 @@ async def debug_test_agent(question: str = "que es terraform?"):
     """Prueba el Agent completo y muestra el flujo"""
     try:
         start = time.time()
+        agent = Agent()
         result = agent.invoke(question)
         duration = time.time() - start
         
@@ -161,7 +182,15 @@ async def debug_test_search(question: str = "que es terraform?"):
     """Prueba search_examples directamente"""
     try:
         from src.services.search import search_examples
-        hits = search_examples(query=question, k=5, threshold=0.0)
+        # Llamar search_examples directamente
+        hits = search_examples(query=question, k=SETTINGS.K_DOCS, threshold=SETTINGS.THRESHOLD)
+        
+        logger.info(
+            f"Test search completado",
+            source="api",
+            hits_count=len(hits),
+            first_hit=str(hits[0]) if hits else "NO HITS"
+        )
         
         return {
             "question": question,

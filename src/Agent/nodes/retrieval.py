@@ -1,3 +1,4 @@
+from config.config import SETTINGS
 from src.Agent.state import AgentState, DocumentScore
 from src.services.search import search_examples 
 from config.logger_config import logger
@@ -7,20 +8,20 @@ def retrieve_documents(state: AgentState) -> AgentState:
     """
     Busca documentos usando search_examples() 
     (la función de búsqueda de tu API actual)
-    
     """
     question = state["question"]
-    k = 10  # Traer más documentos para que filtering los seleccione
+    k_max = state["k_docs"] + 5  # Traer más documentos para que filtering los seleccione
+    threshold = state["threshold"]
     
     try:
-        logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k)
+        logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k_max)
         
         # Usar TU search_examples actual
         # Retorna: List[Dict] con keys: score, content, metadata, path, doc_type, etc
         hits = search_examples(
             question, 
-            k=k, 
-            threshold=0.8,
+            k=k_max, 
+            threshold=threshold,
             collections=state.get("target_collections")  
         )
 
@@ -29,9 +30,38 @@ def retrieve_documents(state: AgentState) -> AgentState:
         # Convertir hits a DocumentScore (para LangGraph)
         raw_documents = []
         for rank, hit in enumerate(hits, 1):
+            # Enriquecer metadata con un campo "ref" clicable si es posible
+            md = hit.get("metadata", {}) or {}
+            path = md.get("file_path") or hit.get("path") or ""
+            pages = md.get("pages") or md.get("page")
+            # Heurística: construir un enlace local o GitHub si hay base URL configurada
+            base_url = SETTINGS.API_URL  # URL base para visor local
+            ref = ""
+            if path:
+                # Si hay páginas, añadir query para el visor
+                # Normalizar path a ruta relativa (desde /data/docs/)
+                rel_path = ""
+                if "data/" in path.replace("\\", "/"):
+                    # Extraer desde data/docs/ en adelante
+                    rel_path = path.replace("\\", "/").split("data/", 1)[-1]
+                    rel_path = f"viewer/{rel_path.replace('/', '%2F')}"
+                else:
+                    rel_path = path.replace("\\", "/")
+                if pages:
+                    ref = f"{base_url.rstrip('/')}/{rel_path}?page={pages}"
+                else:
+                    ref = f"{base_url.rstrip('/')}/{rel_path}"
+
+            # Guardar ref en metadata
+            if ref:
+                try:
+                    md["ref"] = ref
+                except Exception:
+                    pass
+
             doc_score = DocumentScore(
                 content=hit.get("content", ""),
-                metadata=hit.get("metadata", {}),
+                metadata=md,
                 relevance_score=float(hit.get("score", 0.0)),  # Score de Qdrant
                 source=hit.get("path", "unknown"),
                 line_number=None  # No aplica para Terraform
@@ -45,12 +75,16 @@ def retrieve_documents(state: AgentState) -> AgentState:
         # Actualizar estado
         state["raw_documents"] = raw_documents
         state["documents"] = [doc.content for doc in raw_documents]
+        # Propagar el campo `ref` en los metadatos
         state["documents_metadata"] = [
-            {"metadata": doc.metadata,
-             "source": doc.source, 
-             "score": doc.relevance_score
-            } 
-            for doc in raw_documents]
+            {
+                "metadata": doc.metadata,
+                "source": doc.source,
+                "score": doc.relevance_score,
+                "ref": doc.metadata.get("ref", "")  # Incluir el enlace clicable
+            }
+            for doc in raw_documents
+        ]
         state["messages"].append(
             f"📚 Recuperados {len(raw_documents)} documentos crudos"
         )

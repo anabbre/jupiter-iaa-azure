@@ -1,4 +1,3 @@
-# logger_config.py
 import os
 import sys
 import json
@@ -8,35 +7,9 @@ import traceback
 from loguru import logger
 from contextvars import ContextVar
 
-# Estructura de carpetas:
-# Estructura de carpetas:
-# logs/
-# ├── errors.txt             # Errores globales
-# ├── performance.txt        # Performance global
-# ├── api/
-# │   └── api.txt            # Requests/responses de FastAPI
-# ├── qdrant/
-# │   └── qdrant.txt         # Proceso de indexación de documentos
-# ├── search/
-# │   └── search.txt         # Búsquedas en Qdrant
-# ├── ui/
-# │   └── ui.txt             # Búsquedas en Qdrant
-
-
-
-
 # Variables de contexto para rastrear requests
 request_id_var: ContextVar[str] = ContextVar('request_id', default=None)
 user_session_var: ContextVar[str] = ContextVar('user_session', default=None)
-
-# Crear carpeta logs si no existe
-os.makedirs("logs", exist_ok=True)
-os.makedirs("logs/api", exist_ok=True)
-os.makedirs("logs/qdrant", exist_ok=True)
-os.makedirs("logs/agent", exist_ok=True)
-os.makedirs("logs/search", exist_ok=True)
-os.makedirs("logs/ui", exist_ok=True)
-
 # Funciones auxiliares para manejar IDs de request y sesión
 def get_request_id():
     # Obtiene o crea un ID de peticion
@@ -55,8 +28,36 @@ def set_session_id(session_id: str):
     # Establece Id sesion
     user_session_var.set(session_id)
 
+
+# ESTRUCTURA DE CARPETAS
+# logs/
+# ├── errors.log
+# ├── performance.log
+# ├── api/
+# │   └── api.log
+# ├── qdrant/
+# │   └── qdrant.log
+# ├── search/
+# │   └── search.log
+# ├── agent/
+# │   └── agent.log
+# └── ui/
+#     └── ui.log
+
+# Asegurar que las carpetas de logs existen
+LOG_DIRS = [
+    "logs",
+    "logs/api",
+    "logs/qdrant",
+    "logs/search",
+    "logs/agent",
+]
+
+for log_dir in LOG_DIRS:
+    os.makedirs(log_dir, exist_ok=True)
+
 # Formato para consola (con colores)
-LOG_FORMAT = (
+CONSOLE_FORMAT  = (
     "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
     "<level>{level: <8}</level> | "
     "<cyan>{module}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
@@ -72,6 +73,8 @@ FILE_FORMAT = (
     "req_id={extra[request_id]} | "
     "{message}"
 )
+
+
 
 # Función para formatear el extra como key=value
 def format_extra(record):
@@ -95,35 +98,6 @@ def format_extra(record):
         return " | " + " ".join(parts)
     return ""
 
-# # Función para serializar logs en JSON personalizado
-# def serialize(record):
-#     # Función auxiliar para convertir objetos no serializables a string como los docs PDFs
-#     def default_handler(obj):
-#         # Si es un objeto Document o similar, conviértelo a string
-#         if hasattr(obj, '__dict__'):
-#             return str(obj)
-#         return str(obj)
-#     # Estructura
-#     log_record = {
-#         "timestamp": record["time"].isoformat(),
-#         "level": record["level"].name,
-#         "message": record["message"],
-#         "module": record["module"],
-#         "function": record["function"],
-#         "line": record["line"],
-#         "request_id": get_request_id(),
-#         "session_id": get_session_id(),
-#         "extra": record["extra"]
-#     }
-#     if record["exception"]:
-#         exc = record["exception"]
-#         log_record["exception"] = {
-#             "type": exc.type.__name__,
-#             "value": str(exc.value),
-#             "traceback": "".join(traceback.format_exception(exc.type, exc.value, exc.traceback))
-#         }
-#     return json.dumps(log_record, ensure_ascii=False, default=default_handler)
-
 # Patch para añadir campo 'serialized' con JSON
 def patching(record):
     # agrega el campo serializado
@@ -141,136 +115,137 @@ logger = logger.patch(patching)
 
 # Handler para consola (stderr) - CON COLORES
 logger.add(
-    sys.stderr, 
-    level="DEBUG", 
-    format=LOG_FORMAT,
-    colorize=True
+    sys.stderr,
+    level="DEBUG",
+    format=CONSOLE_FORMAT,
+    colorize=True,
 )
+# ===============================
+# LOGS EN ARCHIVOS
+# ===============================
 
-# ============ ARCHIVOS DE LOGS ============
 # Log solo de errores
 logger.add(
-    "logs/errors.txt",
-    format=FILE_FORMAT + "\n",
+    "logs/errors.log",
+    format=FILE_FORMAT,
     level="ERROR",
     rotation="20 MB",
-    retention="7 days"
-)
-
-# Log global de performance
-logger.add(
-    "logs/performance.txt",
-    format=FILE_FORMAT + "\n",
-    level="INFO",
-    filter=lambda record: "process_time" in record["extra"] or "duration" in record["extra"],
-    rotation="20 MB",
-    retention="7 days"
-)
-
-# Log API (requests/responses)
-logger.add(
-    "logs/api/api.txt",
-    format=FILE_FORMAT + "\n",
-    level="INFO",
-    filter=lambda record: record["extra"].get("source") == "api",
-    rotation="20 MB",
-    retention="7 days"
-)
-
-# Log LangGraph
-logger.add(
-    "logs/agent/agent.txt",
-    format=FILE_FORMAT + "\n",
-    level="INFO",
-    filter=lambda record: record["extra"].get("source") == "agent",
-    rotation="20 MB",
-    retention="7 days"
-)
-
-
-# Log UI/Gradio
-logger.add(
-    "logs/ui/ui.txt",
-    format=FILE_FORMAT + "\n",
-    level="INFO",
-    filter=lambda record: record["extra"].get("source") == "ui",
-    rotation="20 MB",
-    retention="7 days"
-)
-
-
-# Log de Qdrant Indexing
-logger.add(
-    "logs/qdrant/qdrant.txt",
-    format=FILE_FORMAT + "\n",
-    level="DEBUG",  # DEBUG para capturar todo el proceso
-    filter=lambda record: record["extra"].get("source") == "indexer",
-    rotation="50 MB",  # Más grande porque indexación genera muchos logs
     retention="7 days",
-    compression="zip"
+    compression="zip",
 )
 
-# Search Logs
+# Performance (logs con process_time o duration)
 logger.add(
-    "logs/search/search.txt",
-    format=FILE_FORMAT + "\n",
+    "logs/performance.log",
+    format=FILE_FORMAT,
     level="INFO",
-    filter=lambda record: record["extra"].get("source") == "search",
+    filter=lambda r: "process_time" in r["extra"] or "duration" in r["extra"],
     rotation="20 MB",
     retention="7 days",
-    compression="zip"
 )
+# API (FastAPI requests/responses)
+logger.add(
+    "logs/api/api.log",
+    format=FILE_FORMAT,
+    level="INFO",
+    filter=lambda r: r["extra"].get("source") == "api",
+    rotation="20 MB",
+    retention="7 days",
+)
+
+# Qdrant (indexación y vector store)
+logger.add(
+    "logs/qdrant/qdrant.log",
+    format=FILE_FORMAT,
+    level="DEBUG",
+    filter=lambda r: r["extra"].get("source") == "qdrant",
+    rotation="50 MB",
+    retention="7 days",
+    compression="zip",
+)
+
+# Search (búsquedas semánticas)
+logger.add(
+    "logs/search/search.log",
+    format=FILE_FORMAT,
+    level="INFO",
+    filter=lambda r: r["extra"].get("source") == "search",
+    rotation="20 MB",
+    retention="7 days",
+    compression="zip",
+)
+
+AGENT_SOURCES = {
+    "agent",
+    "decision", 
+    "generation",
+    "intent_classifier",
+    "retrieval",
+    "validate_scope",
+}
+# Agent (nodos del agente LangGraph)
+logger.add(
+    "logs/agent/agent.log",
+    format=FILE_FORMAT,
+    level="DEBUG",
+    filter=lambda r: r["extra"].get("source") in AGENT_SOURCES,
+    rotation="30 MB",
+    retention="7 days",
+    compression="zip",
+)
+# UI (Gradio interface)
+logger.add(
+    "logs/ui/ui.log",
+    format=FILE_FORMAT,
+    level="INFO",
+    filter=lambda r: r["extra"].get("source") == "ui",
+    rotation="20 MB",
+    retention="7 days",
+)
+
 # Recuperar logs FastAPI
 class InterceptHandler(logging.Handler):
-    """
-    Intercepta logs de FastAPI, Uvicorn, etc
-    y los eredirijo a loguru
-    """
-    def emit(self, record):
-        # Obtener correspondencia de nivel 
-        level = record.levelname.lower()
-        
+    """Redirige logs de stdlib (FastAPI, Uvicorn) a Loguru."""
+    def emit(self, record: logging.LogRecord) -> None:
         try:
-            try:
-                level = getattr(logger, level)
-            except AttributeError:
-                level = logger.info
-            
-            # Quitar llaves para evitar conflictos de formato 
-            message = record.getMessage()
-            message = message.replace("{", "{{").replace("}", "}}")
-            
-            # Loguear con contexto
-            level(
-                record.getMessage(),
-                logger_name=record.name,
-                filename=record.filename,
-                funcName=record.funcName,
-                lineno=record.lineno,
-                source="api"
-            )
-        except Exception:
-            pass
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+        frame, depth = sys._getframe(6), 6
+        while frame and frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+        # Escapar llaves para evitar conflictos de formato
+        message = record.getMessage().replace("{", "{{").replace("}", "}}")
+        logger.opt(depth=depth, exception=record.exc_info).bind(source="api").log(
+            level, message
+        )
 
-# Configurar logging del stdlib para capturar FastAPI/Uvicorn
+
+# Configurar interceptor
 logging.basicConfig(handlers=[InterceptHandler()], level=logging.DEBUG, force=True)
 
-# Nombres de loggers a interceptar
 LOGGERS_TO_INTERCEPT = [
-    "uvicorn",           # Servidor ASGI
-    "uvicorn.access",    # Logs de acceso (GET /query, etc.)
-    "uvicorn.error",     # Errores del servidor
-    "fastapi",           # Framework
-    "starlette",         # Base de FastAPI
+    "uvicorn",
+    "uvicorn.access",
+    "uvicorn.error",
+    "fastapi",
+    "starlette",
 ]
 
-# Interceptor a loggers específicos
 for logger_name in LOGGERS_TO_INTERCEPT:
     logging_logger = logging.getLogger(logger_name)
     logging_logger.handlers = [InterceptHandler()]
     logging_logger.setLevel(logging.DEBUG)
-    
-# ✅ Silenciar completamente httpx/httpcore (peticiones HTTP internas a Qdrant)
-for noisy_logger in ["httpx", "httpcore", "httpcore.connection", "httpcore.http11"]:
-    logging.getLogger(noisy_logger).setLevel(logging.CRITICAL)  # Solo críticos
-    logging.getLogger(noisy_logger).propagate = False  # No propagar
+
+# Silenciar loggers ruidosos
+NOISY_LOGGERS = [
+    "httpx",
+    "httpcore",
+    "httpcore.connection",
+    "httpcore.http11",
+]
+
+for noisy in NOISY_LOGGERS:
+    logging.getLogger(noisy).setLevel(logging.CRITICAL)
+    logging.getLogger(noisy).propagate = False

@@ -269,12 +269,7 @@ async def debug_qdrant_status():
             collection_name=qdrant_vector_store.collection_name
         )
         
-        logger.info(
-            f"📊 Info Qdrant obtenida",
-            source="api",
-            collection_name=qdrant_vector_store.collection_name,
-            points_count=collection_info.points_count
-        )
+        logger.info(f"📊 Info Qdrant obtenida",source="api",collection_name=qdrant_vector_store.collection_name,points_count=collection_info.points_count)
         
         return {
             "status": "connected",

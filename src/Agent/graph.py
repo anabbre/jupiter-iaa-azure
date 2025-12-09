@@ -133,13 +133,7 @@ class Agent:
         try:
             result = self.graph.invoke(state)
             duration = time.time() - start_time
-            
-            logger.info("✅ Grafo completado", source="agent",
-                       duration=f"{duration:.2f}s",
-                       is_valid_scope=result.get("is_valid_scope"),
-                       intent=result.get("intent"),
-                       action=result.get("response_action"))
-            
+            logger.info("✅ Grafo completado", source="agent",duration=f"{duration:.2f}s",is_valid_scope=result.get("is_valid_scope"),intent=result.get("intent"),action=result.get("response_action"))
             return result
             
         except Exception as e:

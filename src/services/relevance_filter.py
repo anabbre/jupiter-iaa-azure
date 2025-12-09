@@ -38,11 +38,25 @@ DOMAIN_KEYWORDS = {
 
 # Palabras que indican consultas fuera de scope
 OUT_OF_SCOPE_PATTERNS = [
-    r"^(hola|hi|hello|hey|buenos días|good morning|buenas tardes|good afternoon)$",
-    r"^(qué tal|cómo estás|how are you|what's up)$",
-    r"^(gracias|thanks|thank you|thx)$",
-    r"^(adiós|bye|goodbye|chao|hasta luego)$",
-    r"^(ok|okay|vale|bien|good)$",
+    r"^hola$",
+    r"^hola\s+(que\s*tal|qué\s*tal|como\s*estas|cómo\s*estás).*$",
+    r"^(hi|hello|hey)$",
+    r"^buenos\s*(dias|días|tardes|noches)$",
+    r"^good\s*(morning|afternoon|evening)$",
+    
+    # Estados de ánimo  
+    r"^(que\s*tal|qué\s*tal)$",
+    r"^(como\s*estas|cómo\s*estás)$",
+    r"^(how\s*are\s*you|what'?s\s*up)$",
+    
+    # Agradecimientos
+    r"^(gracias|thanks|thank\s*you|thx)$",
+    
+    # Despedidas
+    r"^(adios|adiós|bye|goodbye|chao|hasta\s*luego)$",
+    
+    # Confirmaciones
+    r"^(ok|okay|vale|bien|good|si|sí|no)$",
 ]
 
 def is_query_in_scope(query: str, min_keywords: int = 0) -> Tuple[bool, str]:

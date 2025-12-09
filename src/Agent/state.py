@@ -22,6 +22,9 @@ class AgentState(TypedDict):
     # Input
     question: str
     
+    # Scope Validation
+    is_valid_scope: bool                 # Si la consulta está dentro del scope
+    
     # Intent Classification 
     intent: str                         # Intent primario: explanation, code_template, full_example
     intents: List[str]                  # Todos los intents detectados
@@ -41,7 +44,7 @@ class AgentState(TypedDict):
     explanation: Optional[str]          # Explicación (si aplica)
 
     # Metadata
-    messages: Annotated[List[str], add]
+    messages: List[str]
     
     
     

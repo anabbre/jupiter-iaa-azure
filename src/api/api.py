@@ -10,9 +10,7 @@ sys.path.append('/app')  # Asegura que /app esté en PYTHONPATH
 from config.config import SETTINGS
 from src.services.search import search_examples
 from config.logger_config import logger
-from src.services.vector_store import vector_store as qdrant_vector_store
 from src.services.search import search_examples
-from src.services.embeddings import embeddings_model
 # OpenAI (v1 SDK). Si no hay API key, haremos fallback.
 from openai import OpenAI
 from .schemas import (
@@ -52,21 +50,10 @@ MAX_CONTEXT_CHARS = 6000  # límite de contexto para el prompt
 CODE_LANG = "hcl"         # resaltado para Terraform
 
 
-def _gather_context(query: str, k: int) -> List[str]:
-    """
-    Devuelve una lista de fragmentos de texto (page_content) de los k documentos más relevantes.
-    """
-    docs = qdrant_vector_store.similarity_search(query, k=k)
-    snippets: List[str] = []
-
-    for d in docs:
-        meta = d.metadata or {}
-        header = f"# {meta.get('name', meta.get('path', 'snippet'))}"
-        if meta.get("page") is not None:
-            header += f" (pág. {meta.get('page')})"
-        block = f"{header}\n{d.page_content.strip()}"
-        snippets.append(block)
-
+def _gather_context(hits: List[dict]):
+    snippets = []
+    for hit in hits:  
+        snippets.append(f"# {hit['name']}\n{hit['content']}")
     return snippets
 
 
@@ -83,7 +70,7 @@ def _trim_context(snippets: List[str], max_chars: int = MAX_CONTEXT_CHARS) -> st
         acc += len(s)
     return "\n\n---\n\n".join(joined)
 
-def _validate_results_quality(hits: List[dict], min_threshold: float = MIN_SCORE_THRESHOLD) -> tuple[bool, str]:
+def _validate_results_quality(hits):
     """
     Valida si los resultados tienen suficiente calidad.
     
@@ -91,24 +78,7 @@ def _validate_results_quality(hits: List[dict], min_threshold: float = MIN_SCORE
         (es_valido, mensaje)
     """
     if not hits:
-        return False, "No se encontraron documentos relevantes en la base de datos."
-    
-    # Verificar que al menos hay un resultado con buen score
-    good_results = [h for h in hits if (h.get("score") or 0) >= min_threshold]
-    
-    if not good_results:
-        avg_score = sum(h.get("score", 0) for h in hits) / len(hits)
-        return False, (
-            f"La información encontrada no es lo suficientemente relevante. "
-            f"Score promedio: {avg_score:.2f} (mínimo requerido: {min_threshold}). "
-            f"Intenta reformular tu pregunta."
-        )
-    
-    if len(good_results) < MIN_RESULTS_REQUIRED:
-        return False, (
-            f"Se encontraron solo {len(good_results)} resultado(s) relevante(s). "
-            f"Se requieren al menos {MIN_RESULTS_REQUIRED}."
-        )
+        return False, "No hay documentos"
     
     return True, "OK"
 
@@ -197,7 +167,7 @@ async def query_endpoint(request: QueryRequest):
             raise HTTPException(status_code=500,detail=f"Error en búsqueda: {str(te)}")
 
         # VALIDACIÓN DE CALIDAD ✅ CRÍTICO
-        is_valid, validation_msg = _validate_results_quality(hits, min_threshold=threshold)
+        is_valid, validation_msg = _validate_results_quality(hits)
         if not is_valid:
             logger.info(f"⚠️ Resultados rechazados por calidad",source="api",reason=validation_msg,question=request.question)
            
@@ -227,7 +197,7 @@ async def query_endpoint(request: QueryRequest):
         logger.info(f"Sources construidos",source="api",sources_count=len(sources))
 
         # 4) Contexto + LLM / Fallback
-        context_snippets = _gather_context(request.question, k=k)
+        context_snippets = _gather_context(hits)
         context = _trim_context(context_snippets, MAX_CONTEXT_CHARS)
         logger.info(f"⌛ Generando respuesta",source="api",context_size=len(context) )
         
@@ -258,39 +228,6 @@ async def query_endpoint(request: QueryRequest):
         logger.error("❌ Error crítico en /query",source="api",question=request.question[:100] if hasattr(request, 'question') else "desconocida",error_type=type(e).__name__,error_message=str(e))   
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/debug/qdrant-status")
-async def debug_qdrant_status():
-    """Verifica estado y cantidad de documentos en Qdrant"""
-    try:
-        from src.services.vector_store import qdrant_vector_store
-        
-        # Intentar obtener info de la colección
-        collection_info = qdrant_vector_store.client.get_collection(
-            collection_name=qdrant_vector_store.collection_name
-        )
-        
-        logger.info(
-            f"📊 Info Qdrant obtenida",
-            source="api",
-            collection_name=qdrant_vector_store.collection_name,
-            points_count=collection_info.points_count
-        )
-        
-        return {
-            "status": "connected",
-            "collection": qdrant_vector_store.collection_name,
-            "points_count": collection_info.points_count,
-            "vectors_count": collection_info.vectors_count,
-            "url": qdrant_vector_store.client.url
-        }
-    except Exception as e:
-        logger.error(f"❌ Error verificando Qdrant: {e}", source="api")
-        return {
-            "status": "error",
-            "error": str(e)
-        }
-
-
 @app.post("/debug/test-search")
 async def debug_test_search(question: str = "What is terraform?"):
     """
@@ -303,12 +240,7 @@ async def debug_test_search(question: str = "What is terraform?"):
         # Llamar search_examples d irectamente
         hits = search_examples(query=question, k=5, threshold=0.0)
         
-        logger.info(
-            f"Test search completado",
-            source="api",
-            hits_count=len(hits),
-            first_hit=str(hits[0]) if hits else "NO HITS"
-        )
+        logger.info(f"Test search completado",source="api",hits_count=len(hits),first_hit=str(hits[0]) if hits else "NO HITS")
         
         return {
             "question": question,
@@ -339,7 +271,7 @@ async def debug_test_search(question: str = "What is terraform?"):
 @app.post("/debug/vector-store-search")
 async def debug_vector_store_search(question: str = "What is terraform?"):
     """
-    Prueba directamente qdrant_vector_store.similarity_search()
+    Prueba directamente vector_store.similarity_search()
     (Sin procesamiento de search_examples)
     """
     try:
@@ -349,10 +281,10 @@ async def debug_vector_store_search(question: str = "What is terraform?"):
             question=question
         )
         
-        from src.services.vector_store import qdrant_vector_store
+        from src.services.vector_store import vector_store
         
         # Llamar directamente
-        docs = qdrant_vector_store.similarity_search(question, k=5)
+        docs = vector_store.similarity_search(question, k=5)
         
         logger.info(
             f"Vector store search completado",

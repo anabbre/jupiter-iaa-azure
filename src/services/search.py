@@ -324,7 +324,6 @@ def search_examples(
         hits = filter_results_by_relevance(
             query=query,
             results=hits,
-            min_score=0.75,
             min_domain_overlap=0.3
         )
         

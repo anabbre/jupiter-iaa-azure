@@ -6,7 +6,7 @@ from qdrant_client import QdrantClient, models
 from qdrant_client.http.exceptions import UnexpectedResponse
 from langchain_qdrant import QdrantVectorStore
 
-from config.config import SETTINGS  # ✅ Ruta correcta
+from config.config import SETTINGS  
 from src.services.embeddings import embeddings_model
 from config.logger_config import logger
 

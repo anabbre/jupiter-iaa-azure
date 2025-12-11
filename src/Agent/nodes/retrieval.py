@@ -1,45 +1,3 @@
-# # langgraph_agent/nodes/retrieval.py
-# """
-# Nodo de recuperación de documentos
-# """
-# from src.Agent.state import AgentState
-# from src.services.vector_store import qdrant_vector_store, n_docs
-# from config.logger_config import logger, get_request_id, set_request_id
-
-# def retrieve_documents(state: AgentState) -> AgentState:
-#     """
-#     Busca documentos relevantes en la DB vectorial
-
-#     Args:
-#         state: Estado actual del grafo
-
-#     Returns:
-#         Estado actualizado con documentos recuperados
-#     """
-    
-#     question = state["question"]
-#     try: 
-#         # Buscar documentos similares
-#         docs = qdrant_vector_store.similarity_search(question, k=n_docs)
-
-#         # Actualizar estado
-#         state["documents"] = [doc.page_content for doc in docs]
-#         logger.info(" - Búsqueda completada",source="agent")
-
-#         state["documents_metadata"] = [
-#             {
-#                 "metadata": doc.metadata,  # Metadata del documento (página, fuente, etc.)
-#             }
-#             for doc in docs
-#         ]
-
-#         state["messages"].append(f"📚 Recuperados {len(docs)} documentos")
-#         logger.info("✅ Estado actualizado exitosamente",source="agent")
-#         return state
-#     except Exception as e:
-#         logger.error(f"❌ Error durante la recuperación de documentos", source="agent",error=str(e),tipo_error=type(e).__name__)
-#         state["messages"].append(f"❌ Error en recuperación: {str(e)}",source="agent")
-#         raise
 
 from src.Agent.state import AgentState, DocumentScore
 from src.services.search import search_examples  # ← Tu search.py
@@ -58,18 +16,15 @@ def retrieve_documents(state: AgentState) -> AgentState:
         Estado actualizado con documentos crudos (sin filtrar)
     """
     question = state["question"]
-    k = 10  # Traer más documentos para que filtering los seleccione
+    k = 10  
     
     try:
         logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k)
         
-        # Usar TU search_examples actual
-        # Retorna: List[Dict] con keys: score, content, metadata, path, doc_type, etc
         hits = search_examples(
             question, 
             k=k, 
-            threshold=0.7,
-            collections=state.get("target_collections")  
+            threshold=0.0
         )
 
         logger.info(f"✅ search_examples retornó {len(hits)} resultados",source="retrieval",hits_count=len(hits))
@@ -104,4 +59,4 @@ def retrieve_documents(state: AgentState) -> AgentState:
         logger.error(f"❌ Error durante la recuperación de documentos",source="retrieval",error=str(e),error_type=type(e).__name__,question=question[:100])
         state["messages"].append(f"❌ Error en recuperación: {str(e)}")
         state["raw_documents"] = []
-        raise
+        return state

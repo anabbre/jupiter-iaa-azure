@@ -1,23 +1,32 @@
 # Carpetas de desarrollo
 .vscode/
 .idea/
-__pycache__/
-.ipynb_checkpoints/
+_pycache_/
+.ipynb_checkpoi
+
+# Carpetas específicas del proyecto
+qdrant_data/
 
 # Entornos virtuales
 .env
 .venv/
+.venv*/
+.venv_jupyter/
 env/
 venv/
 ENV/
 
-# Archivos de configuración y dependencias
+
+
+# Archivosme los puedes de configuración y dependencias
 *.pyc
 *.pyo
 *.pyd
 *.db
 *.sqlite3
 *.log
+*.ipynb
+.git/
 
 # Logs y archivos temporales
 logs/
@@ -27,5 +36,7 @@ tmp/
 *.swp
 
 # Archivos de sistema
+.DS_Store
+Thumbs.dbs de sistema
 .DS_Store
 Thumbs.db

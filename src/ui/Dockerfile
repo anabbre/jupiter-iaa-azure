@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+﻿FROM python:3.12-slim
 
 # Establecer directorio de trabajo
 WORKDIR /app
@@ -13,9 +13,9 @@ ENV GRADIO_SERVER_PORT=7860
 COPY requirements.txt .
 
 # Instalar dependencias de Python
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefer-binary --timeout 100 --retries 5 -r requirements.txt
 
-# Copiar código fuente
+# Copiar cÃ³digo fuente
 COPY src/ ./src/
 COPY config/ ./config/
 
@@ -25,5 +25,5 @@ RUN mkdir -p /app/logs
 # Exponer puerto
 EXPOSE 7860
 
-# Iniciar aplicación
+# Iniciar aplicaciÃ³n
 CMD ["gradio", "src/ui/ui.py"]

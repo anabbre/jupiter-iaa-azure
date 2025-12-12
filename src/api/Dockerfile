@@ -1,4 +1,4 @@
-# Usar Python 3.12 como base
+﻿# Usar Python 3.12 como base
 FROM python:3.12-slim
 
 # Establecer directorio de trabajo
@@ -12,9 +12,9 @@ ENV PYTHONPATH=/app/src:$PYTHONPATH
 COPY requirements.txt .
 
 # Instalar dependencias de Python
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
-# Copiar código fuente
+# Copiar cÃ³digo fuente
 COPY src/ ./src/
 COPY config/ ./config/
 COPY Scripts/ ./Scripts/
@@ -25,5 +25,5 @@ RUN mkdir -p logs
 # Exponer puerto
 EXPOSE 8008
 
-# Iniciar aplicación
+# Iniciar aplicaciÃ³n
 CMD ["uvicorn", "src.api.api:app", "--host", "0.0.0.0", "--port", "8008"]

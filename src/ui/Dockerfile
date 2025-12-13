@@ -15,7 +15,7 @@ COPY requirements.txt .
 # Instalar dependencias de Python
 RUN pip install --no-cache-dir --prefer-binary --timeout 100 --retries 5 -r requirements.txt
 
-# Copiar cÃ³digo fuente
+# Copiar código fuente
 COPY src/ ./src/
 COPY config/ ./config/
 
@@ -25,5 +25,5 @@ RUN mkdir -p /app/logs
 # Exponer puerto
 EXPOSE 7860
 
-# Iniciar aplicaciÃ³n
+# Iniciar aplicación
 CMD ["gradio", "src/ui/ui.py"]

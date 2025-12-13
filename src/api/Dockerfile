@@ -14,7 +14,7 @@ COPY requirements.txt .
 # Instalar dependencias de Python
 RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
-# Copiar cÃ³digo fuente
+# Copiar código fuente
 COPY src/ ./src/
 COPY config/ ./config/
 COPY Scripts/ ./Scripts/
@@ -25,5 +25,5 @@ RUN mkdir -p logs
 # Exponer puerto
 EXPOSE 8008
 
-# Iniciar aplicaciÃ³n
+# Iniciar aplicación
 CMD ["uvicorn", "src.api.api:app", "--host", "0.0.0.0", "--port", "8008"]

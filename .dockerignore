@@ -2,10 +2,7 @@
 .vscode/
 .idea/
 _pycache_/
-.ipynb_checkpoi
-
-# Carpetas específicas del proyecto
-qdrant_data/
+.ipynb_checkpoint
 
 # Entornos virtuales
 .env

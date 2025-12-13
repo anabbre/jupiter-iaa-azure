@@ -224,7 +224,6 @@ def procesar_mensaje(history, texto, archivo):
                 grouped_sources[doc_type].append(source)
 
             # Construir la respuesta agrupada
-            respuesta += "\n---" 
             respuesta += "\n\n🔎 Fuentes consultadas:"
 
             num = 1

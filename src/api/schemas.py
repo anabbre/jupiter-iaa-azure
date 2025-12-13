@@ -17,7 +17,7 @@ class SourceInfo(BaseModel):
     pages: str
     path: str = ""          # enlace lógico a la ruta origen
     name: Optional[str] = ""  # nombre del ejemplo/documento
-    ref: Optional[str] = ""   # enlace directo (PDF con ?page=)
+    ref: Optional[str] = ""   # enlace directo (PDF con #page=)
 
 class QueryResponse(BaseModel):
     """Modelo para la respuesta del agente"""

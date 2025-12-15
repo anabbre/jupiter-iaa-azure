@@ -55,7 +55,7 @@ class IndexConfig:
                 "code": "terraform_code"
             }
         
-        # ✅ CONFIGURACIÓN DIFERENCIADA DE CHUNKS
+        # CONFIGURACIÓN DIFERENCIADA DE CHUNKS
         if self.chunk_configs is None:
             self.chunk_configs = {
                 "pdf": {"chunk_size": 1200, "chunk_overlap": 200},       # Documentación con mas contexto
@@ -409,7 +409,6 @@ class DocumentLoader:
                         "tags": ex.get("tags", []),
                         "category": ex.get("category", "general"),
                         "difficulty": ex.get("difficulty", "intermediate"),
-                        # ✅ Mejorar búsqueda con info del manifest
                         "search_context": f"{ex.get('name')} - {ex.get('description', '')} - {doc.metadata.get('search_context', '')}"
                     })
                 documents.extend(docs)

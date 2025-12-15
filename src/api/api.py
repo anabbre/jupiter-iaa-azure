@@ -148,84 +148,55 @@ async def root():
 
 @app.post("/query", response_model=QueryResponse)
 async def query_endpoint(request: QueryRequest):
-    """Endpoint principal para consultas al vector store de Terraform RAG"""
     start_time = time.time()
     try:
-        logger.info(f"📨 Nueva consulta recibida",source="api",question=request.question,k_docs=request.k_docs,threshold=request.threshold)
+        logger.info(f"📨 Nueva consulta", source="api", question=request.question)
         
-        # 1) nº de docs a recuperar
-        k = request.k_docs or SETTINGS.K_DOCS
-        threshold = request.threshold or SETTINGS.THRESHOLD
-        logger.info(f"Parámetros procesados",source="api",k=k,threshold=threshold)
+        result = agent.invoke(request.question)
         
-        # 2) Buscar ejemplos en Qdrant (metadatos para UI)
-        try:
-            hits = search_examples(request.question, k=k, threshold=threshold)
-            logger.info(f"✅ Búsqueda exitosa",source="api",hits_count=len(hits))
-        except TypeError as te:
-            logger.error(f"❌ Error de parámetros en search_examples: {te}",source="api",error_type="TypeError")
-            raise HTTPException(status_code=500,detail=f"Error en búsqueda: {str(te)}")
-
-        # VALIDACIÓN DE CALIDAD ✅ CRÍTICO
-        is_valid, validation_msg = _validate_results_quality(hits)
-        if not is_valid:
-            logger.info(f"⚠️ Resultados rechazados por calidad",source="api",reason=validation_msg,question=request.question)
-           
-            response_time_ms = (time.time() - start_time) * 1000
-            answer = f"❌ {validation_msg}"
-            #  RESPUESTA RECHAZADA
-            logger.info("⚠️ Respuesta rechazada",source="api",question=request.question[:100],answer_length=len(answer),is_valid=False,sources_count=0,response_time_ms=round(response_time_ms, 2))
-            # Retornar respuesta clara de rechazo
+        # Validar que el scope es válido
+        if not result.get("is_valid_scope", True):
+            logger.warning(f"⚠️ Query rechazada", source="api", question=request.question)
             return QueryResponse(
-                answer=f"❌ {validation_msg}",
+                answer="❌ La consulta está fuera del scope de Terraform/Azure",
                 sources=[],
                 question=request.question,
             )
         
-            
-        # 3) Construir sources para respuesta
+        # Extraer respuestas del estado del grafo
+        answer = result.get("answer", "")
+        documents = result.get("raw_documents", [])
+        
+        # Validar que encontró documentos
+        if not documents:
+            logger.warning(f"⚠️ Sin documentos encontrados", source="api", question=request.question)
+            return QueryResponse(
+                answer="❌ No encontré documentos relevantes en la base de datos",
+                sources=[],
+                question=request.question,
+            )
+        # Construir sources desde documentos del grafo
         sources = []
-        for h in hits:
+        for doc in documents:
             sources.append(
                 SourceInfo(
-                    section=h.get("section", ""),
-                    pages=h.get("pages", "-"),
-                    path=h.get("path", ""),
-                    name=h.get("name", ""),
+                    name=doc.metadata.get("name", doc.source),  
+                    path=doc.source,                             
+                    section=doc.metadata.get("section", ""),
+                    pages=doc.metadata.get("pages", "-")
                 )
             )
-        logger.info(f"Sources construidos",source="api",sources_count=len(sources))
-
-        # 4) Contexto + LLM / Fallback
-        context_snippets = _gather_context(hits)
-        context = _trim_context(context_snippets, MAX_CONTEXT_CHARS)
-        logger.info(f"⌛ Generando respuesta",source="api",context_size=len(context) )
-        
-        answer = _llm_answer_no_hallucination(request.question, context, hits)
-        logger.info(f"✅ Respuesta generada",source="api",question=request.question )
-        
         response_time_ms = (time.time() - start_time) * 1000
+        logger.info("✅ Respuesta completada",source="api",documents_count=len(documents),response_time_ms=round(response_time_ms, 2))
         
-        # 📝 REGISTRAR RESPUESTA EXITOSA
-        logger.info("📊 Respuesta completada", source="api", question=request.question, answer_length=len(answer), is_valid=is_valid, response_time_ms=response_time_ms)
-        
-        print ("\n\nPregunta:", request.question)
-        print ("\n\nRespuesta:", answer)
-        print ("\n\nFuentes:", sources)
-        print ("\n\nContexto usado:", context[:500], "...\n")
-        print ("\n\nContexto completo usado:", context_snippets)
-
-        # 5) Responder
         return QueryResponse(
             answer=answer,
             sources=sources,
             question=request.question,
         )
         
-    except HTTPException:
-            raise
     except Exception as e:
-        logger.error("❌ Error crítico en /query",source="api",question=request.question[:100] if hasattr(request, 'question') else "desconocida",error_type=type(e).__name__,error_message=str(e))   
+        logger.error(f"❌ Error crítico",source="api",error=str(e),error_type=type(e).__name__)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/debug/test-search")

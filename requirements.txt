@@ -21,8 +21,8 @@ pypika
 langchain-core
 qdrant-client
 langchain-qdrant
-gradio
-gradio-client
+gradio==5.49.1
+gradio-client==1.13.3
 langchain-google-genai
 PyYAML
 sentence-transformers

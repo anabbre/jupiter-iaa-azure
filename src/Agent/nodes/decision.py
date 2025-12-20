@@ -2,13 +2,14 @@
 """
 Nodo de decisión basado en la intención detectada
 """
-from config.config import SETTINGS
 from src.Agent.state import AgentState
 from config.logger_config import logger, get_request_id, set_request_id
 from typing import Literal
 from src.Agent.nodes.intent_classifier import is_multi_intent
 from src.api.schemas import SourceInfo
 
+# Umbral minimo score para devolver template code directamente
+TEMPLATE_SCORE_THRESHOLD = 0.80
 
 def _has_terraform_code(content: str) -> bool:
     """Verifica si el contenido tiene código Terraform"""
@@ -42,16 +43,23 @@ def _find_best_template(raw_documents: list, threshold: float) -> tuple:
 def decide_response_type(state: AgentState) -> AgentState:
     """
     Decide la acción a tomar basada en la intención detectada
+
+    Args:
+        state: Estado con intentos y documentos
+
+    Returns:
+        Estado actualizado con la acción decidida
     """
+    
     try:
         # Extraer datos del estado
         intent = state.get("intent", "")
         is_multi_intent = state.get("is_multi_intent", False)
         raw_documents = state.get("raw_documents", [])
         response_action = state.get("response_action", "")
-        threshold = state.get("threshold", SETTINGS.THRESHOLD)
 
         logger.info("🤔 Evaluando tipo de respuesta", source="decision", intent=intent, is_multi_intent=is_multi_intent, num_docs=len(raw_documents), current_action=response_action)
+
         
         # Caso 1 - Hybrid
         if is_multi_intent or response_action == "hybrid_response":
@@ -62,7 +70,7 @@ def decide_response_type(state: AgentState) -> AgentState:
         
         # Caso 2 - Código Template Directo
         if intent in ["code_template", "full_example"]:
-            best_doc, found = _find_best_template(raw_documents, threshold)
+            best_doc, found = _find_best_template(raw_documents, TEMPLATE_SCORE_THRESHOLD)
             
             if found and best_doc:
                 state["response_action"] = "return_template"
@@ -72,7 +80,7 @@ def decide_response_type(state: AgentState) -> AgentState:
                 return state
             else:
                 # No hay buen template, generar con LLM
-                logger.info("⚠️ No se encontró template con score >= {:.2f}".format(threshold),source="decision",best_score=raw_documents[0].relevance_score if raw_documents else 0)
+                logger.info("⚠️ No se encontró template con score >= {:.2f}".format(TEMPLATE_SCORE_THRESHOLD),source="decision",best_score=raw_documents[0].relevance_score if raw_documents else 0)
     
         # Caso 3 - Generar Respuesta Completa
         state["response_action"] = "generate_answer"
@@ -92,6 +100,9 @@ def get_next_node(state: AgentState) -> Literal["generate", "format_template", "
     Router condicional para LangGraph.
     
     Determina qué nodo de generación ejecutar basado en response_action.
+    
+    Returns:
+        Nombre del siguiente nodo
     """
     action = state.get("response_action", "generate_answer")
     
@@ -147,7 +158,7 @@ if __name__ == "__main__":
     doc_bajo = DocumentScore(
         content='resource "azurerm_storage_account" "main" { }',
         metadata={},
-        relevance_score=0.75,  
+        relevance_score=0.75,  # Bajo threshold
         source="main.tf"
     )
     state3 = {

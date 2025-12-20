@@ -36,7 +36,7 @@ cold-start:
 	docker compose run --rm \
 		-e EXAMPLES_MANIFEST=docs/examples/manifest.yaml \
 		api python Scripts/RAG/index_examples.py
-	docker compose up -d api uiç
+	docker compose up -d api ui
 
 # Nuevas formas simplificadas
 rag-index: wait-qdrant
@@ -44,3 +44,4 @@ rag-index: wait-qdrant
 
 rag-reindex: wait-qdrant
 	docker compose run --rm api python rag_indexer.py
+

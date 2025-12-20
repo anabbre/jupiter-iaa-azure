@@ -9,8 +9,6 @@ from config.logger_config import logger
 
 API_URL = SETTINGS.API_URL
 
-
-
 def _normalize_source(src_item: dict) -> dict:
     """Normaliza una fuente heterogénea a una estructura común para la UI.
 
@@ -94,7 +92,6 @@ def _normalize_source(src_item: dict) -> dict:
         name = metadata.get("section") or section or name
         description = ""
         ref_name = f"{doc_type}.md"
-
     else:
         # Tipo desconocido: mantener valores por defecto y derivar ref_name del path
         ref_type = "Documento"
@@ -157,12 +154,9 @@ def get_api_response(question: str) -> dict:
             "sources": []
         }
 
-
 # =============================
 # FUNCIONES PRINCIPALES
 # =============================
-
-
 def procesar_mensaje(history, texto, archivo):
     """
     Procesa el mensaje del usuario con texto y/o archivo (imagen o texto)

@@ -1,6 +1,6 @@
-from config.config import SETTINGS
+
 from src.Agent.state import AgentState, DocumentScore
-from src.services.search import search_examples 
+from src.services.search import search_examples  # ← Tu search.py
 from config.logger_config import logger
 
 
@@ -8,21 +8,23 @@ def retrieve_documents(state: AgentState) -> AgentState:
     """
     Busca documentos usando search_examples() 
     (la función de búsqueda de tu API actual)
+    
+    Args:
+        state: Estado actual del grafo
+    
+    Returns:
+        Estado actualizado con documentos crudos (sin filtrar)
     """
     question = state["question"]
-    k_max = state["k_docs"] + 5  # Traer más documentos para que filtering los seleccione
-    threshold = state["threshold"]
+    k = 10  
     
     try:
-        logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k_max)
+        logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k)
         
-        # Usar TU search_examples actual
-        # Retorna: List[Dict] con keys: score, content, metadata, path, doc_type, etc
         hits = search_examples(
             question, 
-            k=k_max, 
-            threshold=threshold,
-            collections=state.get("target_collections")  
+            k=k, 
+            threshold=0.0
         )
         # Ordenar los hits por score descendente y quedarse con los k_docs mejores
         hits = sorted(hits, key=lambda x: x.get("score", 0), reverse=True)[:state["k_docs"]]
@@ -63,7 +65,7 @@ def retrieve_documents(state: AgentState) -> AgentState:
 
             doc_score = DocumentScore(
                 content=hit.get("content", ""),
-                metadata=md,
+                metadata=hit.get("metadata", {}),
                 relevance_score=float(hit.get("score", 0.0)),  # Score de Qdrant
                 source=hit.get("path", "unknown"),
                 collection=hit.get("collection", ""),
@@ -77,16 +79,7 @@ def retrieve_documents(state: AgentState) -> AgentState:
         # Actualizar estado
         state["raw_documents"] = raw_documents
         state["documents"] = [doc.content for doc in raw_documents]
-        # Propagar el campo `ref` en los metadatos
-        state["documents_metadata"] = [
-            {
-                "metadata": doc.metadata,
-                "source": doc.source,
-                "score": doc.relevance_score,
-                "ref": doc.metadata.get("ref", "")  # Incluir el enlace clicable
-            }
-            for doc in raw_documents
-        ]
+        state["documents_metadata"] = [{"metadata": doc.metadata, "source": doc.source, "score": doc.relevance_score} for doc in raw_documents]
         state["messages"].append(
             f"📚 Recuperados {len(raw_documents)} documentos crudos"
         )
@@ -97,4 +90,4 @@ def retrieve_documents(state: AgentState) -> AgentState:
         logger.error(f"❌ Error durante la recuperación de documentos",source="retrieval",error=str(e),error_type=type(e).__name__,question=question[:100])
         state["messages"].append(f"❌ Error en recuperación: {str(e)}")
         state["raw_documents"] = []
-        raise
+        return state

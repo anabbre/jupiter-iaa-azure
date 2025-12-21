@@ -2,7 +2,6 @@
 """
 Define el estado del grafo - aquí agregarás más campos según necesites
 """
-
 from typing import TypedDict, List, Optional, Annotated, Dict, Any
 from operator import add
 from dataclasses import dataclass 
@@ -21,8 +20,9 @@ class AgentState(TypedDict):
     """Estado compartido entre todos los nodos del grafo"""
     # Input
     question: str
-    k_docs: int                     # Número de documentos a recuperar
-    threshold: float                 # Umbral de relevancia
+    
+    # Scope Validation
+    is_valid_scope: bool                 # Si la consulta está dentro del scope
     
     # Intent Classification 
     intent: str                         # Intent primario: explanation, code_template, full_example
@@ -43,5 +43,8 @@ class AgentState(TypedDict):
     explanation: Optional[str]          # Explicación (si aplica)
 
     # Metadata
-    messages: Annotated[List[str], add]
+    messages: List[str]
     
+    
+    
+# python -c "from src.Agent.nodes.intent_classifier import classify_intent; print('✅ Intent classifier OK')"

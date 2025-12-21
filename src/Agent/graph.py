@@ -1,3 +1,4 @@
+# langgraph_agent/graph.py
 """
 Construcción del grafo principal
 """
@@ -20,6 +21,7 @@ def reject_query(state: AgentState) -> AgentState:
     logger.info("🚫 Query rechazada (fuera de scope)", source="agent")
     state["messages"].append("🚫 Query rechazada")
     return state
+
 
 class Agent:
     """
@@ -45,9 +47,9 @@ class Agent:
                         └─→ reject ──────────────────────────────────────────────────→ END
         """
         logger.info("🔧 Creando grafo", source="agent")
-
+        
         workflow = StateGraph(AgentState)
-
+        
         # ========== NODOS ==========
         workflow.add_node("validate_scope", validate_scope)
         workflow.add_node("reject", reject_query)
@@ -57,12 +59,12 @@ class Agent:
         workflow.add_node("generate", generate_answer)
         workflow.add_node("format_template", format_template)
         workflow.add_node("format_hybrid", format_hybrid)
-
+        
         # ========== EDGES ==========
-
+        
         # 1. Entry point: validate_scope
         workflow.set_entry_point("validate_scope")
-
+        
         # 2. Branching desde validate_scope
         workflow.add_conditional_edges(
             "validate_scope",
@@ -72,11 +74,11 @@ class Agent:
                 "reject": "reject"
             }
         )
-
+        
         # 3. Flujo principal
         workflow.add_edge("classify_intent", "retrieve")
         workflow.add_edge("retrieve", "decide")
-
+        
         # 4. Branching desde decide
         workflow.add_conditional_edges(
             "decide",
@@ -87,17 +89,17 @@ class Agent:
                 "format_hybrid": "format_hybrid"
             }
         )
-
+        
         # 5. Todos terminan en END
         workflow.add_edge("reject", END)
         workflow.add_edge("generate", END)
         workflow.add_edge("format_template", END)
         workflow.add_edge("format_hybrid", END)
-
+        
         logger.info("✅ Grafo compilado", source="agent")
         return workflow.compile()
-        
-    def invoke(self, question: str, k_docs: int, threshold: float) -> dict:
+    
+    def invoke(self, question: str) -> dict:
         """
         Ejecuta el grafo con una pregunta.
         """
@@ -106,8 +108,6 @@ class Agent:
         # Estado inicial
         state = {
             "question": question,
-            "k_docs": k_docs,
-            "threshold": threshold,
             "messages": [],
             # Scope
             "is_valid_scope": True,
@@ -131,24 +131,21 @@ class Agent:
         logger.info("▶️ Ejecutando grafo", source="agent", question=question[:80])
         
         try:
-            print(state)
             result = self.graph.invoke(state)
             duration = time.time() - start_time
-            
-            logger.info("✅ Grafo completado", source="agent",
-                       duration=f"{duration:.2f}s",
-                       is_valid_scope=result.get("is_valid_scope"),
-                       intent=result.get("intent"),
-                       action=result.get("response_action"))
-            
+            logger.info("✅ Grafo completado", source="agent",duration=f"{duration:.2f}s",is_valid_scope=result.get("is_valid_scope"),intent=result.get("intent"),action=result.get("response_action"))
             return result
             
         except Exception as e:
             logger.error("❌ Error en grafo", source="agent", error=str(e))
             raise
         
+def query(self, question: str) -> str:
+        """Método simple que devuelve solo la respuesta."""
+        result = self.invoke(question)
+        return result.get("answer", "No se pudo generar respuesta.")
     
-# Test
+# TEst
 if __name__ == "__main__":
     import sys
     
@@ -167,7 +164,7 @@ if __name__ == "__main__":
     print(f"\n📝 Query: {question}")
     print("-"*60)
     
-    result = agent.invoke(question, k_docs=5, threshold=0.1)
+    result = agent.invoke(question)
     
     # Mostrar resultados
     print(f"\n🔍 Scope válido: {result.get('is_valid_scope', True)}")

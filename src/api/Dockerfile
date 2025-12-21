@@ -1,4 +1,4 @@
-# Usar Python 3.12 como base
+﻿# Usar Python 3.12 como base
 FROM python:3.12-slim
 
 # Establecer directorio de trabajo
@@ -12,7 +12,7 @@ ENV PYTHONPATH=/app/src:$PYTHONPATH
 COPY requirements.txt .
 
 # Instalar dependencias de Python
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 # Copiar código fuente
 COPY src/ ./src/

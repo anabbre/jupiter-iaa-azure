@@ -91,12 +91,3 @@ examples:
     difficulty: beginner
     cloud_provider: azure
     description: 'Ejemplo de parametrización con terraform.tfvars'
-
-  - id: tfbook
-    name: terraform-up-and-running
-    path: data/pdfs/Libro-TF.pdf
-    tags: [terraform, book, pdf, documentation]
-    category: documentation
-    difficulty: all
-    cloud_provider: multi
-    description: 'Libro completo de Terraform - conceptos y best practices'

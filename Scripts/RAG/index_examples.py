@@ -98,7 +98,7 @@ def collect_chunks_from_pdf(pdf_path: Path, section: str) -> List[dict]:
         page_num = int(pg.metadata.get("page", 0)) + 1
         pg.metadata["page"] = page_num
         # ref clicable con ancla de página
-        pg.metadata["ref"] = f"{pdf_path}?page={page_num}"
+        pg.metadata["ref"] = f"{pdf_path}#page={page_num}"
         docs.extend(splitter.split_documents([pg]))
     return docs
 

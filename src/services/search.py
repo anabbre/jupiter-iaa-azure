@@ -264,7 +264,7 @@ def search_examples(
                 logger.warning(f"⚠️ Error en colección {collection}: {e}", source="search", request_id=request_id)
                 continue
         
-        logger.info(f"✅ Búsqueda completada en {len(collections)} colecciones", source="search", total_results=len(all_results), request_id=request_id)
+        logger.info(f"✅ Búsqueda completada en {len(collections)} colecciones: {', '.join(collections)}", source="search", total_results=len(all_results), request_id=request_id)
         
         # 5. Procesar resultados
         hits = []

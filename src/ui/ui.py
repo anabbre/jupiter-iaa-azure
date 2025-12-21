@@ -10,29 +10,107 @@ from config.logger_config import logger
 API_URL = SETTINGS.API_URL
 
 
+
 def _normalize_source(src_item: dict) -> dict:
-    # src_item puede ser dataclass DocumentScore o dict
+    """Normaliza una fuente heterogénea a una estructura común para la UI.
+
+    Casos soportados según metadata['doc_type']:
+      - example
+      - terraform_book
+      - documentation
+
+    Campos de salida comunes:
+      name, description, ref, ref_name, relevance_score, extras, path, section
+    """
+    # src_item puede ser dataclass (DocumentScore) o dict
     src = src_item if isinstance(src_item, dict) else getattr(src_item, "__dict__", {})
     metadata = src.get("metadata", {}) if isinstance(src.get("metadata"), dict) else {}
-    name = (
-        metadata.get("name")
-        or metadata.get("source")
-        or os.path.basename(metadata.get("file_path", ""))
-        or os.path.basename(src.get("source", ""))
-        or "Documento"
+
+    doc_type = metadata.get("doc_type") or src.get("doc_type")
+    relevance_score = (
+        src.get("relevance_score")
+        or src.get("score")
+        or metadata.get("relevance_score")
+        or 0.0
     )
-    path = metadata.get("file_path") or src.get("source", "") or metadata.get("path") or ""
-    section = metadata.get("section") or src.get("section") or metadata.get("pages") or ""
-    score = src.get("relevance_score") or src.get("score")
+
+    # Valores base/por defecto
+    name = metadata.get("name") or metadata.get("source") or os.path.basename(metadata.get("file_path", "")) or os.path.basename(src.get("source", "")) or "Documento"
+    description = metadata.get("description", "")
     ref = metadata.get("ref") or src.get("ref")
-    line_number = src.get("line_number")
+    path = metadata.get("file_path") or src.get("source", "") or metadata.get("path") or ""
+    section = metadata.get("section") or src.get("section") or metadata.get("page") or ""
+    page = metadata.get("page") or ""
+    ref_name = None
+    extras = {}
+
+    # Normalización por tipo
+    if doc_type == "example":
+        ref_type = "Documentación .tf"
+        name = metadata.get("example_name") or name
+        description = metadata.get("example_description", "")
+        # ref_name = doc_type + ".tf"
+        ref_name = f"{doc_type}.tf"
+        # extras: difficulty con codificación de color y lines_of_code si existe
+        difficulty = metadata.get("difficulty")
+        # Algunos extractores podrían guardar métricas de calidad; buscar lines_of_code en metadata
+        lines_of_code = metadata.get("lines_of_code") or metadata.get("loc")
+        # Mapear dificultad a color semáforo
+        difficulty_color = None
+        if isinstance(difficulty, str):
+            d = difficulty.strip().lower()
+            if d == "beginner":
+                difficulty_color = "green"
+            elif d in ("intermediate", "medio", "intermedio"):
+                difficulty_color = "amber"
+            elif d == "advanced":
+                difficulty_color = "red"
+        # Mapear color a emoji de círculo
+        color_emoji = {
+            "green": "🟢",
+            "amber": "🟡",
+            "red": "🔴"
+        }.get(difficulty_color, "")
+        extras = {
+            "dificultad": f"{color_emoji}" if difficulty else None,
+            "líneas de código": lines_of_code,
+        }
+
+    elif doc_type == "terraform_book":
+        ref_type = "Libro"
+        # name y description directos
+        name = metadata.get("name", name)
+        description = metadata.get("description", "")
+        # ref_name = doc_type + "." + file_type
+        file_type = metadata.get("file_type") or os.path.splitext(path)[1].lstrip(".") or "pdf"
+        ref_name = f"{doc_type}.{file_type}"
+        extras = {
+            "page": page if page else None,
+        }
+
+    elif doc_type == "documentation":
+        ref_type = "Documentación .md"
+        # name = section; description vacío
+        name = metadata.get("section") or section or name
+        description = ""
+        ref_name = f"{doc_type}.md"
+
+    else:
+        # Tipo desconocido: mantener valores por defecto y derivar ref_name del path
+        ext = os.path.splitext(path)[1].lstrip(".") if path else "txt"
+        ref_name = f"{(doc_type or 'document')}.{ext}"
+
     return {
+        "ref_type": ref_type,
         "name": name,
-        "path": path,
-        "section": section,
-        "score": score,
+        "description": description,
         "ref": ref,
-        "line_number": line_number,
+        "ref_name": ref_name,
+        "relevance_score": relevance_score,
+        "extras": extras,
+        "path": path,
+        "section": section or "",
+        "doc_type": doc_type or "unknown",
     }
 
 
@@ -129,39 +207,50 @@ def procesar_mensaje(history, texto, archivo):
         # Obtener la respuesta del agente
         respuesta = result.get("answer", "❌ No se pudo generar una respuesta")
 
-        # TODO #! Mejorar el formato de las fuentes que devuelve
         # Agregar información de fuentes si están disponibles
         sources = result.get("sources", [])
         if sources and not respuesta.startswith("❌"):
             logger.info("Fuentes encontradas", cantidad_fuentes=len(sources), source="ui")
 
+            # normalizamos los datos que traemos de las fuentes
             normalized = [_normalize_source(s) for s in sources]
 
-            # Quitar duplicados por nombre+sección+path
-            seen = set()
-            deduped = []
-            for s in normalized:
-                key = (s["name"], s["section"], s["path"], s["ref"])
-                if key in seen:
-                    continue
-                seen.add(key)
-                deduped.append(s)
+            # Agrupar los datos normalizados por doc_type
+            grouped_sources = {}
+            for source in normalized:
+                doc_type = source['doc_type']
+                if doc_type not in grouped_sources:
+                    grouped_sources[doc_type] = []
+                grouped_sources[doc_type].append(source)
 
-            respuesta += "\n\n\n🔎 Fuentes consultadas:"
-            for i, s in enumerate(deduped[:5], 1):
-                extras = []
-                if s.get("score") is not None:
-                    try:
-                        extras.append(f"score {float(s['score']):.2f}")
-                    except Exception:
-                        pass
-                if isinstance(s.get("line_number"), int):
-                    extras.append(f"línea {s['line_number']}")
-                extra_txt = f" • {' | '.join(extras)}" if extras else ""
-                ref = s.get("ref")
-                ref_url = f"\t🔗 [{s['name']}]({ref})" if ref else ""
-                respuesta += f"\n {i}. {s['name']} — {s['section']}{extra_txt}\n\t {ref_url}"
-            
+            # Construir la respuesta agrupada
+            respuesta += "\n\n🔎 Fuentes consultadas:"
+
+            num = 1
+            for doc_type, sources in grouped_sources.items():
+                if doc_type == "terraform_book":
+                    respuesta += f"\n{num}. **{sources[0].get('ref_type')}: {sources[0].get('name')}** — {sources[0].get('description')}"
+                    num += 1
+                    for i, source in enumerate(sources, 1):
+                        page = source['extras'].get('page', None)
+                        if page and source.get('ref'):
+                            respuesta += f"\n🔗 [Página {page}]({source['ref']})"
+                elif doc_type == "documentation":
+                    respuesta += f"\n{num}. **{sources[0].get('ref_type')}:**"
+                    num += 1
+                    for source in sources:
+                        ref_url = f"[{source['ref_name']}]({source.get('ref')})" if source.get("ref") else source['ref_name']
+                        respuesta += f"\n  - {source['name']} -- {source['description']} 🔗{ref_url}"
+                else:
+                    for i, source in enumerate(sources, 1):
+                        extras = []
+                        for k, v in source['extras'].items():
+                            if v:
+                                extras.append(f"{k}: {v}")
+                        extra_txt = f" • {' | '.join(extras)}" if extras else ""
+                        ref_url = f"[{source['ref_name']}]({source.get('ref')})" if source.get("ref") else source['ref_name']
+                        respuesta += f"\n{i}. **{source['ref_type']}: {source['name']}**{' — ' + source['description'] if source['description'] else ''}{('\n' + extra_txt) if extra_txt else ''}\n🔗 {ref_url}"
+                
     except Exception as e:
         logger.error("❌ Error al procesar la consulta", error=str(e), tipo_error=type(e).__name__, source="ui")
         respuesta = f"❌ Error al procesar la consulta: {str(e)}"

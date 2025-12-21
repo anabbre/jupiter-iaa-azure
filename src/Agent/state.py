@@ -14,7 +14,6 @@ class DocumentScore:
     relevance_score: float
     source: str
     collection: str = ""  # De qué colección viene
-    line_number: Optional[int] = None
 
 
 class AgentState(TypedDict):

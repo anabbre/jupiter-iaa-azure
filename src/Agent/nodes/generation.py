@@ -72,9 +72,6 @@ def format_template(state: AgentState) -> AgentState:
 ```
 
 ---
-📄 **Fuente**: `{source}`
-📊 **Relevancia**: {score:.0%}
-
 > 💡 Este código está listo para usar. Revisa las variables y ajusta según tu entorno.
 """
     

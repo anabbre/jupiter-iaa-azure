@@ -26,18 +26,49 @@ def retrieve_documents(state: AgentState) -> AgentState:
             k=k, 
             threshold=0.0
         )
+        # Ordenar los hits por score descendente y quedarse con los k_docs mejores
+        hits = sorted(hits, key=lambda x: x.get("score", 0), reverse=True)[:state["k_docs"]]
 
         logger.info(f"✅ search_examples retornó {len(hits)} resultados",source="retrieval",hits_count=len(hits))
         
         # Convertir hits a DocumentScore (para LangGraph)
         raw_documents = []
         for rank, hit in enumerate(hits, 1):
+            # Enriquecer metadata con un campo "ref" clicable si es posible
+            md = hit.get("metadata", {}) or {}
+            path = md.get("file_path") or hit.get("path") or ""
+            pages = md.get("pages") or md.get("page")
+            # Heurística: construir un enlace local o GitHub si hay base URL configurada
+            base_url = SETTINGS.API_URL  # URL base para visor local
+            ref = ""
+            if path:
+                # Si hay páginas, añadir query para el visor
+                # Normalizar path a ruta relativa (desde /data/docs/)
+                rel_path = ""
+                if "data/" in path.replace("\\", "/"):
+                    # Extraer desde data/docs/ en adelante
+                    rel_path = path.replace("\\", "/").split("data/", 1)[-1]
+                    rel_path = f"viewer/{rel_path.replace('/', '%2F')}"
+                else:
+                    rel_path = path.replace("\\", "/")
+                if pages:
+                    ref = f"https://digtvbg.com/files/LINUX/Brikman%20Y.%20Terraform.%20Up%20and%20Running.%20Writing...as%20Code%203ed%202022.pdf#page={pages}"
+                else:
+                    ref = f"{base_url.rstrip('/')}/{rel_path}"
+
+            # Guardar ref en metadata
+            if ref:
+                try:
+                    md["ref"] = ref
+                except Exception:
+                    pass
+
             doc_score = DocumentScore(
                 content=hit.get("content", ""),
                 metadata=hit.get("metadata", {}),
                 relevance_score=float(hit.get("score", 0.0)),  # Score de Qdrant
                 source=hit.get("path", "unknown"),
-                line_number=None  # No aplica para Terraform
+                collection=hit.get("collection", ""),
             )
             raw_documents.append(doc_score)
             

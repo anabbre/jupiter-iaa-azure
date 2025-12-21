@@ -243,6 +243,8 @@ class DocumentLoader:
                         {"source": str(pdf_file), "section": section or f"chunk_{i}"}
                     ):
                         chunk.metadata.update({
+                            "name": "Terraform: Up & Running",
+                            "description": "Libro completo de Terraform - conceptos y best practices",
                             "source": pdf_file.name,
                             "file_path": str(pdf_file),
                             "file_type": "pdf",
@@ -381,9 +383,7 @@ class DocumentLoader:
             for ex in examples:
                 ex_path = Path(ex["path"])
                 if not ex_path.exists():
-                    logger.warning(f"⚠️ Ruta de ejemplo no existe", 
-                                 source="qdrant", 
-                                 path=str(ex_path))
+                    logger.warning(f"⚠️ Ruta de ejemplo no existe", source="qdrant", path=str(ex_path))
                     continue
                 
                 # Cargar según tipo

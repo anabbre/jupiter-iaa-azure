@@ -41,12 +41,13 @@ def _normalize_source(src_item: dict) -> dict:
     path = metadata.get("file_path") or src.get("source", "") or metadata.get("path") or ""
     section = metadata.get("section") or src.get("section") or metadata.get("page") or ""
     page = metadata.get("page") or ""
+    section = metadata.get("section") or ""
     ref_name = None
     extras = {}
 
     # Normalización por tipo
     if doc_type == "example":
-        ref_type = "Documentación .tf"
+        ref_type = "Ejemplos Terraform"
         name = metadata.get("example_name") or name
         description = metadata.get("example_description", "")
         # ref_name = doc_type + ".tf"
@@ -89,14 +90,18 @@ def _normalize_source(src_item: dict) -> dict:
         }
 
     elif doc_type == "documentation":
-        ref_type = "Documentación .md"
+        ref_type = "Documentación markdown"
         # name = section; description vacío
-        name = metadata.get("section") or section or name
+        name = metadata.get("name", name)
         description = ""
         ref_name = f"{doc_type}.md"
+        extras = {
+            "section": section if section else None,
+        }
 
     else:
         # Tipo desconocido: mantener valores por defecto y derivar ref_name del path
+        name = metadata.get("name", name)
         ext = os.path.splitext(path)[1].lstrip(".") if path else "txt"
         ref_name = f"{(doc_type or 'document')}.{ext}"
 
@@ -215,13 +220,22 @@ def procesar_mensaje(history, texto, archivo):
             # normalizamos los datos que traemos de las fuentes
             normalized = [_normalize_source(s) for s in sources]
 
-            # Agrupar los datos normalizados por doc_type
+            # Agrupar los datos normalizados por doc_type y luego por name dentro de cada doc_type
             grouped_sources = {}
             for source in normalized:
                 doc_type = source['doc_type']
+                name = source['name']
                 if doc_type not in grouped_sources:
-                    grouped_sources[doc_type] = []
-                grouped_sources[doc_type].append(source)
+                    grouped_sources[doc_type] = {}
+                if name not in grouped_sources[doc_type]:
+                    grouped_sources[doc_type][name] = {
+                        "ref_type": source['ref_type'],
+                        "description": source['description'],
+                        "ref_name": source['ref_name'],
+                        "ref": source['ref'],
+                        "extras": []
+                    }
+                grouped_sources[doc_type][name]['extras'].extend(source['extras'] if isinstance(source['extras'], list) else [source['extras']])
 
             # Construir la respuesta agrupada
             respuesta += "\n\n🔎 Fuentes consultadas:"
@@ -229,27 +243,48 @@ def procesar_mensaje(history, texto, archivo):
             num = 1
             for doc_type, sources in grouped_sources.items():
                 if doc_type == "terraform_book":
-                    respuesta += f"\n{num}. **{sources[0].get('ref_type')}: {sources[0].get('name')}** — {sources[0].get('description')}"
-                    num += 1
-                    for i, source in enumerate(sources, 1):
-                        page = source['extras'].get('page', None)
-                        if page and source.get('ref'):
-                            respuesta += f"\n🔗 [Página {page}]({source['ref']})"
+                    # Ejemplo adaptado: sources es un dict con nombres como clave
+                    for name, source in sources.items():
+                        respuesta += f"\n{num}. **{source.get('ref_type')}: {name}** — {source.get('description')}"
+                        num += 1
+                        # 'extras' es una lista de dicts, cada uno con 'page'
+                        for extra in source.get('extras', []):
+                            page = extra.get('page', None)
+                            if page and source.get('ref'):
+                                respuesta += "\n" + "&nbsp;" * 5 + f"🔗 [Página {page}]({source['ref']})"
                 elif doc_type == "documentation":
-                    respuesta += f"\n{num}. **{sources[0].get('ref_type')}:**"
+                    respuesta += f"\n{num}. **{next(iter(sources.values()))['ref_type']}:**"
                     num += 1
-                    for source in sources:
-                        ref_url = f"[{source['ref_name']}]({source.get('ref')})" if source.get("ref") else source['ref_name']
-                        respuesta += f"\n  - {source['name']} -- {source['description']} 🔗{ref_url}"
-                else:
-                    for i, source in enumerate(sources, 1):
+                    for i, name in enumerate(sources, 1):
+                        source = sources[name]
+                        respuesta += "\n" + "&nbsp;" * 5 + f"🔗 [{name}]({source.get('ref')}) -- Secciones consultadas:"
                         extras = []
-                        for k, v in source['extras'].items():
-                            if v:
-                                extras.append(f"{k}: {v}")
-                        extra_txt = f" • {' | '.join(extras)}" if extras else ""
+                        for key, value in enumerate(source['extras']):
+                            section = value.get('section', None)
+                            respuesta += "\n" + "&nbsp;" * 8 + f" ({key}) {section}" if section else ""
+                        respuesta += "&nbsp;" * 8
+                        respuesta += "\n"
+                elif doc_type == "example":
+                    respuesta += f"\n{num}. **{next(iter(sources.values()))['ref_type']}:**"
+                    num += 1
+                    for name, source in sources.items():
+                        extras = []
+                        # source['extras'] is a list of dicts, so flatten all key-values
+                        for extra_dict in source['extras']:
+                            for k, v in extra_dict.items():
+                                if v:
+                                    extras.append(f"{k}: {v}")
+                        extra_txt = f"\t {' | '.join(extras)}" if extras else ""
                         ref_url = f"[{source['ref_name']}]({source.get('ref')})" if source.get("ref") else source['ref_name']
-                        respuesta += f"\n{i}. **{source['ref_type']}: {source['name']}**{' — ' + source['description'] if source['description'] else ''}{('\n' + extra_txt) if extra_txt else ''}\n🔗 {ref_url}"
+                        respuesta += "\n" + "&nbsp;" * 5 + f"  - {name} -- {source['description']}{('\n' + extra_txt) if extra_txt else ''}"
+                        respuesta += "\n" + "&nbsp;" * 8 + f"🔗 {ref_url}"
+                else:
+                    respuesta += f"\n{num}. **{next(iter(sources.values()))['ref_type']}:**"
+                    num += 1
+                    for name, source in sources.items():
+                        ref_url = f"[{source['ref_name']}]({source.get('ref')})" if source.get("ref") else source['ref_name']
+                        respuesta += "\n" + "&nbsp;" * 5 + f"  - {name} -- {source['description']}"
+                        respuesta += "\n" + "&nbsp;" * 8 + f"🔗 {ref_url}"
                 
     except Exception as e:
         logger.error("❌ Error al procesar la consulta", error=str(e), tipo_error=type(e).__name__, source="ui")

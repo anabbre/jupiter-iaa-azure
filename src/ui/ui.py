@@ -1,9 +1,6 @@
 import os
 import requests
 import gradio as gr
-from src.ui.utils.transcribe_audio import transcribe_audio
-from src.ui.utils.process_image import encode_image_to_base64
-from src.ui.utils.process_text_file import read_text_file
 from config.config import SETTINGS
 from config.logger_config import logger 
 
@@ -15,9 +12,9 @@ def _normalize_source(src_item: dict) -> dict:
     """Normaliza una fuente heterogénea a una estructura común para la UI.
 
     Casos soportados según metadata['doc_type']:
-      - example
       - terraform_book
       - documentation
+      - example
 
     Campos de salida comunes:
       name, description, ref, ref_name, relevance_score, extras, path, section
@@ -167,40 +164,17 @@ def get_api_response(question: str) -> dict:
 # =============================
 
 
-def procesar_mensaje(history, texto, archivo):
+def procesar_mensaje(history, texto):
     """
-    Procesa el mensaje del usuario con texto y/o archivo (imagen o texto)
+    Procesa el mensaje del usuario con texto
     """
-    if not texto and not archivo:
+    if not texto:
         logger.warning("Intento de enviar mensaje vacío")
         return history, None
 
     # Construir el contenido del mensaje del usuario
     contenido_usuario = texto if texto else ""   
-    logger.info("💬 Procesando mensaje", tiene_texto=bool(texto), tiene_archivo=bool(archivo), source="ui")
-
-    # Procesar archivo (puede ser imagen o texto)
-    if archivo:
-        file_ext = os.path.splitext(archivo)[1].lower()
-        logger.info(" Archivo detectado", extension=file_ext, nombre=os.path.basename(archivo), source="ui")
-        # Si es imagen
-        if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
-            logger.info("🖼️ Procesando imagen", extension=file_ext)
-            base64_img = encode_image_to_base64(archivo)
-            data_url = f"data:image/jpeg;base64,{base64_img}"
-            if contenido_usuario:
-                contenido_usuario += f"\n\n![Imagen adjunta]({data_url})"
-            else:
-                contenido_usuario = f"![Imagen adjunta]({data_url})"
-
-        # Si es archivo de texto
-        else:
-            logger.info("📄 Procesando archivo de texto", extension=file_ext, source="ui")
-            contenido_archivo = read_text_file(archivo)
-            if contenido_usuario:
-                contenido_usuario += f"\n\n📄 **Archivo adjunto ({os.path.basename(archivo)}):**\n```\n{contenido_archivo[:500]}...\n```"
-            else:
-                contenido_usuario = f"📄 **Archivo adjunto ({os.path.basename(archivo)}):**\n```\n{contenido_archivo[:500]}...\n```"
+    logger.info("💬 Procesando mensaje", tiene_texto=bool(texto), source="ui")
 
     # Agregar mensaje del usuario al historial
     history.append({"role": "user", "content": contenido_usuario})
@@ -296,29 +270,6 @@ def procesar_mensaje(history, texto, archivo):
     return history, None
 
 
-def procesar_audio(history, audio_file):
-    """
-    Transcribe el audio y lo muestra en el textbox
-    """
-    if not audio_file:
-        return history, ""
-    
-    logger.info("Transcribiendo audio", archivo=audio_file, source="ui")
-
-    # Transcribir audio
-    texto_transcrito = transcribe_audio(audio_file)
-
-    if texto_transcrito.startswith("❌"):
-        logger.error("❌ Error en transcripción", error=texto_transcrito, source="ui")
-        # Si hay error, mostrarlo en el chat
-        history.append({"role": "assistant", "content": texto_transcrito})
-        return history, ""
-
-    logger.info("✅ Audio transcrito exitosamente", longitud=len(texto_transcrito), source="ui")
-    # Devolver el texto transcrito para que el usuario lo vea antes de enviar
-    return history, texto_transcrito
-
-
 # =============================
 # INTERFAZ GRADIO
 # =============================
@@ -336,15 +287,15 @@ with gr.Blocks(
     gr.HTML("""
         <div class="main-header">
             <h1>🤖 Terraform RAG Assistant</h1>
-            <p>Texto • Voz • Imágenes • Archivos</p>
+            <p>Asistente de IA para consultas sobre Terraform con la documentación oficial.</p>
         </div>
     """)
 
     with gr.Row():
-        # =============================
-        # COLUMNA IZQUIERDA: CHAT (70%)
-        # =============================
-        with gr.Column(scale=7):
+        # =========================
+        # BLOQUE PRINCIPAL: CHATBOT
+        # =========================
+        with gr.Column(scale=10):
             chatbot = gr.Chatbot(
                 type="messages",
                 height=650,
@@ -358,7 +309,7 @@ with gr.Blocks(
 
             with gr.Row():
                 texto_input = gr.Textbox(
-                    placeholder="💬 Escribe tu pregunta aquí o usa los controles de la derecha...",
+                    placeholder="💬 Escribe tu pregunta aquí...",
                     container=False,
                     scale=9,
                     show_label=False,
@@ -366,95 +317,28 @@ with gr.Blocks(
                 )
                 btn_enviar = gr.Button("📤", variant="primary", scale=1, min_width=60)
 
-        # =============================
-        # COLUMNA DERECHA: CONTROLES COMPACTOS (30%)
-        # =============================
-        with gr.Column(scale=3, min_width=300):
-            gr.HTML('<div class="control-panel">')
-
-            # Sección 1: Audio
-            gr.HTML('<div class="compact-section">')
-            audio_input = gr.Audio(
-                sources=["microphone"],
-                type="filepath",
-                show_label=False,
-                elem_classes="compact-audio",
-                waveform_options={"show_controls": False}
-            )
-            texto_transcrito = gr.Textbox(
-                placeholder="Transcripción aparecerá aquí...",
-                show_label=False,
-                lines=2,
-                max_lines=3,
-                interactive=False
-            )
-            btn_usar_transcripcion = gr.Button(
-                "✅ Usar transcripción",
-                variant="primary",
-                size="sm",
-                visible=False
-            )
-            gr.HTML('</div>')
-
-            # Sección 2: Archivos (ImÃ¡genes y Texto)
-            archivo_input = gr.File(
-                label="Imagen o Texto",
-                file_types=["image", ".txt", ".md", ".py", ".js", ".json", ".csv", ".html", ".css", ".pdf", ".docx"],
-                show_label=False,
-                elem_classes="compact-file"
-            )
-
-            gr.HTML('</div>')
-            gr.HTML('</div>')
-
     # =============================
     # EVENT HANDLERS
     # =============================
 
-    # Enviar mensaje con texto/archivo
-    def enviar_mensaje(history, texto, archivo):
-        new_history, _ = procesar_mensaje(history, texto, archivo)
+    # Enviar mensaje con texto
+    def enviar_mensaje(history, texto):
+        new_history, _ = procesar_mensaje(history, texto)
         return new_history, "", None, "", gr.update(visible=False)
 
     btn_enviar.click(
         enviar_mensaje,
-        [chatbot, texto_input, archivo_input],
-        [chatbot, texto_input, archivo_input, texto_transcrito, btn_usar_transcripcion]
+        [chatbot, texto_input],
+        [chatbot, texto_input]
     )
 
     texto_input.submit(
         enviar_mensaje,
-        [chatbot, texto_input, archivo_input],
-        [chatbot, texto_input, archivo_input, texto_transcrito, btn_usar_transcripcion]
+        [chatbot, texto_input],
+        [chatbot, texto_input]
     )
 
-    # Transcribir audio cuando se graba
-    def handle_audio(history, audio_file):
-        new_history, transcripcion = procesar_audio(history, audio_file)
-        show_btn = bool(transcripcion and not transcripcion.startswith("❌"))
-        return new_history, transcripcion, gr.update(visible=show_btn)
 
-    audio_input.stop_recording(
-        handle_audio,
-        [chatbot, audio_input],
-        [chatbot, texto_transcrito, btn_usar_transcripcion]
-    )
-
-    audio_input.change(
-        handle_audio,
-        [chatbot, audio_input],
-        [chatbot, texto_transcrito, btn_usar_transcripcion]
-    )
-
-    # Usar transcripción en el textbox
-    def usar_transcripcion(texto_trans):
-        return texto_trans, "", gr.update(visible=False)
-
-    btn_usar_transcripcion.click(
-        usar_transcripcion,
-        [texto_transcrito],
-        [texto_input, texto_transcrito, btn_usar_transcripcion]
-    )
 
 # =============================
 # MAIN

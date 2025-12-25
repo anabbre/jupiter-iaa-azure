@@ -116,7 +116,17 @@ def _normalize_source(src_item: dict) -> dict:
     }
 
 
-def get_api_response(question: str) -> dict:
+MAX_CONTEXT = 20
+
+
+def _truncate_history(history: list) -> list:
+    try:
+        return history[-MAX_CONTEXT:] if isinstance(history, list) else history
+    except Exception:
+        return history
+
+
+def get_api_response(question: str, context: list | None = None) -> dict:
     """
     Consulta la API FastAPI del agente
     
@@ -128,9 +138,13 @@ def get_api_response(question: str) -> dict:
     """
     try:
         logger.info("Enviando consulta a API", url=API_URL, question=question[:100], source="ui")
+        payload = {"question": question}
+        if context and isinstance(context, list):
+            payload["context"] = context[-MAX_CONTEXT:]
+
         response = requests.post(
             f"{API_URL}/query",
-            json={"question": question},
+            json=payload,
             timeout=60
         )
         response.raise_for_status()
@@ -176,12 +190,16 @@ def procesar_mensaje(history, texto):
     contenido_usuario = texto if texto else ""   
     logger.info("💬 Procesando mensaje", tiene_texto=bool(texto), source="ui")
 
-    # Agregar mensaje del usuario al historial
+    # Agregar mensaje del usuario al historial con poda
     history.append({"role": "user", "content": contenido_usuario})
+    try:
+        history = history[-MAX_CONTEXT:]
+    except Exception:
+        pass
 
     try:
         # Consultar la API con la pregunta del usuario
-        result = get_api_response(contenido_usuario)
+        result = get_api_response(contenido_usuario, context=history)
 
         # Obtener la respuesta del agente
         respuesta = result.get("answer", "❌ No se pudo generar una respuesta")
@@ -264,8 +282,12 @@ def procesar_mensaje(history, texto):
         logger.error("❌ Error al procesar la consulta", error=str(e), tipo_error=type(e).__name__, source="ui")
         respuesta = f"❌ Error al procesar la consulta: {str(e)}"
 
-    # Agregar respuesta del agente al historial
+    # Agregar respuesta del agente al historial con poda
     history.append({"role": "assistant", "content": respuesta})
+    try:
+        history = history[-MAX_CONTEXT:]
+    except Exception:
+        pass
 
     return history, None
 

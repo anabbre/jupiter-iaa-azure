@@ -7,6 +7,7 @@ from langgraph.graph import StateGraph, END
 from config.logger_config import logger
 
 from src.Agent.state import AgentState
+from langchain_core.messages import HumanMessage, AIMessage
 from src.Agent.nodes.validate_scope import validate_scope, should_continue
 from src.Agent.nodes.intent_classifier import classify_intent
 from src.Agent.nodes.retrieval import retrieve_documents
@@ -99,11 +100,23 @@ class Agent:
         logger.info("✅ Grafo compilado", source="agent")
         return workflow.compile()
     
-    def invoke(self, question: str, k_docs: int, threshold: float) -> dict:
+    def invoke(self, question: str, k_docs: int, threshold: float, context: list | None = None) -> dict:
         """
         Ejecuta el grafo con una pregunta.
         """
         start_time = time.time()
+        
+        
+        # Gestionamos la conversación previa
+        context_hist = []
+        if context:
+            for m in context:
+                if m["role"] == "user":
+                    context_hist.append(HumanMessage(content=m["content"]))
+                elif m["role"] == "assistant":
+                    context_hist.append(AIMessage(content=m["content"]))
+        context_hist.append(HumanMessage(content=question))     
+        
         
         # Estado inicial
         state = {
@@ -128,7 +141,10 @@ class Agent:
             "answer": "",
             "template_code": None,
             "explanation": None,
+            # history / context
+            "context_hist": context_hist
         }
+                
         
         logger.info("▶️ Ejecutando grafo", source="agent", question=question[:80])
         

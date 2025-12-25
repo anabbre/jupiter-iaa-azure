@@ -3,9 +3,10 @@
 Define el estado del grafo - aquí agregarás más campos según necesites
 """
 
-from typing import TypedDict, List, Optional, Annotated, Dict, Any
 from operator import add
 from dataclasses import dataclass 
+from langchain_core.messages import BaseMessage
+from typing import TypedDict, List, Optional, Annotated, Dict, Any
 
 @dataclass
 class DocumentScore:
@@ -44,4 +45,7 @@ class AgentState(TypedDict):
 
     # Metadata
     messages: Annotated[List[str], add]
+    
+    # History / Context
+    context_hist: Annotated[List[BaseMessage], add]  # Historial reciente de la conversación
     

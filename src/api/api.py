@@ -79,7 +79,24 @@ async def query_endpoint(request: QueryRequest):
         # 2) Invocar agente
         try:
             agent = Agent()
-            result = agent.invoke(request.question, request.k_docs, request.threshold)
+            # Preparar contexto conversacional opcional
+            context = []
+            try:
+                req_msgs = getattr(request, 'context', None)
+            except Exception:
+                req_msgs = None
+            if req_msgs:
+                for m in req_msgs[-6:]:
+                    role = getattr(m, 'role', None)
+                    content = getattr(m, 'content', None)
+                    if role and content:
+                        context.append({"role": role, "content": content})
+
+            # Intentar pasar context al agente; fallback si no lo soporta
+            try:
+                result = agent.invoke(request.question, request.k_docs, request.threshold, context=context)
+            except TypeError:
+                result = agent.invoke(request.question, request.k_docs, request.threshold)
             # Extraer respuesta
             answer = result.get("answer", "No se pudo generar respuesta.")            
             response_time_ms = (time.time() - start_time) * 1000
@@ -103,6 +120,7 @@ async def query_endpoint(request: QueryRequest):
             answer=answer,
             sources=sources,
             question=request.question,
+            context=result.get("context_hist", [])
         )
     except Exception as e:
         logger.error("Error en /query",source="api",question=request.question[:100] if request else "unknown",error=str(e),error_type=type(e).__name__)

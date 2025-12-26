@@ -7,6 +7,7 @@ from langgraph.graph import StateGraph, END
 from config.logger_config import logger
 
 from src.Agent.state import AgentState
+from langchain_core.messages import HumanMessage, AIMessage
 from src.Agent.nodes.validate_scope import validate_scope, should_continue
 from src.Agent.nodes.intent_classifier import classify_intent
 from src.Agent.nodes.retrieval import retrieve_documents
@@ -99,15 +100,29 @@ class Agent:
         logger.info("✅ Grafo compilado", source="agent")
         return workflow.compile()
     
-    def invoke(self, question: str) -> dict:
+    def invoke(self, question: str, k_docs: int, threshold: float, context: list | None = None) -> dict:
         """
         Ejecuta el grafo con una pregunta.
         """
         start_time = time.time()
         
+        
+        # Gestionamos la conversación previa
+        context_hist = []
+        if context:
+            for m in context:
+                if m["role"] == "user":
+                    context_hist.append(HumanMessage(content=m["content"]))
+                elif m["role"] == "assistant":
+                    context_hist.append(AIMessage(content=m["content"]))
+        context_hist.append(HumanMessage(content=question))     
+        
+        
         # Estado inicial
         state = {
             "question": question,
+            "k_docs": k_docs,
+            "threshold": threshold,
             "messages": [],
             # Scope
             "is_valid_scope": True,
@@ -126,14 +141,23 @@ class Agent:
             "answer": "",
             "template_code": None,
             "explanation": None,
+            # history / context
+            "context_hist": context_hist
         }
+                
         
         logger.info("▶️ Ejecutando grafo", source="agent", question=question[:80])
         
         try:
             result = self.graph.invoke(state)
             duration = time.time() - start_time
-            logger.info("✅ Grafo completado", source="agent",duration=f"{duration:.2f}s",is_valid_scope=result.get("is_valid_scope"),intent=result.get("intent"),action=result.get("response_action"))
+            
+            logger.info("✅ Grafo completado", source="agent",
+                       duration=f"{duration:.2f}s",
+                       is_valid_scope=result.get("is_valid_scope"),
+                       intent=result.get("intent"),
+                       action=result.get("response_action"))
+            
             return result
             
         except Exception as e:
@@ -164,7 +188,7 @@ if __name__ == "__main__":
     print(f"\n📝 Query: {question}")
     print("-"*60)
     
-    result = agent.invoke(question)
+    result = agent.invoke(question, k_docs=5, threshold=0.1)
     
     # Mostrar resultados
     print(f"\n🔍 Scope válido: {result.get('is_valid_scope', True)}")

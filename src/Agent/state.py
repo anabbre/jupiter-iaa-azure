@@ -2,9 +2,11 @@
 """
 Define el estado del grafo - aquí agregarás más campos según necesites
 """
-from typing import TypedDict, List, Optional, Annotated, Dict, Any
+
 from operator import add
 from dataclasses import dataclass 
+from langchain_core.messages import BaseMessage
+from typing import TypedDict, List, Optional, Annotated, Dict, Any
 
 @dataclass
 class DocumentScore:
@@ -20,9 +22,8 @@ class AgentState(TypedDict):
     """Estado compartido entre todos los nodos del grafo"""
     # Input
     question: str
-    
-    # Scope Validation
-    is_valid_scope: bool                 # Si la consulta está dentro del scope
+    k_docs: int                     # Número de documentos a recuperar
+    threshold: float                 # Umbral de relevancia
     
     # Intent Classification 
     intent: str                         # Intent primario: explanation, code_template, full_example
@@ -43,8 +44,8 @@ class AgentState(TypedDict):
     explanation: Optional[str]          # Explicación (si aplica)
 
     # Metadata
-    messages: List[str]
+    messages: Annotated[List[str], add]
     
+    # History / Context
+    context_hist: Annotated[List[BaseMessage], add]  # Historial reciente de la conversación
     
-    
-# python -c "from src.Agent.nodes.intent_classifier import classify_intent; print('✅ Intent classifier OK')"

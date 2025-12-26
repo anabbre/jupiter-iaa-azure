@@ -1,6 +1,9 @@
 """
 Nodo de generación de respuestas
 """
+
+from langchain_core.messages import AIMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from src.Agent.state import AgentState
 from src.services.llms import llm
 from config.logger_config import logger, get_request_id, set_request_id
@@ -11,29 +14,46 @@ def generate_answer(state: AgentState) -> AgentState:
     Usado para preguntas de explicación.
     """
     logger.info("🤖 Generando respuesta con LLM", source="generation")
-    
-    question = state.get("question", "")
+
     documents = state.get("documents", [])
     context = "\n\n---\n\n".join(documents) if documents else "No hay contexto disponible."
-    
+
     try:
-        prompt = f"""Eres un experto en Terraform y Azure. Responde la pregunta basándote en el contexto.
+        prompt = ChatPromptTemplate.from_messages([
+            (
+                "system",
+                "Eres un experto en Terraform y Azure. "
+                "Responde usando el contexto proporcionado y manteniendo coherencia con la conversación."
+            ),
+            (
+                "system",
+                f"Contexto documental:\n{context}"
+            ),
+            MessagesPlaceholder("context_hist"),
+        ])
 
-Contexto:
-{context}
+        response = llm.invoke(
+            prompt.format_messages(
+                context_hist=state["context_hist"]
+            )
+        )
 
-Pregunta: {question}
-
-Respuesta:"""
-
-        response = llm.invoke(prompt)
+        # Guardar respuesta
         state["answer"] = response.content
-        state["messages"].append("✅ Respuesta generada con LLM")
-        
-        logger.info("✅ Respuesta generada", source="generation", 
-                   answer_length=len(response.content))
+
+        # 🔑 AÑADIR RESPUESTA A LA MEMORIA
+        state["context_hist"].append(AIMessage(content=response.content))
+
+        # Log interno
+        state["messages"].append("✅ Respuesta generada con LLM (con memoria)")
+
+        logger.info(
+            "✅ Respuesta generada",
+            source="generation",
+            answer_length=len(response.content)
+        )
         return state
-        
+
     except Exception as e:
         logger.error("❌ Error en generación", source="generation", error=str(e))
         state["answer"] = f"Error al generar respuesta: {str(e)}"

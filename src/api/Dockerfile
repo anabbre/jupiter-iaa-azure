@@ -26,4 +26,4 @@ RUN mkdir -p logs
 EXPOSE 8008
 
 # Iniciar aplicación
-CMD ["uvicorn", "src.api.api:app", "--host", "0.0.0.0", "--port", "8008"]
+CMD ["uvicorn", "src.api.api:app", "--host", "0.0.0.0", "--port", "8008", "--root-path", "/api"]

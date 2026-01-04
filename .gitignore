@@ -56,3 +56,10 @@ __pycache__/
 
 # === Archivos de gradio ===
 .gradio/
+
+# Python bytecode extra
+*.pyc
+
+# Data generada por el indexador 
+data/index/
+data/optimized_chunks/

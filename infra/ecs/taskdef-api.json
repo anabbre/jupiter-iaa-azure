@@ -1,0 +1,83 @@
+{
+    "family": "jupiter-iaa-dev-api",
+    "executionRoleArn": "arn:aws:iam::049627033071:role/jupiter-iaa-dev-task-exec-role",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "2048",
+    "memory": "8192",
+    "containerDefinitions": [
+        {
+            "name": "api",
+            "image": "049627033071.dkr.ecr.eu-west-1.amazonaws.com/jupiter-iaa-dev-api:latest",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "name": "api-8008-tcp",
+                    "containerPort": 8008,
+                    "hostPort": 8008,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "KB_INDEX_NAME",
+                    "value": "kb_terraform"
+                },
+                {
+                    "name": "LOG_LEVEL",
+                    "value": "INFO"
+                },
+                {
+                    "name": "QDRANT_URL",
+                    "value": "http://qdrant.jupiter-iaa-dev.local:6333"
+                },
+                {
+                    "name": "UPLOADS_INDEX_NAME",
+                    "value": "jupiter_uploads"
+                }
+            ],
+            "secrets": [
+                {
+                    "name": "OPENAI_API_KEY",
+                    "valueFrom": "arn:aws:ssm:eu-west-1:049627033071:parameter/jupiter/dev/openai_api_key"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/jupiter-iaa-dev/api",
+                    "awslogs-region": "eu-west-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "healthCheck": {
+                "command": [
+                    "CMD-SHELL",
+                    "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8008/api/')\" || exit 1"
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3,
+                "startPeriod": 20
+            }
+        }
+    ],
+    "volumes": [],
+    "tags": [
+        {
+            "key": "Project",
+            "value": "jupiter-iaa"
+        },
+        {
+            "key": "Environment",
+            "value": "dev"
+        },
+        {
+            "key": "ManagedBy",
+            "value": "terraform"
+        }
+    ]
+}

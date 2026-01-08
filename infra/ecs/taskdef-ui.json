@@ -1,0 +1,61 @@
+{
+    "family": "jupiter-iaa-dev-ui",
+    "executionRoleArn": "arn:aws:iam::049627033071:role/jupiter-iaa-dev-task-exec-role",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "512",
+    "memory": "1024",
+    "containerDefinitions": [
+        {
+            "name": "ui",
+            "image": "049627033071.dkr.ecr.eu-west-1.amazonaws.com/jupiter-iaa-dev-ui:dev",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "containerPort": 7860,
+                    "hostPort": 7860,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "LOG_LEVEL",
+                    "value": "INFO"
+                },
+                {
+                    "name": "API_URL",
+                    "value": "http://jupiter-iaa-dev-alb-1185587043.eu-west-1.elb.amazonaws.com/api"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/jupiter-iaa-dev/ui",
+                    "awslogs-region": "eu-west-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "systemControls": []
+        }
+    ],
+    "volumes": [],
+    "tags": [
+        {
+            "key": "Project",
+            "value": "jupiter-iaa"
+        },
+        {
+            "key": "Environment",
+            "value": "dev"
+        },
+        {
+            "key": "ManagedBy",
+            "value": "terraform"
+        }
+    ]
+}

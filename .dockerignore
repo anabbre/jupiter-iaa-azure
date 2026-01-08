@@ -32,6 +32,10 @@ tmp/
 *.tmp
 *.swp
 data/
+# …pero SI incluyo los ejemplos + manifest
+!data/docs/
+!data/docs/examples/
+!data/docs/examples/**
 logs/
 
 # Archivos de sistema

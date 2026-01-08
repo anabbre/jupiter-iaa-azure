@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Variables de entorno
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app/src:$PYTHONPATH
+ENV PYTHONPATH=/app
 
 # Copiar archivos de dependencias
 COPY requirements.txt .
@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 COPY src/ ./src/
 COPY config/ ./config/
 COPY Scripts/ ./Scripts/
+COPY data/docs/examples/ ./data/docs/examples/
 
 # Crear directorios necesarios
 RUN mkdir -p logs
@@ -26,4 +27,4 @@ RUN mkdir -p logs
 EXPOSE 8008
 
 # Iniciar aplicación
-CMD ["uvicorn", "src.api.api:app", "--host", "0.0.0.0", "--port", "8008", "--root-path", "/api"]
+CMD ["uvicorn", "src.api.app_main:app", "--host", "0.0.0.0", "--port", "8008"]

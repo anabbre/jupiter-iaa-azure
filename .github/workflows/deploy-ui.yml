@@ -5,8 +5,8 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "ui/**"
-      - ".github/workflows/deploy-ui.yml"
+    - "src/ui/**"
+    - ".github/workflows/deploy-ui.yml"
 
 permissions:
   id-token: write

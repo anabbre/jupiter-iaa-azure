@@ -5,9 +5,9 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "Dockerfile"
-      - "src/**"
-      - ".github/workflows/deploy-api.yml"
+    - "src/api/**"
+    - ".github/workflows/deploy-api.yml"
+
 
       
 permissions:

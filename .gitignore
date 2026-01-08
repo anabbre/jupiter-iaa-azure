@@ -63,3 +63,10 @@ __pycache__/
 # Data generada por el indexador 
 data/index/
 data/optimized_chunks/
+
+# Infra
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+crash.log

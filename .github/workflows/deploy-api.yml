@@ -49,6 +49,5 @@ jobs:
             echo "🚀 Esperando a que la API se estabilice..."
             sleep 60
             echo "🧠 Solicitando indexación remota a la API..."
-            # Usamos curl para llamar al endpoint de debug que ya existe en la API
-            # Esto hace que el trabajo pesado lo haga AWS, no GitHub
-            curl -X POST "http://jupiter-iaa-dev-alb-1185587043.eu-west-1.elb.amazonaws.com/api/debug/test-agent?question=inicializar&k_docs=5&threshold=0.7"            
+            # Usamos comillas simples para proteger la URL y sus parámetros
+            curl -X POST 'http://jupiter-iaa-dev-alb-1185587043.eu-west-1.elb.amazonaws.com/api/debug/test-agent?question=inicializar&k_docs=5&threshold=0.7'       

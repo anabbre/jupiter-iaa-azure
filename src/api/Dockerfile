@@ -26,5 +26,5 @@ RUN mkdir -p logs
 # Exponer puerto
 EXPOSE 8008
 
-# Iniciar aplicación
-CMD ["uvicorn", "src.api.app_main:app", "--host", "0.0.0.0", "--port", "8008"]
+# Iniciar indexación y luego la aplicación
+CMD python Scripts/RAG/index_examples.py --force && uvicorn src.api.app_main:app --host 0.0.0.0 --port 8008

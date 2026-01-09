@@ -8,13 +8,15 @@ import sys
 
 from fastapi.responses import FileResponse
 from src.Agent.graph import Agent
-sys.path.append('/app')  # Asegura que /app esté en PYTHONPATH
+
+sys.path.append("/app")  # Asegura que /app esté en PYTHONPATH
 from config.config import SETTINGS
 from src.services.search import search_examples
 from config.logger_config import logger
 from src.services.vector_store import vector_store as qdrant_vector_store
 from src.services.search import search_examples
 from src.services.embeddings import embeddings_model
+
 # OpenAI (v1 SDK). Si no hay API key, haremos fallback.
 from openai import OpenAI
 from src.api.schemas import (
@@ -39,24 +41,33 @@ app.add_middleware(
 )
 
 
-# Endpoints 
+# Endpoints
+
 
 @app.get("/viewer/{path:path}")
 def serve_doc(path: str):
-    file_path = os.path.join('data', path)
+    file_path = os.path.join("data", path)
     if not os.path.exists(file_path):
         return {"error": "File not found", "path": file_path}
     return FileResponse(file_path)
 
 
+from src.services.vector_store import COLLECTIONS, get_collection_info
+
+
 @app.get("/", response_model=HealthResponse)
 async def root():
-    """Health check endpoint"""
+    """
+    Health check endpoint
+    """
+    docs_info = get_collection_info(COLLECTIONS["docs"])
+    documents_count = docs_info.get("points_count") if docs_info else None
+
     return HealthResponse(
         status="healthy",
         message="Terraform RAG Assistant API LangGraph",
-        vector_db_status="connected",
-        documents_count=None,
+        vector_db_status="connected" if docs_info is not None else "disconnected",
+        documents_count=documents_count,
     )
 
 
@@ -66,64 +77,98 @@ async def query_endpoint(request: QueryRequest):
     Endpoint principal - Ejecuta el Agent de LangGraph
     """
     start_time = time.time()
-    
+
     try:
-        
-        logger.info(f"📨 Nueva consulta recibida",source="api",question=request.question,k_docs=request.k_docs,threshold=request.threshold)
-        
+
+        logger.info(
+            f"📨 Nueva consulta recibida",
+            source="api",
+            question=request.question,
+            k_docs=request.k_docs,
+            threshold=request.threshold,
+        )
+
         # 1) seteamos parámetros iniciales
         k = request.k_docs or SETTINGS.K_DOCS
         threshold = request.threshold or SETTINGS.THRESHOLD
-        logger.info(f"Parámetros procesados",source="api",k=k,threshold=threshold)
-        
+        logger.info(f"Parámetros procesados", source="api", k=k, threshold=threshold)
+
         # 2) Invocar agente
         try:
             agent = Agent()
             # Preparar contexto conversacional opcional
             context = []
             try:
-                req_msgs = getattr(request, 'context', None)
+                req_msgs = getattr(request, "context", None)
             except Exception:
                 req_msgs = None
             if req_msgs:
                 for m in req_msgs[-6:]:
-                    role = getattr(m, 'role', None)
-                    content = getattr(m, 'content', None)
+                    role = getattr(m, "role", None)
+                    content = getattr(m, "content", None)
                     if role and content:
                         context.append({"role": role, "content": content})
 
             # Intentar pasar context al agente; fallback si no lo soporta
             try:
-                result = agent.invoke(request.question, request.k_docs, request.threshold, context=context)
+                result = agent.invoke(
+                    request.question, request.k_docs, request.threshold, context=context
+                )
             except TypeError:
-                result = agent.invoke(request.question, request.k_docs, request.threshold)
+                result = agent.invoke(
+                    request.question, request.k_docs, request.threshold
+                )
             # Extraer respuesta
-            answer = result.get("answer", "No se pudo generar respuesta.")            
+            answer = result.get("answer", "No se pudo generar respuesta.")
             response_time_ms = (time.time() - start_time) * 1000
-            logger.info("Respuesta generada",source="api",intent=result.get("intent"),action=result.get("response_action"),is_valid_scope=result.get("is_valid_scope"),docs_count=len(result.get("documents", [])),response_time_ms=round(response_time_ms, 2))
+            logger.info(
+                "Respuesta generada",
+                source="api",
+                intent=result.get("intent"),
+                action=result.get("response_action"),
+                is_valid_scope=result.get("is_valid_scope"),
+                docs_count=len(result.get("documents", [])),
+                response_time_ms=round(response_time_ms, 2),
+            )
         except Exception as e:
-            logger.error(f"❌ Error al llamar al agente: {e}",source="api",error_type="Exception")
-            raise HTTPException(status_code=500,detail=f"Error al llamar al agente: {str(e)}")
-        
+            logger.error(
+                f"❌ Error al llamar al agente: {e}",
+                source="api",
+                error_type="Exception",
+            )
+            raise HTTPException(
+                status_code=500, detail=f"Error al llamar al agente: {str(e)}"
+            )
+
         # 3) Proceso las fuentes
         try:
             # Construir sources desde documents_metadata
             sources = []
-            for source in result.get('raw_documents', []):
+            for source in result.get("raw_documents", []):
                 sources.append(source)
-            logger.info(f"Fuentes procesadas",source="api",sources_count=len(sources))
+            logger.info(f"Fuentes procesadas", source="api", sources_count=len(sources))
         except Exception as e:
-            logger.error(f"❌ Error procesando fuentes: {e}",source="api",error_type="Exception")
-            
-        # 4) Respuesta       
+            logger.error(
+                f"❌ Error procesando fuentes: {e}",
+                source="api",
+                error_type="Exception",
+            )
+
+        # 4) Respuesta
         return QueryResponse(
             answer=answer,
             sources=sources,
             question=request.question,
-            context=result.get("context_hist", [])
+            context=result.get("context_hist", []),
         )
     except Exception as e:
-        logger.error("Error en /query",source="api",question=request.question[:100] if request else "unknown",error=str(e),error_type=type(e).__name__)
+        logger.error(
+            "Error en /query",
+            source="api",
+            question=request.question[:100] if request else "unknown",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -135,7 +180,7 @@ async def debug_agent_status():
     return {
         "status": "ok",
         "agent_initialized": agent is not None,
-        "graph_compiled": agent.graph is not None if agent else False
+        "graph_compiled": agent.graph is not None if agent else False,
     }
 
 
@@ -147,7 +192,7 @@ async def debug_test_agent(question: str = "que es terraform?"):
         agent = Agent()
         result = agent.invoke(question)
         duration = time.time() - start
-        
+
         return {
             "question": question,
             "duration_seconds": round(duration, 2),
@@ -159,7 +204,7 @@ async def debug_test_agent(question: str = "que es terraform?"):
             "target_collections": result.get("target_collections"),
             "documents_count": len(result.get("documents", [])),
             "answer_preview": result.get("answer", "")[:500],
-            "messages": result.get("messages", [])
+            "messages": result.get("messages", []),
         }
     except Exception as e:
         return {"error": str(e), "error_type": type(e).__name__}
@@ -169,27 +214,25 @@ async def debug_test_agent(question: str = "que es terraform?"):
 async def debug_qdrant_status():
     """Verifica estado de Qdrant y colecciones"""
     try:
-        from src.services.vector_store import qdrant_client, COLLECTIONS, list_collections
-        
+        from src.services.vector_store import (
+            COLLECTIONS,
+            list_collections,
+            get_collection_info,
+        )
+
         all_collections = list_collections()
-        # Info de cada coleccion configurada
+
         collections_info = {}
-        for key, name in COLLECTIONS.items():
-            try:
-                info = qdrant_client.get_collection(name)
-                collections_info[name] = {
-                    "points_count": info.points_count,
-                    "status": info.status.value if info.status else "unknown"
-                }
-            except Exception as e:
-                collections_info[name] = {"error": str(e)}
-        
+        for _, name in COLLECTIONS.items():
+            collections_info[name] = get_collection_info(name)
+
         return {
             "status": "connected",
             "url": SETTINGS.QDRANT_URL,
             "all_collections": all_collections,
-            "configured_collections": collections_info
+            "collections_info": collections_info,
         }
+
     except Exception as e:
         logger.error(f"Error verificando Qdrant: {e}", source="api")
         return {"status": "error", "error": str(e)}
@@ -200,16 +243,19 @@ async def debug_test_search(question: str = "que es terraform?"):
     """Prueba search_examples directamente"""
     try:
         from src.services.search import search_examples
+
         # Llamar search_examples directamente
-        hits = search_examples(query=question, k=SETTINGS.K_DOCS, threshold=SETTINGS.THRESHOLD)
-        
+        hits = search_examples(
+            query=question, k=SETTINGS.K_DOCS, threshold=SETTINGS.THRESHOLD
+        )
+
         logger.info(
             f"Test search completado",
             source="api",
             hits_count=len(hits),
-            first_hit=str(hits[0]) if hits else "NO HITS"
+            first_hit=str(hits[0]) if hits else "NO HITS",
         )
-        
+
         return {
             "question": question,
             "hits_count": len(hits),
@@ -219,10 +265,10 @@ async def debug_test_search(question: str = "que es terraform?"):
                     "score": h.get("score"),
                     "doc_type": h.get("doc_type"),
                     "collection": h.get("collection"),
-                    "content_preview": h.get("content", "")[:200]
+                    "content_preview": h.get("content", "")[:200],
                 }
                 for h in hits
-            ]
+            ],
         }
     except Exception as e:
         return {"error": str(e), "error_type": type(e).__name__}
@@ -233,11 +279,11 @@ async def debug_embeddings_model():
     """Verifica modelo de embeddings"""
     try:
         from src.services.embeddings import embeddings_model
-        
+
         return {
             "status": "ok",
             "model": str(embeddings_model),
-            "model_type": type(embeddings_model).__name__
+            "model_type": type(embeddings_model).__name__,
         }
     except Exception as e:
         return {"error": str(e)}

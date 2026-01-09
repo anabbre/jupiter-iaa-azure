@@ -26,39 +26,50 @@ qdrant_client = QdrantClient(url=QDRANT_URL, prefer_grpc=False)
 logger.info("ℹ️ Cliente Qdrant inicializado", source="qdrant", url=QDRANT_URL)
 
 
-def ensure_collection(collection_name: str ) -> bool:
+def ensure_collection(collection_name: str) -> bool:
     """
     Crea la colección si no existe.
     """
-    target = collection_name 
-    
+    target = collection_name
+
     try:
         qdrant_client.get_collection(target)
         logger.info(f"✅ Colección encontrada", source="qdrant", collection=target)
         return True
     except UnexpectedResponse:
-        logger.info(f"⚠️ Colección no existe, creando...", source="qdrant", collection=target)
+        logger.info(
+            f"⚠️ Colección no existe, creando...", source="qdrant", collection=target
+        )
         try:
             qdrant_client.create_collection(
                 collection_name=target,
                 vectors_config=models.VectorParams(
-                    size=EMB_DIM,
-                    distance=models.Distance.COSINE
+                    size=EMB_DIM, distance=models.Distance.COSINE
                 ),
             )
-            logger.info(f"✅ Colección creada",source="qdrant",collection=target,embedding_dim=EMB_DIM)
+            logger.info(
+                f"✅ Colección creada",
+                source="qdrant",
+                collection=target,
+                embedding_dim=EMB_DIM,
+            )
             return True
         except Exception as e:
-            logger.error(f"❌ Error creando colección", source="qdrant", collection=target, error=str(e))
+            logger.error(
+                f"❌ Error creando colección",
+                source="qdrant",
+                collection=target,
+                error=str(e),
+            )
             return False
 
 
-def delete_collection(collection_name: str ) -> bool:
+def delete_collection(collection_name: str) -> bool:
     """
     Elimina una colección de Qdrant.
     """
-    target = collection_name 
-    
+    target = collection_name
+
     try:
         qdrant_client.get_collection(target)
         qdrant_client.delete_collection(target)
@@ -68,47 +79,62 @@ def delete_collection(collection_name: str ) -> bool:
         logger.warning("⚠️ Colección no existe", source="qdrant", collection=target)
         return False
     except Exception as e:
-        logger.error("❌ Error eliminando colección", source="qdrant", collection=target, error=str(e))
+        logger.error(
+            "❌ Error eliminando colección",
+            source="qdrant",
+            collection=target,
+            error=str(e),
+        )
         return False
 
 
 def get_collection_info(collection_name: str) -> Optional[Dict[str, Any]]:
     """
-    Obtiene información de una colección.
-    
+    Obtiene información de una colección de Qdrant.
+
     Returns:
         Dict con info de la colección o None si no existe
     """
-    target = collection_name 
-    
+    target = collection_name
+
     try:
         info = qdrant_client.get_collection(target)
+
+        points_count = getattr(info, "points_count", None)
+        if points_count is None and isinstance(info, dict):
+            points_count = info.get("points_count")
+
+        status_obj = getattr(info, "status", None)
+        status_val = getattr(status_obj, "value", None) if status_obj else None
+        status = status_val or (str(status_obj) if status_obj else "unknown")
+
         return {
             "name": target,
-            "points_count": info.points_count,
-            "vectors_count": info.vectors_count,
-            "status": info.status.value if info.status else "unknown"
+            "points_count": points_count,
+            "status": status,
         }
+
     except UnexpectedResponse:
         return None
     except Exception as e:
-        logger.error("❌ Error obteniendo info", source="qdrant", collection=target, error=str(e))
+        logger.error(
+            "❌ Error obteniendo info", source="qdrant", collection=target, error=str(e)
+        )
         return None
 
 
-def add_documents_to_collection(
-    documents: List[Document],
-    collection_name: str
-) -> int:
+def add_documents_to_collection(documents: List[Document], collection_name: str) -> int:
     """
     Añade documentos a una colección de Qdrant.
     """
-    target = collection_name 
-    
+    target = collection_name
+
     if not documents:
-        logger.warning("⚠️ No hay documentos para añadir", source="qdrant", collection=target)
+        logger.warning(
+            "⚠️ No hay documentos para añadir", source="qdrant", collection=target
+        )
         return 0
-    
+
     try:
         # Asegurar que la colección existe
         ensure_collection(target)
@@ -122,19 +148,30 @@ def add_documents_to_collection(
         )
         # Añadir documentos
         target_store.add_documents(documents)
-        logger.info("✅ Documentos añadidos",source="qdrant",collection=target,count=len(documents))
+        logger.info(
+            "✅ Documentos añadidos",
+            source="qdrant",
+            collection=target,
+            count=len(documents),
+        )
         return len(documents)
     except Exception as e:
-        logger.error("❌ Error añadiendo documentos",source="qdrant",collection=target,error=str(e))
+        logger.error(
+            "❌ Error añadiendo documentos",
+            source="qdrant",
+            collection=target,
+            error=str(e),
+        )
         raise
+
 
 def get_vector_store(collection_name: str) -> QdrantVectorStore:
     """
     Obtiene un QdrantVectorStore para una colección específica.
     """
-    target = collection_name 
+    target = collection_name
     ensure_collection(target)
-    
+
     return QdrantVectorStore(
         client=qdrant_client,
         collection_name=target,
@@ -144,6 +181,18 @@ def get_vector_store(collection_name: str) -> QdrantVectorStore:
     )
 
 
+def list_collections() -> List[str]:
+    """
+    Lista los nombres de colecciones existentes en Qdrant.
+    """
+    try:
+        cols = qdrant_client.get_collections()
+        # En qdrant_client, suele venir como cols.collections = [CollectionDescription(...)]
+        return [c.name for c in getattr(cols, "collections", [])]
+    except Exception as e:
+        logger.error("❌ Error listando colecciones", source="qdrant", error=str(e))
+        return []
+
 
 # Inicialización: asegurar que las colecciones principales existen
 logger.info("⚙️ Verificando colecciones de Qdrant...", source="qdrant")
@@ -152,7 +201,11 @@ for key, name in COLLECTIONS.items():
 
 # Vector store “conveniente” para la colección docs (opcional)
 vector_store = get_vector_store(COLLECTIONS["docs"])
-logger.info("✅ Vector store por defecto inicializado",source="qdrant",collection=COLLECTIONS["docs"],)
+logger.info(
+    "✅ Vector store por defecto inicializado",
+    source="qdrant",
+    collection=COLLECTIONS["docs"],
+)
 
 # Constantes exportadas
 K_DOCS_DEFAULT = SETTINGS.K_DOCS or 3

@@ -124,7 +124,6 @@ resource "aws_security_group_rule" "qdrant_ingress_from_app" {
 }
 
 # Importante: permitir NFS (2049) desde SG qdrant hacia SG EFS.
-# (Tu SG de EFS debería permitir inbound 2049 desde SG qdrant; lo hacemos aquí)
 resource "aws_security_group_rule" "efs_ingress_from_qdrant" {
   type                     = "ingress"
   security_group_id        = var.efs_sg_id
@@ -238,7 +237,7 @@ resource "aws_iam_role_policy_attachment" "task_exec_attach" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# (Opcional futuro: acceso S3, etc. Si lo necesitas lo añadimos después)
+# (Opcional futuro: acceso S3, etc. Si lo necesitamos lo añadimos después)
 
 # ---------------------------
 # Task Definitions

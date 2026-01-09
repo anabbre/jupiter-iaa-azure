@@ -68,7 +68,7 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# NAT (1 NAT barato) en la primera subnet pública
+# NAT en la primera subnet pública
 resource "aws_eip" "nat" {
   domain = "vpc"
 

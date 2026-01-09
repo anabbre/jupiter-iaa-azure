@@ -43,3 +43,13 @@ jobs:
             --cluster jupiter-iaa-dev-cluster \
             --service jupiter-iaa-dev-api \
             --force-new-deployment
+
+      - name: Run RAG Indexing in AWS
+        run: |
+            # Esperamos 30 segundos a que el nuevo contenedor esté estable
+            sleep 30
+            # Ejecutamos el script de indexación directamente en el entorno de AWS
+            # Usamos la URL del balanceador para que el script sepa a dónde enviar los vectores
+            export QDRANT_URL="http://jupiter-iaa-dev-alb-1185587043.eu-west-1.elb.amazonaws.com/api"
+            python Scripts/RAG/index_examples.py --force 
+            

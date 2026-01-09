@@ -212,26 +212,33 @@ async def debug_test_agent(question: str = "que es terraform?"):
 
 @app.get("/debug/qdrant-status")
 async def debug_qdrant_status():
-    """Verifica estado de Qdrant y colecciones (robusto en AWS)"""
+    """Verifica estado de Qdrant y colecciones"""
     try:
-        from src.services.vector_store import (
-            COLLECTIONS,
-            get_collection_info,
-            qdrant_client,
-        )
+        import src.services.vector_store as vs
 
-        cols = qdrant_client.get_collections()
-        all_collections = [c.name for c in getattr(cols, "collections", [])]
+        # fallback: si la imagen vieja no tiene list_collections, no explota
+        if hasattr(vs, "list_collections"):
+            all_collections = vs.list_collections()
+        else:
+            # fallback directo al cliente
+            cols = vs.qdrant_client.get_collections()
+            all_collections = [c.name for c in getattr(cols, "collections", [])]
 
         collections_info = {}
-        for _, name in COLLECTIONS.items():
-            collections_info[name] = get_collection_info(name)
+        for _, name in vs.COLLECTIONS.items():
+            if hasattr(vs, "get_collection_info"):
+                collections_info[name] = vs.get_collection_info(name)
+            else:
+                # mínimo viable
+                collections_info[name] = {"exists": name in all_collections}
 
         return {
             "status": "connected",
-            "url": SETTINGS.QDRANT_URL,
+            "url": vs.SETTINGS.QDRANT_URL,
             "all_collections": all_collections,
             "collections_info": collections_info,
+            "vector_store_has_list_collections": hasattr(vs, "list_collections"),
+            "vector_store_file": getattr(vs, "__file__", "unknown"),
         }
 
     except Exception as e:

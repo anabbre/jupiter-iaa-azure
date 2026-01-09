@@ -27,4 +27,4 @@ RUN mkdir -p logs
 EXPOSE 8008
 
 # Iniciar indexación y luego la aplicación
-CMD python Scripts/RAG/index_examples.py --force && uvicorn src.api.app_main:app --host 0.0.0.0 --port 8008
+CMD ["sh", "-c", "python Scripts/RAG/index_examples.py --force || echo '⚠️ Indexación fallida, arrancando API...' && uvicorn src.api.app_main:app --host 0.0.0.0 --port 8008"]

@@ -212,15 +212,16 @@ async def debug_test_agent(question: str = "que es terraform?"):
 
 @app.get("/debug/qdrant-status")
 async def debug_qdrant_status():
-    """Verifica estado de Qdrant y colecciones"""
+    """Verifica estado de Qdrant y colecciones (robusto en AWS)"""
     try:
         from src.services.vector_store import (
             COLLECTIONS,
-            list_collections,
             get_collection_info,
+            qdrant_client,
         )
 
-        all_collections = list_collections()
+        cols = qdrant_client.get_collections()
+        all_collections = [c.name for c in getattr(cols, "collections", [])]
 
         collections_info = {}
         for _, name in COLLECTIONS.items():

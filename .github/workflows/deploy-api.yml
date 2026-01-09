@@ -44,18 +44,12 @@ jobs:
             --service jupiter-iaa-dev-api \
             --force-new-deployment
     
-      - name: Install Python dependencies
+      - name: Trigger RAG Indexing via API
         run: |
-                python -m pip install --upgrade pip
-                pip install python-dotenv qdrant-client sentence-transformers PyYAML
-                # O si prefieres usar tu archivo: pip install -r requirements.txt        
-
-      - name: Run RAG Indexing in AWS
-        run: |
-            # Esperamos 30 segundos a que el nuevo contenedor esté estable
-            sleep 30
-            # Ejecutamos el script de indexación directamente en el entorno de AWS
-            # Usamos la URL del balanceador para que el script sepa a dónde enviar los vectores
-            export QDRANT_URL="http://jupiter-iaa-dev-alb-1185587043.eu-west-1.elb.amazonaws.com/api"
-            python Scripts/RAG/index_examples.py --force 
+            echo "🚀 Esperando a que la API se estabilice..."
+            sleep 60
+            echo "🧠 Solicitando indexación remota a la API..."
+            # Usamos curl para llamar al endpoint de debug que ya existe en la API
+            # Esto hace que el trabajo pesado lo haga AWS, no GitHub
+            curl -X POST "http://jupiter-iaa-dev-alb-1185587043.eu-west-1.elb.amazonaws.com/api/debug/test-agent?question=inicializar%20indexacion"
             

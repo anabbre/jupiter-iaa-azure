@@ -43,6 +43,12 @@ jobs:
             --cluster jupiter-iaa-dev-cluster \
             --service jupiter-iaa-dev-api \
             --force-new-deployment
+    
+      - name: Install Python dependencies
+        run: |
+                python -m pip install --upgrade pip
+                pip install python-dotenv qdrant-client sentence-transformers PyYAML
+                # O si prefieres usar tu archivo: pip install -r requirements.txt        
 
       - name: Run RAG Indexing in AWS
         run: |

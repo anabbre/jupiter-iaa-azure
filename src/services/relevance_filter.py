@@ -1,49 +1,11 @@
 import re
 from typing import List, Dict, Any, Tuple
-
-
-# Keywords relacionadas con tu dominio (Terraform/Azure/Infrastructure)
-DOMAIN_KEYWORDS = {
-    # Terraform
-    "terraform", "tf", "hcl", "provider", "module", "resource", "variable",
-    "output", "state", "backend", "workspace", "plan", "apply", "init",
-    "destroy", "import", "taint", "untaint",
-    
-    # Azure
-    "azure", "azurerm", "microsoft", "subscription", "tenant", "ad",
-    
-    # Azure Resources
-    "storage", "account", "blob", "container", "vm", "virtual", "machine",
-    "network", "vnet", "subnet", "nsg", "security", "group", "route",
-    "frontdoor", "cdn", "appservice", "function", "aks", "kubernetes",
-    "cosmosdb", "sql", "database", "redis", "cache",
-    
-    # Infrastructure as Code
-    "iac", "infrastructure", "deployment", "provision", "provisioning",
-    "configuration", "config", "setup", "automation",
-    
-    # Cloud concepts
-    "cloud", "vpc", "firewall", "loadbalancer", "gateway", "endpoint",
-    "region", "zone", "availability", "scalability", "redundancy",
-    
-    # DevOps
-    "devops", "cicd", "pipeline", "ci", "cd", "automation", "deploy",
-    "release", "build", "artifact",
-    
-    # Common tech terms
-    "code", "script", "template", "create", "configure", "manage", 
-    "update", "delete", "modify", "example", "tutorial", "guide",
-    "documentation", "docs", "how", "what", "why", "when"
-}
-
-# Palabras que indican consultas fuera de scope
-OUT_OF_SCOPE_PATTERNS = [
-    r"^(hola|hi|hello|hey|buenos días|good morning|buenas tardes|good afternoon)$",
-    r"^(qué tal|cómo estás|how are you|what's up)$",
-    r"^(gracias|thanks|thank you|thx)$",
-    r"^(adiós|bye|goodbye|chao|hasta luego)$",
-    r"^(ok|okay|vale|bien|good)$",
-]
+from config.classifier_loader import (
+    get_domain_keywords,
+    get_out_of_scope_patterns,
+    get_rejection_message,
+    get_validation_messages
+)
 
 def is_query_in_scope(query: str, min_keywords: int = 0) -> Tuple[bool, str]:
     """
@@ -59,36 +21,37 @@ def is_query_in_scope(query: str, min_keywords: int = 0) -> Tuple[bool, str]:
         - reason: Mensaje explicativo
     """
     query_lower = query.lower()
+    # Cargar patrones y keywords desde el config/classifier_loader
+    out_of_scope_patterns = get_out_of_scope_patterns()
+    domain_keywords = get_domain_keywords()
     
     # 1. Verificar si es una consulta fuera de scope (saludos, etc.)
-    for pattern in OUT_OF_SCOPE_PATTERNS:
+    for pattern in out_of_scope_patterns:
         if re.match(pattern, query_lower, re.IGNORECASE):
-            return False, "La consulta parece ser conversacional y no técnica"
+            return False, get_validation_messages("not_technical")
     
     # 2. Verificar si es demasiado corta
     words = query_lower.split()
     if len(words) < 2:
-        return False, "La consulta es demasiado corta (mínimo 2 palabras para contexto técnico)"
+        return False, get_validation_messages("too_short")
     
     # 3. Contar keywords del dominio
     query_words = set(words)
-    domain_count = len(query_words & DOMAIN_KEYWORDS)
+    domain_count = len(query_words & domain_keywords)
     
     if min_keywords > 0 and domain_count < min_keywords:
-        return False, (
-            f"La consulta no contiene suficientes términos técnicos "
-            f"(encontrados: {domain_count}, requeridos: {min_keywords})"
-        )
+        return False, get_validation_messages("insufficient_keywords", found=domain_count, required=min_keywords)
+    
     
     # 4. Si tiene al menos 1 keyword del dominio, es válida
     if domain_count > 0:
-        return True, f"Consulta válida con {domain_count} términos técnicos"
+        return True, get_validation_messages("valid_with_keywords", count=domain_count)
     
     # 5. Si no tiene keywords pero tiene > 3 palabras, dar oportunidad
     if len(words) >= 3:
-        return True, "Consulta sin keywords específicas pero con contexto suficiente"
+        return True, get_validation_messages("valid_with_context")
     
-    return False, "Consulta demasiado genérica sin términos técnicos"
+    return False, get_validation_messages("too_generic")
 
 def filter_results_by_relevance(
     query: str,
@@ -113,9 +76,10 @@ def filter_results_by_relevance(
     
     query_lower = query.lower()
     query_words = set(query_lower.split())
-    
+    # Cargar patrones y keywords desde el config/classifier_loader
+    domain_keywords = get_domain_keywords()
     # Calcular overlap con domain keywords
-    domain_overlap = len(query_words & DOMAIN_KEYWORDS) / max(len(query_words), 1)
+    domain_overlap = len(query_words & domain_keywords) / max(len(query_words), 1)
     
     filtered = []
     for result in results:
@@ -134,36 +98,9 @@ def filter_results_by_relevance(
     return filtered
 
 
-def get_rejection_message(query: str) -> str:
-    """
-    Genera mensaje de rechazo apropiado para consultas fuera de scope
-    
-    Args:
-        query: Consulta del usuario
-    
-    Returns:
-        Mensaje de rechazo amigable
-    """
+def get_rejection_message_for_query(query: str) -> str:
+    """ Obtiene mensaje de rechazo basado en la consulta """
     query_lower = query.lower()
-    # Saludos
     if re.search(r"\b(hola|hi|hello|hey)\b", query_lower):
-        return (
-            "¡Hola! Soy un asistente especializado en Terraform y Azure. "
-            "Puedo ayudarte con:\n"
-            "• Configuraciones de Terraform\n"
-            "• Recursos de Azure\n"
-            "• Infraestructura como código\n"
-            "• Ejemplos y mejores prácticas\n\n"
-            "¿En qué puedo ayudarte?"
-        )
-    
-    # Consulta demasiado genérica
-    return (
-        "No encontré información relevante para tu consulta. "
-        "Recuerda que estoy especializado en Terraform y Azure.\n\n"
-        "Ejemplos de consultas que puedo responder:\n"
-        "• 'Cómo crear un storage account en Azure con Terraform?'\n"
-        "• 'Ejemplo de configuración de Azure Front Door'\n"
-        "• 'Cómo definir variables en Terraform?'\n\n"
-        "Por favor, reformula tu pregunta con más detalles técnicos."
-    )
+        return get_rejection_message("greeting")  
+    return get_rejection_message("generic")  

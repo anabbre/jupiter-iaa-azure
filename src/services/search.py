@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 import yaml
 from pathlib import Path
@@ -17,78 +16,6 @@ MANIFEST_PATH = os.getenv("EXAMPLES_MANIFEST", "data/docs/examples/manifest.yaml
 EMBEDDINGS_MODEL = None  # Se carga lazy
 
 
-def classify_query_intent(query: str) -> str:
-    """
-    Clasifica la intención de la consulta para elegir la colección correcta
-    
-    Returns:
-        - "docs": Buscar documentación teórica (terraform_book)
-        - "code": Buscar código terraform específico (terraform_code)
-        - "all": Buscar en todas las colecciones
-    """
-    query_lower = query.lower()
-    
-    # Keywords para documentación (incluye "how to" porque ejemplos van con docs)
-    docs_keywords = [
-        "what is", "qué es", "que es", "explain", "explica", "definition",
-        "definición", "concept", "concepto", "documentation", "documentación",
-        "overview", "introducción", "introduction", "difference", "diferencia",
-        "comparison", "comparación", "why", "por qué", "when", "cuándo",
-        "example", "ejemplo", "sample", "demo", "how to", "cómo", "como",
-        "tutorial", "guide", "walkthrough", "case", "caso de uso", "crear",
-        "configurar", "setup", "implementar"
-    ]
-    
-    # Keywords para código
-    code_keywords = [
-        "resource", "module", "variable", "output", "data", "provider",
-        "azurerm", "aws", ".tf", "hcl", "code", "código",
-        "implementation", "implementación", "syntax", "sintaxis",
-        "block", "bloque", "configuration", "configuración"
-    ]
-    
-    # Contar matches de keywords
-    docs_score = sum(1 for kw in docs_keywords if kw in query_lower)
-    code_score = sum(1 for kw in code_keywords if kw in query_lower)
-    
-    logger.info(
-        "🎯 Clasificación de consulta",
-        source="search",
-        query=query[:50],
-        scores={
-            "docs": docs_score,
-            "code": code_score
-        }
-    )
-    
-    # Decidir colección
-    if docs_score > code_score and docs_score > 0:
-        return "docs"
-    elif code_score > 0:
-        return "code"
-    else:
-        # Si no hay keywords claras, buscar en todas
-        return "all"
-    
-    
-def get_collections_to_search(query: str, force_collection: Optional[str] = None) -> List[str]:
-    """Determina en qué colecciones buscar según la consulta"""
-    # Colecciones con datos
-    COLLECTIONS = {
-        "docs": "terraform_book",
-        "examples": "examples_terraform",
-    }
-    
-    if force_collection:
-        collection_map = {
-            "docs": [COLLECTIONS["docs"]],
-            "examples": [COLLECTIONS["examples"]],
-            "all": list(COLLECTIONS.values())
-        }
-        return collection_map.get(force_collection, list(COLLECTIONS.values()))
-    
-    # Para cualquier consulta, buscar en ambas colecciones
-    return list(COLLECTIONS.values())
 
 def load_manifest() -> Dict[str, Any]:
     """Carga el manifest con configuración de la colección"""
@@ -113,11 +40,13 @@ def get_qdrant_client() -> QdrantClient:
         
         # Diagnóstico: imprimir métodos disponibles
         available_methods = [m for m in dir(client) if 'search' in m.lower() or 'query' in m.lower()]
-        logger.info("✅ Conexión Qdrant establecida", source="search", url=QDRANT_URL, available_search_methods=available_methods)
+        logger.info("✅ Conexión Qdrant establecida", source="search", 
+                   url=QDRANT_URL, available_search_methods=available_methods)
         
         return client
     except Exception as e:
-        logger.error(f"❌ Error conectando Qdrant: {e}", source="search", url=QDRANT_URL, error_type=type(e).__name__)
+        logger.error(f"❌ Error conectando Qdrant: {e}", source="search", 
+                    url=QDRANT_URL, error_type=type(e).__name__)
         raise
 
 
@@ -153,34 +82,34 @@ def search_in_qdrant(client: QdrantClient, collection: str, embedding: list, k: 
     2. search (API 1.6-1.15)
     3. similarity_search (legacy)
     """
-    logger.info("🔍 Detectando método de búsqueda disponible", source="search")
+    logger.debug("🔍 Detectando método de búsqueda disponible", source="search")
     
     # Método 1: query_points 
     if hasattr(client, 'query_points'):
         try:
-            logger.info("Intentando con query_points()", source="search")
+            logger.debug("Intentando con query_points()", source="search")
             result = client.query_points(
                 collection_name=collection,
                 query=embedding,
                 limit=k,
                 with_payload=True
             )
-            logger.info("✅ Usando query_points", source="search")
+            logger.debug("✅ Usando query_points", source="search")
             return result.points
         except Exception as e:
-            logger.warning(f"query_points() falló: {e}", source="search")
+            logger.debug(f"query_points() falló: {e}", source="search")
     
     # Método 2: search 
     if hasattr(client, 'search'):
         try:
-            logger.info("Intentando con search()", source="search")
+            logger.debug("Intentando con search()", source="search")
             results = client.search(
                 collection_name=collection,
                 query_vector=embedding,
                 limit=k,
                 with_payload=True
             )
-            logger.info("✅ Usando search", source="search")
+            logger.debug("✅ Usando search", source="search")
             return results
         except Exception as e:
             logger.warning(f"search() falló: {e}", source="search")
@@ -188,14 +117,14 @@ def search_in_qdrant(client: QdrantClient, collection: str, embedding: list, k: 
     # Método 3: fallback
     if hasattr(client, 'scroll'):
         try:
-            logger.info("⚠️ Usando scroll() como fallback (puede ser lento)", source="search")
+            logger.warning("⚠️ Usando scroll() como fallback (puede ser lento)", source="search")
             results, _ = client.scroll(
                 collection_name=collection,
                 limit=k,
                 with_payload=True,
                 with_vectors=False
             )
-            logger.info("✅ Usando scroll (sin scoring)", source="search")
+            logger.debug("✅ Usando scroll (sin scoring)", source="search")
             # Nota: scroll no tiene scores, así que los agregamos ficticios
             for r in results:
                 r.score = 0.5  # Score ficticio
@@ -218,116 +147,139 @@ def search_examples(
 ) -> List[Dict[str, Any]]:
     """Búsqueda principal en Qdrant con auto-detección de API"""
     request_id = get_request_id()
-    
-    # Determinar colecciones
     if collections is None:
-        collections = get_collections_to_search(query)
+        collections = ["terraform_book", "examples_terraform"]
+    logger.info("🔍 search_examples iniciado", source="search", query=query[:50], k=k, threshold=threshold, collections=collections, request_id=request_id)
+    results = search_all_collections(
+        query=query,
+        collections=collections,
+        k_per_collection=k,
+        threshold=threshold
+    )
+    
+    # Añadir rank si include_content es True (compatibilidad)
+    for i, hit in enumerate(results, 1):
+        hit["rank"] = i
+        if not include_content and "content" in hit:
+            del hit["content"]
+    
+    logger.info("✅ search_examples completado", source="search", total_results=len(results), request_id=request_id)
+    return results
 
-    logger.info("🔍 search_examples iniciado",source="search",query=query[:50],collections=collections,threshold = threshold,k=k,request_id=request_id)
+
+def search_all_collections(  
+    query: str,
+    collections: List[str],
+    k_per_collection: int = 5,
+    threshold: float = 0.5
+) -> List[Dict[str, Any]]:
+    """
+    Busca en TODAS las colecciones y fusiona resultados ordenados por score.
+    
+    Args:
+        query: Consulta del usuario
+        collections: Lista de colecciones donde buscar
+        k_per_collection: Número de resultados por colección
+        threshold: Score mínimo para incluir un resultado
+    
+    Returns:
+        Lista fusionada de resultados ordenados por score
+    """
+    import time
+    request_id = get_request_id()
+    start_time = time.time()
+    request_id = get_request_id()
+    logger.info("🔍 Búsqueda multi-colección iniciada", source="search", query=query[:50], collections=collections, k_per_collection=k_per_collection, request_id=request_id)
     
     try:
-        from src.services.relevance_filter import is_query_in_scope, filter_results_by_relevance
-        
+        # Validar scope
+        from src.services.relevance_filter import is_query_in_scope
         is_valid, reason = is_query_in_scope(query, min_keywords=0)
         if not is_valid:
-            logger.warning("⚠️ Consulta fuera de scope rechazada",source="search",query=query,reason=reason,request_id=request_id)
+            logger.warning("⚠️ Query fuera de scope",
+                          source="search",
+                          reason=reason,
+                          request_id=request_id)
             return []
         
-        # 1. Configuración
+        # Configuración
         manifest = load_manifest()
         model_name = manifest.get("embeddings_model", "intfloat/multilingual-e5-small")
-        # 2. Cliente y modelo
+        
+        # Cliente y modelo
         client = get_qdrant_client()
         model = get_embeddings_model(model_name)
-        # 3. Generar embedding
+        
+        # Generar embedding
         query_with_prefix = f"query: {query}"
         embedding = model.encode(query_with_prefix)
         embedding_list = embedding.tolist() if hasattr(embedding, 'tolist') else list(embedding)
         
-        logger.info("✅ Embedding generado", source="search",embedding_dim=len(embedding), request_id=request_id)
+        logger.info("✅ Embedding generado",
+                   source="search",
+                   embedding_dim=len(embedding_list),
+                   request_id=request_id)
         
+        # Buscar en cada colección
         all_results = []
         
         for collection in collections:
-            logger.info(f"🔎 Buscando en {collection}", source="search", collection=collection, k=k, request_id=request_id)
-            
             try:
-                results = search_in_qdrant(client, collection, embedding_list, k)
+                logger.info(f"🔎 Buscando en {collection}",
+                           source="search",
+                           collection=collection,
+                           request_id=request_id)
                 
-                # Guardar como tupla (resultado, colección)
+                results = search_in_qdrant(client, collection, embedding_list, k_per_collection)
+                
+                # Procesar resultados de esta colección
+                filtered_count = 0
                 for result in results:
-                    all_results.append((result, collection))
+                    score = float(result.score) if hasattr(result, 'score') else 0.0
+                    
+                    if score < threshold:
+                        filtered_count += 1
+                        continue
+                    
+                    payload = result.payload
+                    metadata = payload.get("metadata", {})
+                    
+                    hit = {
+                        "score": score,
+                        "name": metadata.get("name", metadata.get("source", "N/A")),
+                        "section": metadata.get("section", ""),
+                        "pages": metadata.get("pages", "-"),
+                        "path": metadata.get("path", metadata.get("file_path", "N/A")),
+                        "doc_type": metadata.get("doc_type", "unknown"),
+                        "tags": metadata.get("tags", []),
+                        "metadata": metadata,
+                        "collection": collection,
+                        "content": payload.get("page_content", "")
+                    }
+                    
+                    all_results.append(hit)
                 
-                logger.info(f"✅ {collection}: {len(results)} resultados", source="search", request_id=request_id)
+                logger.info(f"✅ {collection}: {len(results)} resultados, {filtered_count} filtrados por threshold", source="search", collection=collection, results_raw=len(results), filtered_by_threshold=filtered_count, request_id=request_id)
                 
             except Exception as e:
                 logger.warning(f"⚠️ Error en colección {collection}: {e}", source="search", request_id=request_id)
                 continue
         
-        logger.info(f"✅ Búsqueda completada en {len(collections)} colecciones: {', '.join(collections)}", source="search", total_results=len(all_results), request_id=request_id)
-        
-        # 5. Procesar resultados
-        hits = []
-        
-        for rank, (result, collection_name) in enumerate(all_results, 1):
-            score = float(result.score) if hasattr(result, 'score') else 0.0
-            payload = result.payload
-            metadata = payload.get("metadata", {})
-            
-            # Filtrar por threshold
-            if score < threshold:
-                continue
-            
-            # Construir respuesta
-            hit = {
-                "rank": rank,
-                "score": score,
-                "name": metadata.get("name", metadata.get("source", "N/A")),
-                "section": metadata.get("section", ""),
-                "pages": metadata.get("pages", "-"),
-                "path": metadata.get("path", metadata.get("file_path", "N/A")),
-                "doc_type": metadata.get("doc_type", "unknown"),
-                "tags": metadata.get("tags", []),
-                "metadata": metadata,
-                "collection": collection_name
-            }
-            
-            if include_content:
-                hit["content"] = payload.get("page_content", "")
-            
-            hits.append(hit)
-            
-            logger.info(f"✓ Resultado {rank} procesado", source="search", score=score, name=hit["name"], request_id=request_id)
-        
         # Ordenar por score (mayor primero)
-        hits.sort(key=lambda x: x["score"], reverse=True)
+        all_results.sort(key=lambda x: x["score"], reverse=True)
         
-        # Re-numerar ranks después de ordenar
-        for i, hit in enumerate(hits, 1):
-            hit["rank"] = i
+        # Limitar total de resultados
+        max_total = k_per_collection * len(collections)
+        all_results = all_results[:max_total]
         
-        # Filtrar por relevancia
-        original_count = len(hits)
-        hits = filter_results_by_relevance(
-            query=query,
-            results=hits,
-            min_score=0.75,
-            min_domain_overlap=0.3
-        )
+        duration = time.time() - start_time
+        logger.info("✅ Búsqueda multi-colección completada", source="search", total_results=len(all_results), collections_searched=len(collections), duration_ms=round(duration * 1000, 2), top_score=all_results[0]["score"] if all_results else 0.0, request_id=request_id)
         
-        if len(hits) < original_count:
-            logger.info(f"📉 Filtrados: {original_count} → {len(hits)}", source="search", request_id=request_id)
-
-        logger.info(f"✅ search_examples completado", source="search", total_results=len(hits), request_id=request_id)
+        return all_results
         
-        return hits
-    
     except Exception as e:
-        logger.error(f"❌ Error en search_examples: {e}", source="search", query=query[:100], error_type=type(e).__name__, request_id=request_id)
-        import traceback
-        traceback.print_exc()
-        raise
-
+        logger.error(f"❌ Error en búsqueda multi-colección: {e}", source="search", error_type=type(e).__name__, request_id=request_id)
+        return []
 
 def search_with_metadata(
     query: str,

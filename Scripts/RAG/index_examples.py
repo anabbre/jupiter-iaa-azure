@@ -34,8 +34,9 @@ def setup_logger(name: str = "index_examples") -> logging.Logger:
     logger.handlers.clear()
     logger.propagate = False
 
-    fmt = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s",
-                            datefmt="%Y-%m-%d %H:%M:%S")
+    fmt = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.INFO)
     ch.setFormatter(fmt)
@@ -51,17 +52,26 @@ def setup_logger(name: str = "index_examples") -> logging.Logger:
 
 logger = setup_logger()
 
-# Config 
+# Config
 load_dotenv()
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-MANIFEST_PATH = os.getenv("EXAMPLES_MANIFEST", "docs/examples/manifest.yaml")
+
+# DETECCIÓN DE ENTORNO PARA RUTAS
+if os.path.exists("/app/data/docs/examples/manifest.yaml"):
+    # Ruta dentro del contenedor AWS
+    MANIFEST_PATH = "/app/data/docs/examples/manifest.yaml"
+    logger.info("🌐 Entorno detectado: AWS ECS")
+else:
+    # Ruta en en ordenador en local
+    MANIFEST_PATH = os.getenv("EXAMPLES_MANIFEST", "docs/examples/manifest.yaml")
+    logger.info("💻 Entorno detectado: Local")
 
 TEXT_EXTS = {".tf", ".md", ".txt", ".yaml", ".yml", ".tfvars", ".sh"}
 splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120)
 
 
-# Helpers 
+# Helpers
 def load_manifest(path: str) -> dict:
     p = Path(path)
     if not p.exists():
@@ -103,11 +113,15 @@ def collect_chunks_from_pdf(pdf_path: Path, section: str) -> List[dict]:
     return docs
 
 
-# Main 
+# Main
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--manifest", type=str, default=None,
-                        help="Ruta al manifest.yaml (override de EXAMPLES_MANIFEST)")
+    parser.add_argument(
+        "--manifest",
+        type=str,
+        default=None,
+        help="Ruta al manifest.yaml (override de EXAMPLES_MANIFEST)",
+    )
     args = parser.parse_args()
 
     manifest_path = args.manifest or MANIFEST_PATH
@@ -191,8 +205,8 @@ def main():
                             "source": str(Path(path).name),
                             "path": str(path),
                             "page": meta.get("page"),
-                            "doc_type": meta.get("doc_type"),  
-                            "ref": meta.get("ref"),            
+                            "doc_type": meta.get("doc_type"),
+                            "ref": meta.get("ref"),
                         },
                     },
                 )

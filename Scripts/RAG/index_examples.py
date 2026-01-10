@@ -157,15 +157,17 @@ def main():
         ex_id = ex["id"]
         name = ex.get("name", ex_id)
 
-        # LÓGICA DE RUTAS DINÁMICAS
-        raw_path = ex["path"]
-        # Verificamos si la carpeta base de AWS existe
+        # LÓGICA DE RUTAS
+        filename = ex["path"]
+
         if os.path.exists("/app/data/docs/examples"):
-            # En AWS: Construimos la ruta absoluta /app/data/docs/examples/data/terraform/...
-            path = Path("/app/data/docs/examples") / raw_path
+            # En AWS: Los archivos están en la carpeta donde el Dockerfile hizo el COPY
+            base_dir = Path("/app/data/docs/examples")
         else:
-            # En LOCAL: Mantenemos la ruta relativa data/terraform/...
-            path = Path(raw_path)
+            # En LOCAL: Los archivos están en la carpeta de datos
+            base_dir = Path("data/docs/examples")
+
+        path = base_dir / filename
 
         tags = ex.get("tags", [])
         section = str(path)

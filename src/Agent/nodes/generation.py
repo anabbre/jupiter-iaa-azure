@@ -5,6 +5,18 @@ from src.Agent.state import AgentState
 from src.services.llms import llm
 from config.logger_config import logger, get_request_id, set_request_id
 
+def _format_chat_history(chat_history: list) -> str:
+    """Formatea el historial de chat para incluir en el prompt."""
+    if not chat_history:
+        return ""
+    
+    formatted = []
+    for msg in chat_history[-6:]:  # Últimos 6 mensajes (3 turnos)
+        role = "Usuario" if msg["role"] == "user" else "Asistente"
+        formatted.append(f"{role}: {msg['content']}")
+    
+    return "\n".join(formatted)
+
 def generate_answer(state: AgentState) -> AgentState:
     """
     Genera una respuesta usando el LLM.
@@ -14,31 +26,35 @@ def generate_answer(state: AgentState) -> AgentState:
     
     question = state.get("question", "")
     documents = state.get("documents", [])
+    chat_history = state.get("chat_history", [])
+    
     context = "\n\n---\n\n".join(documents) if documents else "No hay contexto disponible."
+    history_text = _format_chat_history(chat_history)
     
     try:
-        prompt = f"""Eres un experto en Terraform y Azure. Responde la pregunta basándote en el contexto.
+        prompt = f"""Eres un experto en Terraform y Azure. Responde la pregunta basándote en el contexto y el historial de conversación.
 
 Contexto:
 {context}
 
+{f"Historial de conversación:{chr(10)}{history_text}{chr(10)}" if history_text else ""}
 Pregunta: {question}
 
 Respuesta:"""
-
         response = llm.invoke(prompt)
         state["answer"] = response.content
         state["messages"].append("✅ Respuesta generada con LLM")
-        
-        logger.info("✅ Respuesta generada", source="generation", 
-                   answer_length=len(response.content))
+            
+        logger.info("✅ Respuesta generada", source="generation", answer_length=len(response.content))
         return state
-        
+            
     except Exception as e:
-        logger.error("❌ Error en generación", source="generation", error=str(e))
-        state["answer"] = f"Error al generar respuesta: {str(e)}"
-        state["messages"].append(f"❌ Error: {str(e)}")
-        raise
+            logger.error("❌ Error en generación", source="generation", error=str(e))
+            state["answer"] = f"Error al generar respuesta: {str(e)}"
+            state["messages"].append(f"❌ Error: {str(e)}")
+            raise
+
+
 
 
 # MODO 2: Devolver template sin modificar

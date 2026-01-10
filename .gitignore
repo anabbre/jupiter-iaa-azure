@@ -11,6 +11,9 @@ __pycache__/
 build/
 dist/
 
+# --- YAML ---
+config/classification_rules.yaml
+
 # --- Virtual environments ---
 .env
 .venv/

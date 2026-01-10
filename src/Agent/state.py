@@ -21,17 +21,18 @@ class AgentState(TypedDict):
     """Estado compartido entre todos los nodos del grafo"""
     # Input
     question: str
-    
+    original_question: str               # Pregunta original sin modificar para contexto en memoria
+    chat_history: List[Dict[str, str]]   # Historial de conversación (role: user/assistant, content: texto)
     # Scope Validation
     is_valid_scope: bool                 # Si la consulta está dentro del scope
     
     # Intent Classification 
-    intent: str                         # Intent primario: explanation, code_template, full_example
-    intents: List[str]                  # Todos los intents detectados
-    is_multi_intent: bool               # Si tiene múltiples intenciones
-    target_collections: List[str]       # Colecciones donde buscar
-    response_action: str                # Acción: generate_answer, return_template, hybrid_response
-    intent_scores: Dict[str, float]     # Scores de cada intent
+    intent: str                          # Intent primario: explanation, code_template, full_example
+    intents: List[str]                   # Todos los intents detectados
+    is_multi_intent: bool                # Si tiene múltiples intenciones
+    target_collections: List[str]        # Colecciones donde buscar
+    response_action: str                 # Acción: generate_answer, return_template, hybrid_response
+    intent_scores: Dict[str, float]      # Scores de cada intent
     
     # Retrieval
     raw_documents: List[DocumentScore]
@@ -40,7 +41,7 @@ class AgentState(TypedDict):
 
     # Generation
     answer: str
-    template_code: Optional[str]        # Código template (si aplica)
+    template_code: Optional[str]         # Código template (si aplica)
     explanation: Optional[str]          # Explicación (si aplica)
 
     # Metadata
@@ -48,4 +49,3 @@ class AgentState(TypedDict):
     
     
     
-# python -c "from src.Agent.nodes.intent_classifier import classify_intent; print('✅ Intent classifier OK')"

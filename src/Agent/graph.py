@@ -8,6 +8,7 @@ from config.logger_config import logger
 
 from src.Agent.state import AgentState
 from src.Agent.nodes.validate_scope import validate_scope, should_continue
+from src.Agent.nodes.contextualize import contextualize_question
 from src.Agent.nodes.intent_classifier import classify_intent
 from src.Agent.nodes.retrieval import retrieve_documents
 from src.Agent.nodes.decision import decide_response_type, get_next_node
@@ -51,6 +52,7 @@ class Agent:
         workflow = StateGraph(AgentState)
         
         # ========== NODOS ==========
+        workflow.add_node("contextualize", contextualize_question)
         workflow.add_node("validate_scope", validate_scope)
         workflow.add_node("reject", reject_query)
         workflow.add_node("classify_intent", classify_intent)
@@ -63,9 +65,10 @@ class Agent:
         # ========== EDGES ==========
         
         # 1. Entry point: validate_scope
-        workflow.set_entry_point("validate_scope")
-        
-        # 2. Branching desde validate_scope
+        workflow.set_entry_point("contextualize")
+        # 2. Contextualize → validate_scope
+        workflow.add_edge("contextualize", "validate_scope")
+        # 3. Branching desde validate_scope
         workflow.add_conditional_edges(
             "validate_scope",
             should_continue,
@@ -75,11 +78,11 @@ class Agent:
             }
         )
         
-        # 3. Flujo principal
+        # 4. Flujo principal
         workflow.add_edge("classify_intent", "retrieve")
         workflow.add_edge("retrieve", "decide")
-        
-        # 4. Branching desde decide
+
+        # 5. Branching desde decide
         workflow.add_conditional_edges(
             "decide",
             get_next_node,
@@ -90,7 +93,7 @@ class Agent:
             }
         )
         
-        # 5. Todos terminan en END
+        # 6. Todos terminan en END
         workflow.add_edge("reject", END)
         workflow.add_edge("generate", END)
         workflow.add_edge("format_template", END)
@@ -98,8 +101,8 @@ class Agent:
         
         logger.info("✅ Grafo compilado", source="agent")
         return workflow.compile()
-    
-    def invoke(self, question: str) -> dict:
+
+    def invoke(self, question: str, chat_history: list = None) -> dict:
         """
         Ejecuta el grafo con una pregunta.
         """
@@ -108,6 +111,8 @@ class Agent:
         # Estado inicial
         state = {
             "question": question,
+            "original_question": question,
+            "chat_history": chat_history or [],
             "messages": [],
             # Scope
             "is_valid_scope": True,

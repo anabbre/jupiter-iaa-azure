@@ -156,7 +156,10 @@ def main():
     for ex in examples:
         ex_id = ex["id"]
         name = ex.get("name", ex_id)
-        filename = ex["path"]  # Esto es el nombre del .md del manifest
+        filename = ex["path"]  # Ej: "example_frontdoor.md"
+        tags = ex.get(
+            "tags", []
+        )  # <--- FIJAR AQUÍ: Definimos tags para que no de NameError
 
         # 1. DETERMINAR RUTAS SEGÚN ENTORNO
         if os.path.exists("/app/data/docs/examples"):
@@ -167,11 +170,16 @@ def main():
             base_terraform = Path("data/terraform")
 
         path_md = base_docs / filename
-        # Buscamos la carpeta de código correspondiente (ej: 01-storage-static-website)
-        # Usamos el ex_id o el nombre para localizar la carpeta en terraform/
-        # Usamos directamente el campo 'name' del manifest para la carpeta
-        folder_name = name
+
+        # Lógica robusta para la carpeta de código (Prueba nombre exacto y con prefijo)
+        # Intentamos '01-storage-static-website' (basado en ex_id[2:] + name)
+        # ex_id[2:] quita el 'ex' y deja el '01', '02'...
+        folder_name = f"{ex_id[2:]}-{name}"
         path_code = base_terraform / folder_name
+
+        # Si no existe así, probamos solo con el name
+        if not path_code.exists():
+            path_code = base_terraform / name
 
         # 2. PROCESAR EL ARCHIVO MD (Explicación)
         docs = []
@@ -201,25 +209,26 @@ def main():
 
         for i, d in enumerate(docs):
             meta = d.metadata or {}
+            # Definimos 'path' para que se use en la metadata de abajo
+            current_path = meta.get("source", str(path_md))
+
             points.append(
                 PointStruct(
                     id=uuid.uuid4().hex,
                     vector=vectors[i].tolist(),
                     payload={
-                        # lo que LangChain leerá como Document.page_content
                         "page_content": d.page_content,
-                        # y su metadata asociada
                         "metadata": {
                             "type": "terraform_example",
                             "ex_id": ex_id,
                             "name": name,
-                            "tags": tags,
-                            "section": str(Path(path).as_posix()),
-                            "source": str(Path(path).name),
-                            "path": str(path),
+                            "tags": tags,  # <--- Ahora esta variable SÍ existe
+                            "section": str(Path(current_path).as_posix()),
+                            "source": str(Path(current_path).name),
+                            "path": str(current_path),
                             "page": meta.get("page"),
-                            "doc_type": meta.get("doc_type"),
-                            "ref": meta.get("ref"),
+                            "doc_type": meta.get("doc_type", "example"),
+                            "ref": meta.get("ref", str(current_path)),
                         },
                     },
                 )

@@ -156,38 +156,39 @@ def main():
     for ex in examples:
         ex_id = ex["id"]
         name = ex.get("name", ex_id)
+        filename = ex["path"]  # Esto es el nombre del .md del manifest
 
-        # LÓGICA DE RUTAS
-        filename = ex["path"]
-
+        # 1. DETERMINAR RUTAS SEGÚN ENTORNO
         if os.path.exists("/app/data/docs/examples"):
-            # En AWS: Los archivos están en la carpeta donde el Dockerfile hizo el COPY
-            base_dir = Path("/app/data/docs/examples")
+            base_docs = Path("/app/data/docs/examples")
+            base_terraform = Path("/app/data/terraform")
         else:
-            # En LOCAL: Los archivos están en la carpeta de datos
-            base_dir = Path("data/docs/examples")
+            base_docs = Path("data/docs/examples")
+            base_terraform = Path("data/terraform")
 
-        path = base_dir / filename
+        path_md = base_docs / filename
+        # Buscamos la carpeta de código correspondiente (ej: 01-storage-static-website)
+        # Usamos el ex_id o el nombre para localizar la carpeta en terraform/
+        # Usamos directamente el campo 'name' del manifest para la carpeta
+        folder_name = name
+        path_code = base_terraform / folder_name
 
-        tags = ex.get("tags", [])
-        section = str(path)
+        # 2. PROCESAR EL ARCHIVO MD (Explicación)
+        docs = []
+        if path_md.exists():
+            logger.info(f"[{ex_id}] Indexando explicación: {path_md}")
+            loader = TextLoader(str(path_md), encoding="utf-8")
+            docs.extend(splitter.split_documents(loader.load()))
 
-        if not path.exists():
-            logger.warning(f"[{ex_id}] Ruta inexistente: {path}")
-            continue
-
-        if path.is_file() and path.suffix.lower() == ".pdf":
-            logger.info(f"[{ex_id}] Indexando PDF: {path}")
-            docs = collect_chunks_from_pdf(path, section)
-        elif path.is_dir():
-            logger.info(f"[{ex_id}] Indexando carpeta: {path}")
-            docs = collect_chunks_from_text(path, section)
-        else:
-            logger.warning(f"[{ex_id}] Tipo no reconocido: {path}")
-            continue
+        # 3. PROCESAR LA CARPETA TERRAFORM (Código)
+        if path_code.exists() and path_code.is_dir():
+            logger.info(f"[{ex_id}] Indexando código en: {path_code}")
+            docs.extend(collect_chunks_from_text(path_code, str(path_code)))
 
         if not docs:
-            logger.warning(f"[{ex_id}] Sin contenido legible.")
+            logger.warning(
+                f"[{ex_id}] No se encontró ni MD ni código en {path_md} o {path_code}"
+            )
             continue
 
         logger.info(f"[{ex_id}] Generando embeddings ({len(docs)} chunks)…")

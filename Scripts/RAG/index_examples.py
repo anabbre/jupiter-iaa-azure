@@ -156,7 +156,17 @@ def main():
     for ex in examples:
         ex_id = ex["id"]
         name = ex.get("name", ex_id)
-        path = Path(ex["path"])
+
+        # LÓGICA DE RUTAS DINÁMICAS
+        raw_path = ex["path"]
+        # Verificamos si la carpeta base de AWS existe
+        if os.path.exists("/app/data/docs/examples"):
+            # En AWS: Construimos la ruta absoluta /app/data/docs/examples/data/terraform/...
+            path = Path("/app/data/docs/examples") / raw_path
+        else:
+            # En LOCAL: Mantenemos la ruta relativa data/terraform/...
+            path = Path(raw_path)
+
         tags = ex.get("tags", [])
         section = str(path)
 

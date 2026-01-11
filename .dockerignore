@@ -13,10 +13,7 @@ env/
 venv/
 ENV/
 
-
-
-# Archivosme los puedes de configuración y dependencias
-*.pyc
+# Archivos de configuración y dependencias*.pyc
 *.pyo
 *.pyd
 *.db
@@ -31,15 +28,14 @@ logs/
 tmp/
 *.tmp
 *.swp
+
+# GESTIÓN DE DATOS 
 data/
-# …pero SI incluyo los ejemplos + manifest
-!data/docs/
-!data/docs/examples/
-!data/docs/examples/**
-logs/
+# expepciones
+!data/docs/              # Documentación y manifiesto
+!data/terraform/         # Código fuente de los ejemplos (.tf)
+!data/optimized_chunks/  # PDFs del libro procesados
 
 # Archivos de sistema
-.DS_Store
-Thumbs.dbs de sistema
 .DS_Store
 Thumbs.db

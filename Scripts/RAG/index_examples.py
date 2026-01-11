@@ -48,7 +48,11 @@ logger = setup_logger()
 
 # --- CONFIGURACIÓN DE CONEXIÓN ---
 load_dotenv()
-QDRANT_URL = "http://54.195.1.154:6333"  # IP Pública de ECS
+
+# Usamos os.getenv para leer la variable de ECS
+# Si no encuentra la variable (en local), usa localhost
+QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 S3_BASE_URL = "https://jupiter-iaa-docs.s3.eu-west-1.amazonaws.com/"
 

@@ -21,6 +21,8 @@ class AgentState(TypedDict):
     """Estado compartido entre todos los nodos del grafo"""
     # Input
     question: str
+    k_docs: int                          # Número de documentos a recuperar
+    threshold: float                     # Umbral de relevancia
     original_question: str               # Pregunta original sin modificar para contexto en memoria
     chat_history: List[Dict[str, str]]   # Historial de conversación (role: user/assistant, content: texto)
     # Scope Validation

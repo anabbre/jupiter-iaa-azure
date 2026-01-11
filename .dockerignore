@@ -30,7 +30,7 @@ tmp/
 *.swp
 
 # GESTIÓN DE DATOS 
-data/
+data/*
 # expepciones
 !data/docs/              # Documentación y manifiesto
 !data/terraform/         # Código fuente de los ejemplos (.tf)

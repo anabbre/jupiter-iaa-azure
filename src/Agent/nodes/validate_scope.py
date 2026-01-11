@@ -1,6 +1,6 @@
 from typing import Literal
 from src.Agent.state import AgentState
-from src.services.relevance_filter import is_query_in_scope, get_rejection_message
+from src.services.relevance_filter import is_query_in_scope, get_rejection_message_for_query
 from config.logger_config import logger
 
 def validate_scope(state: AgentState) -> AgentState:
@@ -29,7 +29,7 @@ def validate_scope(state: AgentState) -> AgentState:
             logger.info(f"🏷️ is_valid_scope antes de retornar: {state['is_valid_scope']}", source="validate_scope")
         else:
             state["messages"].append(f"❌ Fuera de scope: {reason}")
-            state["answer"] = get_rejection_message(question)
+            state["answer"] = get_rejection_message_for_query(question)
             state["response_action"] = "rejected"
             logger.info(f"🏷️ is_valid_scope antes de retornar: {state['is_valid_scope']}", source="validate_scope")
         return state  
@@ -46,7 +46,7 @@ def should_continue(state: AgentState) -> Literal["continue", "reject"]:
     """
     Router condicional: decide si continuar o rechazar.
     """
-    is_valid = state.get("is_valid_scope", True)  # ← LEE el estado de validate_scope
+    is_valid = state.get("is_valid_scope", True)  
     logger.info(f"🔀 should_continue: is_valid_scope={is_valid}", source="validate_scope")
     return "continue" if is_valid else "reject"
 

@@ -21,7 +21,7 @@ class Settings:
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", 0.0))
     LLM_MAX_RETRIES: int = int(os.getenv("LLM_MAX_RETRIES", 3))
 
-    API_URL: str = os.getenv("API_URL", "/api")
+    API_URL: str = os.getenv("API_URL", "http://localhost:8008")
 
 
 SETTINGS = Settings()

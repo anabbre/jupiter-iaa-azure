@@ -1,21 +1,20 @@
 import os
 import requests
 import gradio as gr
-from src.ui.utils.transcribe_audio import transcribe_audio
-from src.ui.utils.process_image import encode_image_to_base64
-from src.ui.utils.process_text_file import read_text_file
 from config.config import SETTINGS
 from config.logger_config import logger 
 
 API_URL = SETTINGS.API_URL
+API_URL = API_URL + "/api" if not API_URL.endswith("/api") else API_URL
+
 
 def _normalize_source(src_item: dict) -> dict:
     """Normaliza una fuente heterogénea a una estructura común para la UI.
 
     Casos soportados según metadata['doc_type']:
-      - example
       - terraform_book
       - documentation
+      - example
 
     Campos de salida comunes:
       name, description, ref, ref_name, relevance_score, extras, path, section
@@ -39,12 +38,13 @@ def _normalize_source(src_item: dict) -> dict:
     path = metadata.get("file_path") or src.get("source", "") or metadata.get("path") or ""
     section = metadata.get("section") or src.get("section") or metadata.get("page") or ""
     page = metadata.get("page") or ""
+    section = metadata.get("section") or ""
     ref_name = None
     extras = {}
 
     # Normalización por tipo
     if doc_type == "example":
-        ref_type = "Documentación .tf"
+        ref_type = "Ejemplos Terraform"
         name = metadata.get("example_name") or name
         description = metadata.get("example_description", "")
         # ref_name = doc_type + ".tf"
@@ -87,14 +87,18 @@ def _normalize_source(src_item: dict) -> dict:
         }
 
     elif doc_type == "documentation":
-        ref_type = "Documentación .md"
+        ref_type = "Documentación markdown"
         # name = section; description vacío
-        name = metadata.get("section") or section or name
+        name = metadata.get("name", name)
         description = ""
         ref_name = f"{doc_type}.md"
+        extras = {
+            "section": section if section else None,
+        }
+
     else:
         # Tipo desconocido: mantener valores por defecto y derivar ref_name del path
-        ref_type = "Documento"
+        name = metadata.get("name", name)
         ext = os.path.splitext(path)[1].lstrip(".") if path else "txt"
         ref_name = f"{(doc_type or 'document')}.{ext}"
 
@@ -112,7 +116,9 @@ def _normalize_source(src_item: dict) -> dict:
     }
 
 
-def get_api_response(question: str, chat_history: list = None) -> dict:
+MAX_CONTEXT = 20
+
+def get_api_response(question: str, context: list | None = None) -> dict:
     """
     Consulta la API FastAPI del agente
     
@@ -124,11 +130,13 @@ def get_api_response(question: str, chat_history: list = None) -> dict:
     """
     try:
         logger.info("Enviando consulta a API", url=API_URL, question=question[:100], source="ui")
+        payload = {"question": question}
+        if context and isinstance(context, list):
+            payload["context"] = context[-MAX_CONTEXT:]
+        
         response = requests.post(
             f"{API_URL}/query",
-            json={"question": question,
-                  "chat_history": chat_history or []
-            },
+            json=payload,
             timeout=60
         )
         response.raise_for_status()
@@ -156,56 +164,34 @@ def get_api_response(question: str, chat_history: list = None) -> dict:
             "sources": []
         }
 
+
 # =============================
 # FUNCIONES PRINCIPALES
 # =============================
-def procesar_mensaje(history, texto, archivo):
+
+
+def procesar_mensaje(history, texto):
     """
-    Procesa el mensaje del usuario con texto y/o archivo (imagen o texto)
+    Procesa el mensaje del usuario con texto
     """
-    if not texto and not archivo:
+    if not texto:
         logger.warning("Intento de enviar mensaje vacío")
         return history, None
 
     # Construir el contenido del mensaje del usuario
     contenido_usuario = texto if texto else ""   
-    logger.info("💬 Procesando mensaje", tiene_texto=bool(texto), tiene_archivo=bool(archivo), source="ui")
+    logger.info("💬 Procesando mensaje", tiene_texto=bool(texto), source="ui")
 
-    # Procesar archivo (puede ser imagen o texto)
-    if archivo:
-        file_ext = os.path.splitext(archivo)[1].lower()
-        logger.info(" Archivo detectado", extension=file_ext, nombre=os.path.basename(archivo), source="ui")
-        # Si es imagen
-        if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
-            logger.info("🖼️ Procesando imagen", extension=file_ext)
-            base64_img = encode_image_to_base64(archivo)
-            data_url = f"data:image/jpeg;base64,{base64_img}"
-            if contenido_usuario:
-                contenido_usuario += f"\n\n![Imagen adjunta]({data_url})"
-            else:
-                contenido_usuario = f"![Imagen adjunta]({data_url})"
-
-        # Si es archivo de texto
-        else:
-            logger.info("📄 Procesando archivo de texto", extension=file_ext, source="ui")
-            contenido_archivo = read_text_file(archivo)
-            if contenido_usuario:
-                contenido_usuario += f"\n\n📄 **Archivo adjunto ({os.path.basename(archivo)}):**\n```\n{contenido_archivo[:500]}...\n```"
-            else:
-                contenido_usuario = f"📄 **Archivo adjunto ({os.path.basename(archivo)}):**\n```\n{contenido_archivo[:500]}...\n```"
-
-    # Agregar mensaje del usuario al historial
+    # Agregar mensaje del usuario al historial con poda
     history.append({"role": "user", "content": contenido_usuario})
+    try:
+        history = history[-MAX_CONTEXT:]
+    except Exception:
+        pass
 
     try:
         # Consultar la API con la pregunta del usuario
-        history_for_api = []
-        for msg in history:
-            history_for_api.append({
-                "role": msg["role"],
-                "content": msg["content"]
-            })
-        result = get_api_response(contenido_usuario, chat_history=history_for_api)
+        result = get_api_response(contenido_usuario, context=history)
 
         # Obtener la respuesta del agente
         respuesta = result.get("answer", "❌ No se pudo generar una respuesta")
@@ -218,13 +204,22 @@ def procesar_mensaje(history, texto, archivo):
             # normalizamos los datos que traemos de las fuentes
             normalized = [_normalize_source(s) for s in sources]
 
-            # Agrupar los datos normalizados por doc_type
+            # Agrupar los datos normalizados por doc_type y luego por name dentro de cada doc_type
             grouped_sources = {}
             for source in normalized:
                 doc_type = source['doc_type']
+                name = source['name']
                 if doc_type not in grouped_sources:
-                    grouped_sources[doc_type] = []
-                grouped_sources[doc_type].append(source)
+                    grouped_sources[doc_type] = {}
+                if name not in grouped_sources[doc_type]:
+                    grouped_sources[doc_type][name] = {
+                        "ref_type": source['ref_type'],
+                        "description": source['description'],
+                        "ref_name": source['ref_name'],
+                        "ref": source['ref'],
+                        "extras": []
+                    }
+                grouped_sources[doc_type][name]['extras'].extend(source['extras'] if isinstance(source['extras'], list) else [source['extras']])
 
             # Construir la respuesta agrupada
             respuesta += "\n\n🔎 Fuentes consultadas:"
@@ -232,59 +227,61 @@ def procesar_mensaje(history, texto, archivo):
             num = 1
             for doc_type, sources in grouped_sources.items():
                 if doc_type == "terraform_book":
-                    respuesta += f"\n{num}. **{sources[0].get('ref_type')}: {sources[0].get('name')}** — {sources[0].get('description')}"
-                    num += 1
-                    for i, source in enumerate(sources, 1):
-                        page = source['extras'].get('page', None)
-                        if page and source.get('ref'):
-                            respuesta += f"\n🔗 [Página {page}]({source['ref']})"
+                    # Ejemplo adaptado: sources es un dict con nombres como clave
+                    for name, source in sources.items():
+                        respuesta += f"\n{num}. **{source.get('ref_type')}: {name}** — {source.get('description')}"
+                        num += 1
+                        # 'extras' es una lista de dicts, cada uno con 'page'
+                        for extra in source.get('extras', []):
+                            page = extra.get('page', None)
+                            if page and source.get('ref'):
+                                respuesta += "\n" + "&nbsp;" * 5 + f"🔗 [Página {page}]({source['ref']})"
                 elif doc_type == "documentation":
-                    respuesta += f"\n{num}. **{sources[0].get('ref_type')}:**"
+                    respuesta += f"\n{num}. **{next(iter(sources.values()))['ref_type']}:**"
                     num += 1
-                    for source in sources:
-                        ref_url = f"[{source['ref_name']}]({source.get('ref')})" if source.get("ref") else source['ref_name']
-                        respuesta += f"\n  - {source['name']} -- {source['description']} 🔗{ref_url}"
-                else:
-                    for i, source in enumerate(sources, 1):
+                    for i, name in enumerate(sources, 1):
+                        source = sources[name]
+                        respuesta += "\n" + "&nbsp;" * 5 + f"🔗 [{name}]({source.get('ref')}) -- Secciones consultadas:"
                         extras = []
-                        for k, v in source['extras'].items():
-                            if v:
-                                extras.append(f"{k}: {v}")
-                        extra_txt = f" • {' | '.join(extras)}" if extras else ""
+                        for key, value in enumerate(source['extras']):
+                            section = value.get('section', None)
+                            respuesta += "\n" + "&nbsp;" * 8 + f" ({key}) {section}" if section else ""
+                        respuesta += "&nbsp;" * 8
+                        respuesta += "\n"
+                elif doc_type == "example":
+                    respuesta += f"\n{num}. **{next(iter(sources.values()))['ref_type']}:**"
+                    num += 1
+                    for name, source in sources.items():
+                        extras = []
+                        # source['extras'] is a list of dicts, so flatten all key-values
+                        for extra_dict in source['extras']:
+                            for k, v in extra_dict.items():
+                                if v:
+                                    extras.append(f"{k}: {v}")
+                        extra_txt = f"\t {' | '.join(extras)}" if extras else ""
                         ref_url = f"[{source['ref_name']}]({source.get('ref')})" if source.get("ref") else source['ref_name']
-                        respuesta += f"\n{i}. **{source['ref_type']}: {source['name']}**{' — ' + source['description'] if source['description'] else ''}{(chr(10) + extra_txt) if extra_txt else ''}\n🔗 {ref_url}"
+                        respuesta += "\n" + "&nbsp;" * 5 + f"  - {name} -- {source['description']}{('\n' + extra_txt) if extra_txt else ''}"
+                        respuesta += "\n" + "&nbsp;" * 8 + f"🔗 {ref_url}"
+                else:
+                    respuesta += f"\n{num}. **{next(iter(sources.values()))['ref_type']}:**"
+                    num += 1
+                    for name, source in sources.items():
+                        ref_url = f"[{source['ref_name']}]({source.get('ref')})" if source.get("ref") else source['ref_name']
+                        respuesta += "\n" + "&nbsp;" * 5 + f"  - {name} -- {source['description']}"
+                        respuesta += "\n" + "&nbsp;" * 8 + f"🔗 {ref_url}"
                 
     except Exception as e:
         logger.error("❌ Error al procesar la consulta", error=str(e), tipo_error=type(e).__name__, source="ui")
-        respuesta = f"❌ Error al procesar la consulta: {str(e)}"
+        respuesta = f"❌ Ha surgido un error inesperado al procesar la consulta. Por favor, inténtalo de nuevo pasados unos minutos."
 
-    # Agregar respuesta del agente al historial
+    # Agregar respuesta del agente al historial con poda
     history.append({"role": "assistant", "content": respuesta})
+    try:
+        history = history[-MAX_CONTEXT:]
+    except Exception:
+        pass
 
     return history, None
-
-
-def procesar_audio(history, audio_file):
-    """
-    Transcribe el audio y lo muestra en el textbox
-    """
-    if not audio_file:
-        return history, ""
-    
-    logger.info("Transcribiendo audio", archivo=audio_file, source="ui")
-
-    # Transcribir audio
-    texto_transcrito = transcribe_audio(audio_file)
-
-    if texto_transcrito.startswith("❌"):
-        logger.error("❌ Error en transcripción", error=texto_transcrito, source="ui")
-        # Si hay error, mostrarlo en el chat
-        history.append({"role": "assistant", "content": texto_transcrito})
-        return history, ""
-
-    logger.info("✅ Audio transcrito exitosamente", longitud=len(texto_transcrito), source="ui")
-    # Devolver el texto transcrito para que el usuario lo vea antes de enviar
-    return history, texto_transcrito
 
 
 # =============================
@@ -304,15 +301,15 @@ with gr.Blocks(
     gr.HTML("""
         <div class="main-header">
             <h1>🤖 Terraform RAG Assistant</h1>
-            <p>Texto • Voz • Imágenes • Archivos</p>
+            <p>Asistente de IA para consultas sobre Terraform con la documentación oficial.</p>
         </div>
     """)
 
     with gr.Row():
-        # =============================
-        # COLUMNA IZQUIERDA: CHAT (70%)
-        # =============================
-        with gr.Column(scale=7):
+        # =========================
+        # BLOQUE PRINCIPAL: CHATBOT
+        # =========================
+        with gr.Column(scale=10):
             chatbot = gr.Chatbot(
                 type="messages",
                 height=650,
@@ -326,7 +323,7 @@ with gr.Blocks(
 
             with gr.Row():
                 texto_input = gr.Textbox(
-                    placeholder="💬 Escribe tu pregunta aquí o usa los controles de la derecha...",
+                    placeholder="💬 Escribe tu pregunta aquí...",
                     container=False,
                     scale=9,
                     show_label=False,
@@ -334,95 +331,28 @@ with gr.Blocks(
                 )
                 btn_enviar = gr.Button("📤", variant="primary", scale=1, min_width=60)
 
-        # =============================
-        # COLUMNA DERECHA: CONTROLES COMPACTOS (30%)
-        # =============================
-        with gr.Column(scale=3, min_width=300):
-            gr.HTML('<div class="control-panel">')
-
-            # Sección 1: Audio
-            gr.HTML('<div class="compact-section">')
-            audio_input = gr.Audio(
-                sources=["microphone"],
-                type="filepath",
-                show_label=False,
-                elem_classes="compact-audio",
-                waveform_options={"show_controls": False}
-            )
-            texto_transcrito = gr.Textbox(
-                placeholder="Transcripción aparecerá aquí...",
-                show_label=False,
-                lines=2,
-                max_lines=3,
-                interactive=False
-            )
-            btn_usar_transcripcion = gr.Button(
-                "✅ Usar transcripción",
-                variant="primary",
-                size="sm",
-                visible=False
-            )
-            gr.HTML('</div>')
-
-            # Sección 2: Archivos (ImÃ¡genes y Texto)
-            archivo_input = gr.File(
-                label="Imagen o Texto",
-                file_types=["image", ".txt", ".md", ".py", ".js", ".json", ".csv", ".html", ".css", ".pdf", ".docx"],
-                show_label=False,
-                elem_classes="compact-file"
-            )
-
-            gr.HTML('</div>')
-            gr.HTML('</div>')
-
     # =============================
     # EVENT HANDLERS
     # =============================
 
-    # Enviar mensaje con texto/archivo
-    def enviar_mensaje(history, texto, archivo):
-        new_history, _ = procesar_mensaje(history, texto, archivo)
+    # Enviar mensaje con texto
+    def enviar_mensaje(history, texto):
+        new_history, _ = procesar_mensaje(history, texto)
         return new_history, "", None, "", gr.update(visible=False)
 
     btn_enviar.click(
         enviar_mensaje,
-        [chatbot, texto_input, archivo_input],
-        [chatbot, texto_input, archivo_input, texto_transcrito, btn_usar_transcripcion]
+        [chatbot, texto_input],
+        [chatbot, texto_input]
     )
 
     texto_input.submit(
         enviar_mensaje,
-        [chatbot, texto_input, archivo_input],
-        [chatbot, texto_input, archivo_input, texto_transcrito, btn_usar_transcripcion]
+        [chatbot, texto_input],
+        [chatbot, texto_input]
     )
 
-    # Transcribir audio cuando se graba
-    def handle_audio(history, audio_file):
-        new_history, transcripcion = procesar_audio(history, audio_file)
-        show_btn = bool(transcripcion and not transcripcion.startswith("❌"))
-        return new_history, transcripcion, gr.update(visible=show_btn)
 
-    audio_input.stop_recording(
-        handle_audio,
-        [chatbot, audio_input],
-        [chatbot, texto_transcrito, btn_usar_transcripcion]
-    )
-
-    audio_input.change(
-        handle_audio,
-        [chatbot, audio_input],
-        [chatbot, texto_transcrito, btn_usar_transcripcion]
-    )
-
-    # Usar transcripción en el textbox
-    def usar_transcripcion(texto_trans):
-        return texto_trans, "", gr.update(visible=False)
-
-    btn_usar_transcripcion.click(
-        usar_transcripcion,
-        [texto_transcrito],
-        [texto_input, texto_transcrito, btn_usar_transcripcion]
-    )
 
 # =============================
 # MAIN

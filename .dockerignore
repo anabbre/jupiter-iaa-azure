@@ -29,13 +29,6 @@ tmp/
 *.tmp
 *.swp
 
-# GESTIÓN DE DATOS 
-data/*
-# expepciones
-!data/docs/              # Documentación y manifiesto
-!data/terraform/         # Código fuente de los ejemplos (.tf)
-!data/optimized_chunks/  # PDFs del libro procesados
-
 # Archivos de sistema
 .DS_Store
 Thumbs.db

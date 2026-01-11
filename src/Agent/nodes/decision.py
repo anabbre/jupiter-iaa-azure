@@ -5,7 +5,6 @@ Nodo de decisión basado en la intención detectada
 from src.Agent.state import AgentState
 from config.logger_config import logger, get_request_id, set_request_id
 from typing import Literal
-from src.Agent.nodes.intent_classifier import is_multi_intent
 from src.api.schemas import SourceInfo
 
 # Umbral minimo score para devolver template code directamente

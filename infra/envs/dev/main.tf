@@ -20,7 +20,7 @@ module "network" {
   # 2 AZs
   azs = slice(data.aws_availability_zones.available.names, 0, var.az_count)
 
-  # Subnets /20 -> 4096 IPs cada una (suficiente y cómodo)
+  # Subnets /20 -> 4096 IPs cada una 
   public_subnet_cidrs  = ["10.20.0.0/20", "10.20.16.0/20"]
   private_subnet_cidrs = ["10.20.128.0/20", "10.20.144.0/20"]
 
@@ -65,8 +65,8 @@ module "ecs" {
   tags = local.tags
 
   # Images (tag dev)
-  api_image = "${module.ecr.repository_urls.api}:dev-202601081240"
-  ui_image  = "${module.ecr.repository_urls.ui}:dev"
+  api_image = "${module.ecr.repository_urls.api}:latest"
+  ui_image  = "${module.ecr.repository_urls.ui}:latest"
 
   # ALB
   alb_listener_http_arn = module.alb.listener_http_arn

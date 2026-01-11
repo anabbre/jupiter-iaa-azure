@@ -2,7 +2,8 @@ import os
 import requests
 import gradio as gr
 from config.config import SETTINGS
-from config.logger_config import logger 
+from config.logger_config import logger
+
 
 API_URL = SETTINGS.API_URL
 API_URL = API_URL + "/api" if not API_URL.endswith("/api") else API_URL
@@ -31,29 +32,32 @@ def _normalize_source(src_item: dict) -> dict:
         or 0.0
     )
 
-    # Valores base/por defecto
-    name = metadata.get("name") or metadata.get("source") or os.path.basename(metadata.get("file_path", "")) or os.path.basename(src.get("source", "")) or "Documento"
+    name = (
+        metadata.get("name")
+        or metadata.get("source")
+        or os.path.basename(metadata.get("file_path", ""))
+        or "Documento"
+    )
     description = metadata.get("description", "")
     ref = metadata.get("ref") or src.get("ref")
-    path = metadata.get("file_path") or src.get("source", "") or metadata.get("path") or ""
-    section = metadata.get("section") or src.get("section") or metadata.get("page") or ""
+    path = (
+        metadata.get("file_path") or src.get("source", "") or metadata.get("path") or ""
+    )
+    section = (
+        metadata.get("section") or src.get("section") or metadata.get("page") or ""
+    )
     page = metadata.get("page") or ""
     section = metadata.get("section") or ""
     ref_name = None
     extras = {}
 
-    # Normalización por tipo
     if doc_type == "example":
         ref_type = "Ejemplos Terraform"
         name = metadata.get("example_name") or name
         description = metadata.get("example_description", "")
-        # ref_name = doc_type + ".tf"
         ref_name = f"{doc_type}.tf"
-        # extras: difficulty con codificación de color y lines_of_code si existe
         difficulty = metadata.get("difficulty")
-        # Algunos extractores podrían guardar métricas de calidad; buscar lines_of_code en metadata
         lines_of_code = metadata.get("lines_of_code") or metadata.get("loc")
-        # Mapear dificultad a color semáforo
         difficulty_color = None
         if isinstance(difficulty, str):
             d = difficulty.strip().lower()
@@ -63,12 +67,10 @@ def _normalize_source(src_item: dict) -> dict:
                 difficulty_color = "amber"
             elif d == "advanced":
                 difficulty_color = "red"
-        # Mapear color a emoji de círculo
-        color_emoji = {
-            "green": "🟢",
-            "amber": "🟡",
-            "red": "🔴"
-        }.get(difficulty_color, "")
+
+        color_emoji = {"green": "🟢", "amber": "🟡", "red": "🔴"}.get(
+            difficulty_color, ""
+        )
         extras = {
             "dificultad": f"{color_emoji}" if difficulty else None,
             "líneas de código": lines_of_code,
@@ -76,15 +78,11 @@ def _normalize_source(src_item: dict) -> dict:
 
     elif doc_type == "terraform_book":
         ref_type = "Libro"
-        # name y description directos
-        name = metadata.get("name", name)
-        description = metadata.get("description", "")
-        # ref_name = doc_type + "." + file_type
-        file_type = metadata.get("file_type") or os.path.splitext(path)[1].lstrip(".") or "pdf"
+        file_type = (
+            metadata.get("file_type") or os.path.splitext(path)[1].lstrip(".") or "pdf"
+        )
         ref_name = f"{doc_type}.{file_type}"
-        extras = {
-            "page": page if page else None,
-        }
+        extras = {"page": page if page else None}
 
     elif doc_type == "documentation":
         ref_type = "Documentación markdown"
@@ -110,8 +108,6 @@ def _normalize_source(src_item: dict) -> dict:
         "ref_name": ref_name,
         "relevance_score": relevance_score,
         "extras": extras,
-        "path": path,
-        "section": section or "",
         "doc_type": doc_type or "unknown",
     }
 
@@ -140,29 +136,11 @@ def get_api_response(question: str, context: list | None = None) -> dict:
             timeout=60
         )
         response.raise_for_status()
-        response_data = response.json()
-        logger.info("📝 Respuesta recibida de API", status_code=response.status_code, tiene_fuentes=bool(response_data.get("sources")), source="ui")
-        return response_data
-
-    
-    except requests.exceptions.ConnectionError as e:
-        logger.error("❌ Error de conexión con API",api_url=API_URL,error=str(e), source="ui")
-        return {
-            "answer": "❌ Error: No se puede conectar con la API. Asegúrate de que esté ejecutándose en " + API_URL,
-            "sources": []
-        }
-    except requests.exceptions.Timeout as e:
-        logger.error("❌ Timeout en consulta a API", timeout=60, error=str(e), source="ui")
-        return {
-            "answer": "❌ Error: La consulta tardó demasiado tiempo. Intenta con una pregunta más específica.",
-            "sources": []
-        }
+        return response.json()
     except Exception as e:
-        logger.error("❌ Error inesperado en consulta a API", error=str(e), tipo_error=type(e).__name__, source="ui")
-        return {
-            "answer": f"❌ Error al consultar la API: {str(e)}",
-            "sources": []
-        }
+        logger.error("❌ Error en consulta a API", error=str(e), source="ui")
+        return {"answer": f"❌ Error al consultar la API: {str(e)}", "sources": []}
+
 
 
 # =============================
@@ -193,15 +171,11 @@ def procesar_mensaje(history, texto):
         # Consultar la API con la pregunta del usuario
         result = get_api_response(contenido_usuario, context=history)
 
-        # Obtener la respuesta del agente
         respuesta = result.get("answer", "❌ No se pudo generar una respuesta")
-
-        # Agregar información de fuentes si están disponibles
         sources = result.get("sources", [])
-        if sources and not respuesta.startswith("❌"):
-            logger.info("Fuentes encontradas", cantidad_fuentes=len(sources), source="ui")
 
-            # normalizamos los datos que traemos de las fuentes
+        # Formatear fuentes si existen
+        if sources and not respuesta.startswith("❌"):
             normalized = [_normalize_source(s) for s in sources]
 
             # Agrupar los datos normalizados por doc_type y luego por name dentro de cada doc_type
@@ -221,11 +195,9 @@ def procesar_mensaje(history, texto):
                     }
                 grouped_sources[doc_type][name]['extras'].extend(source['extras'] if isinstance(source['extras'], list) else [source['extras']])
 
-            # Construir la respuesta agrupada
             respuesta += "\n\n🔎 Fuentes consultadas:"
-
             num = 1
-            for doc_type, sources in grouped_sources.items():
+            for doc_type, srcs in grouped_sources.items():
                 if doc_type == "terraform_book":
                     # Ejemplo adaptado: sources es un dict con nombres como clave
                     for name, source in sources.items():
@@ -285,25 +257,27 @@ def procesar_mensaje(history, texto):
 
 
 # =============================
-# INTERFAZ GRADIO
+# INTERFAZ GRADIO (Limpia)
 # =============================
-
 with gr.Blocks(
-        theme=gr.themes.Soft(
-            primary_hue="indigo",
-            secondary_hue="purple",
-            neutral_hue="slate",
-            font=["Inter", "sans-serif"]
-        ),
-        title="Terraform RAG Assistant"
+    theme=gr.themes.Soft(
+        primary_hue="indigo",
+        secondary_hue="purple",
+        neutral_hue="slate",
+        font=["Inter", "sans-serif"],
+    ),
+    title="Terraform RAG Assistant",
 ) as app:
-    # Header principal
-    gr.HTML("""
-        <div class="main-header">
+
+    # Cabecera
+    gr.HTML(
+        """
+        <div style="text-align: center; margin-bottom: 20px;">
             <h1>🤖 Terraform RAG Assistant</h1>
             <p>Asistente de IA para consultas sobre Terraform con la documentación oficial.</p>
         </div>
-    """)
+    """
+    )
 
     with gr.Row():
         # =========================
@@ -359,11 +333,5 @@ with gr.Blocks(
 # =============================
 
 if __name__ == "__main__":
-    logger.info("🚀 Iniciando Gradio UI", puerto=7860)
-    app.launch(
-        debug=True,
-        share=True,
-        server_name="0.0.0.0",
-        server_port=7860,
-        show_api=False
-    )
+    logger.info("🚀 Iniciando Gradio UI (Modo Texto)", puerto=7860)
+    app.launch(server_name="0.0.0.0", server_port=7860, show_api=False)

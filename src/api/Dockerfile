@@ -19,6 +19,8 @@ COPY src/ ./src/
 COPY config/ ./config/
 COPY Scripts/ ./Scripts/
 COPY data/docs/examples/ ./data/docs/examples/
+COPY data/terraform/ ./data/terraform/
+COPY data/optimized_chunks/ ./data/optimized_chunks/
 
 # Crear directorios necesarios
 RUN mkdir -p logs

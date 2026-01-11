@@ -8,9 +8,6 @@ __pycache__/
 build/
 dist/
 
-config/classification_rules.yaml
-
-
 # === Entornos virtuales ===
 .venv/
 venv/
@@ -65,7 +62,6 @@ __pycache__/
 
 # Data generada por el indexador 
 data/index/
-data/optimized_chunks/
 
 # Infra
 **/.terraform/

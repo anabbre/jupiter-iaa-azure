@@ -13,10 +13,7 @@ env/
 venv/
 ENV/
 
-
-
-# Archivosme los puedes de configuración y dependencias
-*.pyc
+# Archivos de configuración y dependencias*.pyc
 *.pyo
 *.pyd
 *.db
@@ -31,15 +28,7 @@ logs/
 tmp/
 *.tmp
 *.swp
-data/
-# …pero SI incluyo los ejemplos + manifest
-!data/docs/
-!data/docs/examples/
-!data/docs/examples/**
-logs/
 
 # Archivos de sistema
-.DS_Store
-Thumbs.dbs de sistema
 .DS_Store
 Thumbs.db

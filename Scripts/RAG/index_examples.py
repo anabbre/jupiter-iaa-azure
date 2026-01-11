@@ -1,8 +1,6 @@
 """
 Indexador MULTI-COLECCIÓN en Qdrant (AWS)
------------------------------------------
-1. Sube los Ejemplos -> Colección 'jupiter_examples' (desde manifest.yaml)
-2. Sube el Libro     -> Colección 'terraform_book'
+
 """
 
 import os
@@ -226,6 +224,7 @@ def main():
                         "page_content": d.page_content,
                         "metadata": {
                             "type": "terraform_example",
+                            "status": "active",
                             "ex_id": ex_id,
                             "name": name,
                             "tags": tags,
@@ -287,6 +286,7 @@ def main():
                             "page_content": d.page_content,
                             "metadata": {
                                 "type": "book",
+                                "status": "active",
                                 "name": pdf.name,
                                 "tags": ["libro", "teoria"],
                                 "section": "Libro Terraform",

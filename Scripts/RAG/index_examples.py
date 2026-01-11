@@ -1,8 +1,8 @@
 """
-Indexador de ejemplos y documentos PDF en Qdrant
-------------------------------------------------
-Lee el manifiesto (manifest.yaml), genera embeddings y sube los puntos a Qdrant.
-Compatible con ejemplos Terraform (textos) y PDFs como el libro de Terraform.
+Indexador MULTI-COLECCIÓN en Qdrant (AWS)
+-----------------------------------------
+1. Sube los Ejemplos -> Colección 'jupiter_examples' (desde manifest.yaml)
+2. Sube el Libro     -> Colección 'terraform_book'
 """
 
 import os
@@ -23,7 +23,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import argparse
 
 
-# Logging
+# --- CONFIGURACIÓN DE LOGS ---
 def setup_logger(name: str = "index_examples") -> logging.Logger:
     logs_dir = Path("logs/app")
     logs_dir.mkdir(parents=True, exist_ok=True)
@@ -41,37 +41,36 @@ def setup_logger(name: str = "index_examples") -> logging.Logger:
     ch.setLevel(logging.INFO)
     ch.setFormatter(fmt)
     logger.addHandler(ch)
-
-    fh = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(fmt)
-    logger.addHandler(fh)
-
     return logger
 
 
 logger = setup_logger()
 
-# Config
+# --- CONFIGURACIÓN DE CONEXIÓN ---
 load_dotenv()
-QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+QDRANT_URL = "http://54.195.1.154:6333"  # IP Pública de ECS
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+S3_BASE_URL = "https://jupiter-iaa-docs.s3.eu-west-1.amazonaws.com/"
 
-# DETECCIÓN DE ENTORNO PARA RUTAS
+BOOK_COLLECTION_NAME = "terraform_book"
+
+# --- DETECCIÓN DE RUTAS ---
 if os.path.exists("/app/data/docs/examples/manifest.yaml"):
-    # Ruta dentro del contenedor AWS
+    # Entorno AWS
     MANIFEST_PATH = "/app/data/docs/examples/manifest.yaml"
+    BOOK_DIR = Path("/app/data/optimized_chunks/Libro-TF")
     logger.info("🌐 Entorno detectado: AWS ECS")
 else:
-    # Ruta en en ordenador en local
-    MANIFEST_PATH = os.getenv("EXAMPLES_MANIFEST", "docs/examples/manifest.yaml")
+    # Entorno Local
+    MANIFEST_PATH = os.getenv("EXAMPLES_MANIFEST", "data/docs/examples/manifest.yaml")
+    BOOK_DIR = Path("data/optimized_chunks/Libro-TF")
     logger.info("💻 Entorno detectado: Local")
 
 TEXT_EXTS = {".tf", ".md", ".txt", ".yaml", ".yml", ".tfvars", ".sh"}
 splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120)
 
 
-# Helpers
+# --- FUNCIONES AUXILIARES ---
 def load_manifest(path: str) -> dict:
     p = Path(path)
     if not p.exists():
@@ -90,7 +89,6 @@ def collect_chunks_from_text(base: Path, section: str) -> List[dict]:
                 d.metadata["source"] = str(p)
                 d.metadata["section"] = section
                 d.metadata["doc_type"] = "example"
-                # para ejemplos no hay página; ref = ruta del archivo
                 d.metadata["ref"] = str(p)
                 docs.append(d)
     return docs
@@ -104,64 +102,77 @@ def collect_chunks_from_pdf(pdf_path: Path, section: str) -> List[dict]:
         pg.metadata["source"] = str(pdf_path)
         pg.metadata["section"] = section
         pg.metadata["doc_type"] = "book"
-        # Qdrant/loader devuelve page base 0; la dejamos base 1
         page_num = int(pg.metadata.get("page", 0)) + 1
         pg.metadata["page"] = page_num
-        # ref clicable con ancla de página
         pg.metadata["ref"] = f"{pdf_path}#page={page_num}"
         docs.extend(splitter.split_documents([pg]))
     return docs
 
 
-# Main
+def generate_s3_url(local_path: str, page: int = None) -> str:
+    rel_path = Path(local_path).as_posix()
+    if "data/" in rel_path:
+        clean_path = rel_path[rel_path.find("data/") :]
+        web_url = f"{S3_BASE_URL}{clean_path}"
+    else:
+        web_url = rel_path
+    if page:
+        return f"{web_url}#page={page}"
+    return web_url
+
+
+def ensure_collection(client, name, vector_size):
+    existing = [c.name for c in client.get_collections().collections]
+    if name not in existing:
+        logger.info(f"🆕 Creando colección: '{name}'")
+        client.create_collection(
+            collection_name=name,
+            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+        )
+    else:
+        logger.info(f"ℹ️ La colección '{name}' ya existe.")
+
+
+# --- MAIN ---
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--manifest",
-        type=str,
-        default=None,
-        help="Ruta al manifest.yaml (override de EXAMPLES_MANIFEST)",
-    )
+    parser.add_argument("--manifest", type=str, default=None)
     args = parser.parse_args()
 
     manifest_path = args.manifest or MANIFEST_PATH
-    logger.info("🚀 Inicio de indexación")
+    logger.info("🚀 Inicio de indexación MULTI-COLECCIÓN")
     logger.info(f"QDRANT_URL={QDRANT_URL}")
+
     manifest = load_manifest(manifest_path)
 
-    collection_name = manifest["collection"]
+    # Colección 1: Ejemplos
+    examples_collection = manifest["collection"]
+    # Colección 2: Libro
+    book_collection = BOOK_COLLECTION_NAME
+
     model_name = manifest.get("embeddings_model", "intfloat/multilingual-e5-small")
     examples = manifest.get("examples", [])
-    if not examples:
-        logger.warning("Manifiesto sin ejemplos.")
-        return
 
     model = SentenceTransformer(model_name)
     client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
-    # crea colección si no existe
-    existing = [c.name for c in client.get_collections().collections]
-    if collection_name not in existing:
-        logger.info(f"Creando colección '{collection_name}'…")
-        client.create_collection(
-            collection_name=collection_name,
-            vectors_config=VectorParams(
-                size=model.get_sentence_embedding_dimension(),
-                distance=Distance.COSINE,
-            ),
-        )
+    # 1. Asegurar que AMBAS colecciones existen
+    vector_size = model.get_sentence_embedding_dimension()
+    ensure_collection(client, examples_collection, vector_size)
+    ensure_collection(client, book_collection, vector_size)
 
-    points: List[PointStruct] = []
+    # ==========================================
+    # PARTE 1: EJEMPLOS -> 'jupiter_examples'
+    # ==========================================
+    logger.info(f"--- Procesando EJEMPLOS para '{examples_collection}' ---")
+    points_examples: List[PointStruct] = []
 
     for ex in examples:
         ex_id = ex["id"]
         name = ex.get("name", ex_id)
-        filename = ex["path"]  # Ej: "example_frontdoor.md"
-        tags = ex.get(
-            "tags", []
-        )  # <--- FIJAR AQUÍ: Definimos tags para que no de NameError
+        filename = ex["path"]
+        tags = ex.get("tags", [])
 
-        # 1. DETERMINAR RUTAS SEGÚN ENTORNO
         if os.path.exists("/app/data/docs/examples"):
             base_docs = Path("/app/data/docs/examples")
             base_terraform = Path("/app/data/terraform")
@@ -170,36 +181,22 @@ def main():
             base_terraform = Path("data/terraform")
 
         path_md = base_docs / filename
-
-        # Lógica robusta para la carpeta de código (Prueba nombre exacto y con prefijo)
-        # Intentamos '01-storage-static-website' (basado en ex_id[2:] + name)
-        # ex_id[2:] quita el 'ex' y deja el '01', '02'...
         folder_name = f"{ex_id[2:]}-{name}"
         path_code = base_terraform / folder_name
-
-        # Si no existe así, probamos solo con el name
         if not path_code.exists():
             path_code = base_terraform / name
 
-        # 2. PROCESAR EL ARCHIVO MD (Explicación)
         docs = []
         if path_md.exists():
-            logger.info(f"[{ex_id}] Indexando explicación: {path_md}")
             loader = TextLoader(str(path_md), encoding="utf-8")
             docs.extend(splitter.split_documents(loader.load()))
 
-        # 3. PROCESAR LA CARPETA TERRAFORM (Código)
         if path_code.exists() and path_code.is_dir():
-            logger.info(f"[{ex_id}] Indexando código en: {path_code}")
             docs.extend(collect_chunks_from_text(path_code, str(path_code)))
 
         if not docs:
-            logger.warning(
-                f"[{ex_id}] No se encontró ni MD ni código en {path_md} o {path_code}"
-            )
             continue
 
-        logger.info(f"[{ex_id}] Generando embeddings ({len(docs)} chunks)…")
         vectors = model.encode(
             [d.page_content for d in docs],
             normalize_embeddings=True,
@@ -209,10 +206,11 @@ def main():
 
         for i, d in enumerate(docs):
             meta = d.metadata or {}
-            # Definimos 'path' para que se use en la metadata de abajo
             current_path = meta.get("source", str(path_md))
+            page_num = meta.get("page")
+            final_url = generate_s3_url(current_path, page_num)
 
-            points.append(
+            points_examples.append(
                 PointStruct(
                     id=uuid.uuid4().hex,
                     vector=vectors[i].tolist(),
@@ -222,32 +220,98 @@ def main():
                             "type": "terraform_example",
                             "ex_id": ex_id,
                             "name": name,
-                            "tags": tags,  # <--- Ahora esta variable SÍ existe
+                            "tags": tags,
                             "section": str(Path(current_path).as_posix()),
                             "source": str(Path(current_path).name),
                             "path": str(current_path),
-                            "page": meta.get("page"),
+                            "url": final_url.split("#")[0],
+                            "page": page_num,
                             "doc_type": meta.get("doc_type", "example"),
-                            "ref": meta.get("ref", str(current_path)),
+                            "ref": final_url,
                         },
                     },
                 )
             )
 
-        logger.info(f"[{ex_id}] ✅ {len(docs)} chunks preparados")
+    if points_examples:
+        logger.info(
+            f"⬆️ Subiendo {len(points_examples)} puntos a '{examples_collection}'..."
+        )
+        client.upsert(collection_name=examples_collection, points=points_examples)
+    else:
+        logger.warning("No hay ejemplos para subir.")
 
-    if not points:
-        logger.warning("No se generaron puntos. Nada que subir.")
-        return
+    # ==========================================
+    # PARTE 2: LIBRO -> 'terraform_book'
+    # ==========================================
+    logger.info(f"--- Procesando LIBRO para '{book_collection}' ---")
+    points_book: List[PointStruct] = []
 
-    logger.info(f"Subiendo {len(points)} puntos a Qdrant…")
-    client.upsert(collection_name=collection_name, points=points)
-    logger.info("✅ Indexación completada con éxito.")
+    if BOOK_DIR.exists():
+        pdf_files = sorted(list(BOOK_DIR.glob("*.pdf")))
+        logger.info(f"📚 Capítulos encontrados: {len(pdf_files)}")
+
+        for pdf in pdf_files:
+            logger.info(f"   📖 {pdf.name}")
+            pdf_docs = collect_chunks_from_pdf(pdf, section="Libro Terraform")
+
+            if not pdf_docs:
+                continue
+
+            pdf_vectors = model.encode(
+                [d.page_content for d in pdf_docs],
+                normalize_embeddings=True,
+                convert_to_numpy=True,
+                show_progress_bar=False,
+            )
+
+            for i, d in enumerate(pdf_docs):
+                meta = d.metadata or {}
+                current_path = meta.get("source", str(pdf))
+                page_num = meta.get("page")
+                final_url = generate_s3_url(current_path, page_num)
+
+                points_book.append(
+                    PointStruct(
+                        id=uuid.uuid4().hex,
+                        vector=pdf_vectors[i].tolist(),
+                        payload={
+                            "page_content": d.page_content,
+                            "metadata": {
+                                "type": "book",
+                                "name": pdf.name,
+                                "tags": ["libro", "teoria"],
+                                "section": "Libro Terraform",
+                                "source": pdf.name,
+                                "path": str(current_path),
+                                "url": final_url.split("#")[0],
+                                "page": page_num,
+                                "doc_type": "book",
+                                "ref": final_url,
+                            },
+                        },
+                    )
+                )
+    else:
+        logger.warning(f"⚠️ No se encontró la carpeta: {BOOK_DIR}")
+
+    if points_book:
+        # Subida por lotes para el libro (que es grande)
+        logger.info(f"⬆️ Subiendo {len(points_book)} puntos a '{book_collection}'...")
+        batch_size = 100
+        for i in range(0, len(points_book), batch_size):
+            batch = points_book[i : i + batch_size]
+            client.upsert(collection_name=book_collection, points=batch)
+            logger.info(f"   📦 Lote {i} subido.")
+    else:
+        logger.warning("No hay contenido del libro para subir.")
+
+    logger.info("✅ Indexación Multi-Colección finalizada.")
 
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        logger.exception(f"❌ Error inesperado: {e}")
+        logger.exception(f"❌ Error: {e}")
         sys.exit(1)

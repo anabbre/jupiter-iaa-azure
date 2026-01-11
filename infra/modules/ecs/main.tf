@@ -247,8 +247,8 @@ resource "aws_ecs_task_definition" "api" {
   family                   = "${var.name}-api"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = "512"
-  memory                   = "1024"
+  cpu                      = "256"
+  memory                   = "512"
   execution_role_arn       = aws_iam_role.task_execution.arn
 
   container_definitions = jsonencode([{
@@ -295,8 +295,8 @@ resource "aws_ecs_task_definition" "ui" {
   family                   = "${var.name}-ui"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = "512"
-  memory                   = "1024"
+  cpu                      = "256"
+  memory                   = "512"
   execution_role_arn       = aws_iam_role.task_execution.arn
 
   container_definitions = jsonencode([{
@@ -330,8 +330,8 @@ resource "aws_ecs_task_definition" "qdrant" {
   family                   = "${var.name}-qdrant"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = "512"
-  memory                   = "1024"
+  cpu                      = "256"
+  memory                   = "512"
   execution_role_arn       = aws_iam_role.task_execution.arn
 
   volume {
@@ -393,9 +393,9 @@ resource "aws_ecs_service" "qdrant" {
   }
 
   network_configuration {
-    subnets          = var.private_subnet_ids
+    subnets          = var.public_subnet_ids
     security_groups  = [aws_security_group.qdrant.id]
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   tags = var.tags
@@ -409,9 +409,9 @@ resource "aws_ecs_service" "api" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.private_subnet_ids
+    subnets          = var.public_subnet_ids
     security_groups  = [aws_security_group.app.id]
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   load_balancer {
@@ -432,9 +432,9 @@ resource "aws_ecs_service" "ui" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.private_subnet_ids
+    subnets          = var.public_subnet_ids
     security_groups  = [aws_security_group.app.id]
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   load_balancer {

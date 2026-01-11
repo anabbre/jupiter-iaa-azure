@@ -10,10 +10,6 @@ output "private_subnet_ids" {
   value = module.network.private_subnet_ids
 }
 
-output "nat_public_ip" {
-  value = module.network.nat_public_ip
-}
-
 output "ecr_repository_urls" {
   value = module.ecr.repository_urls
 }

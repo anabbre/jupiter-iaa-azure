@@ -100,7 +100,11 @@ def collect_chunks_from_text(base: Path, section: str) -> List[dict]:
 
 def collect_chunks_from_pdf(pdf_path: Path, section: str) -> List[dict]:
     loader = PyPDFLoader(str(pdf_path))
-    pages = loader.load()
+    try:
+        pages = loader.load()
+    except Exception as e:
+        logger.error(f"❌ Error crítico leyendo PDF {pdf_path}: {e}")
+        return []  # Saltamos este archivo y devolvemos lista vacía para seguir vivo
     docs = []
     for pg in pages:
         pg.metadata["source"] = str(pdf_path)

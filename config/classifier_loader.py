@@ -3,6 +3,7 @@ Carga la configuracion de clasificadores desde YAML
 """
 import yaml
 from pathlib import Path
+import random
 
 _config =  None
 
@@ -30,9 +31,12 @@ def get_out_of_scope_patterns():
     """ Obtiene las razones de fuera de scope desde el archivo de configuración. """
     return _load()["out_of_scope_patterns"]
 
-def get_rejection_message(msg_type= "generic"):
-    """ Obtiene el mensaje de rechazo apropiado. """
-    return _load()["rejection_messages"].get(msg_type, "")
+def get_rejection_message(msg_type="generic"):
+    """Obtiene un mensaje de rechazo aleatorio apropiado."""
+    messages = _load()["rejection_messages"].get(msg_type, [])
+    if messages:
+        return random.choice(messages)
+    return ""
 
 def get_validation_messages(msg_type, **kwargs):
     """ Obtiene los mensajes de validación. """

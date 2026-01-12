@@ -251,16 +251,28 @@ rejection_messages:
 
     ¿En qué puedo ayudarte?
 
-  generic: |
-    No encontré información relevante para tu consulta.
-    Recuerda que estoy especializado en Terraform y Azure.
-
-    Ejemplos de consultas que puedo responder:
-    • '¿Cómo crear un storage account en Azure con Terraform?'
-    • 'Ejemplo de configuración de Azure Front Door'
-    • '¿Cómo definir variables en Terraform?'
-
-    Por favor, reformula tu pregunta con más detalles técnicos.
+  generic:
+    - |
+      No dispongo de información sobre ese tema en este momento. Mi especialidad es Terraform y Azure.
+      Si tienes una consulta técnica relacionada con estas tecnologías, estaré encantado de ayudarte.
+    - |
+      No tengo datos relevantes para responder a esa pregunta.
+      Recuerda que estoy enfocado en resolver dudas sobre Azure y Terraform.
+      Intenta reformular tu consulta en ese contexto.
+    - |
+      Ese tema está fuera de mi alcance actual.
+      Estoy especializado en Terraform y servicios de Azure, por lo que puedo ayudarte mejor con preguntas técnicas sobre esas plataformas.
+    - |
+      No encontré información aplicable a tu consulta.
+      Mi conocimiento está centrado en Azure y Terraform.
+      Si puedes, plantea una pregunta relacionada con infraestructura como código o servicios de Azure.
+    - |
+      Actualmente no puedo ayudarte con ese tema.
+      Sin embargo, puedo responder preguntas sobre Terraform y Azure, como configuraciones, buenas prácticas o ejemplos de uso.
+    - |
+      Esa consulta no coincide con mi área de conocimiento.
+      Estoy diseñado para asistir principalmente con temas de Terraform y Azure.
+      ¿Podrías reformular tu pregunta en ese ámbito?
 
 # MENSAJES DE VALIDACIÓN DE CONSULTAS para relevance_filter.py
 validation_messages:

@@ -41,11 +41,11 @@ class Agent:
     def _create_graph(self):
         """
         Crea el grafo:
-        
-        validate_scope ─┬─→ classify_intent → retrieve → decide ─┬─→ generate ──────→  END
-                        │                                        ├─→ format_template → END
-                        │                                        └─→ format_hybrid ──→ END
-                        └─→ reject ──────────────────────────────────────────────────→ END
+
+        contextualize → validate_scope ─┬─→ classify_intent → retrieve → decide ─┬─→ generate ──────→  END
+                                        │                                        ├─→ format_template → END
+                                        │                                        └─→ format_hybrid ──→ END
+                                        └─→ reject ──────────────────────────────────────────────────→ END
         """
         logger.info("🔧 Creando grafo", source="agent")
         

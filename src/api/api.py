@@ -1,28 +1,25 @@
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
-from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import sys
+
+from fastapi.responses import FileResponse
 from src.Agent.graph import Agent
 sys.path.append('/app')  # Asegura que /app esté en PYTHONPATH
 from config.config import SETTINGS
-from src.services.search import search_examples
 from config.logger_config import logger
 # OpenAI (v1 SDK). Si no hay API key, haremos fallback.
-from openai import OpenAI
-from .schemas import (
+from src.api.schemas import (
     HealthResponse,
     QueryRequest,
     QueryResponse,
-    SourceInfo,
 )
 
 app = FastAPI(
     title="Terraform RAG Assistant API",
-    description="API para consultar documentación de Terraform usando RAG",
-    version="1.0.0",
+    description="API para consultar documentacion de Terraform usando RAG con LangGraph",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -33,73 +30,88 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-agent = Agent()  # reservado para fases posteriores
-executor = ThreadPoolExecutor(max_workers=5)
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-USE_LLM = bool(OPENAI_API_KEY)
-openai_client = OpenAI(api_key=OPENAI_API_KEY) if USE_LLM else None
-
-# Helpers LLM 
-MIN_SCORE_THRESHOLD = 0.5  # Score mínimo de similitud (0-1)
-MIN_RESULTS_REQUIRED = 0   # Mínimo de resultados relevantes
-MAX_CONTEXT_CHARS = 6000  # límite de contexto para el prompt
-CODE_LANG = "hcl"         # resaltado para Terraform
-
 # Endpoints 
+
+@app.get("/viewer/{path:path}")
+def serve_doc(path: str):
+    file_path = os.path.join('data', path)
+    if not os.path.exists(file_path):
+        return {"error": "File not found", "path": file_path}
+    return FileResponse(file_path)
+
 @app.get("/", response_model=HealthResponse)
 async def root():
     """Health check endpoint"""
     return HealthResponse(
         status="healthy",
-        message="Terraform RAG Assistant API is running",
+        message="Terraform RAG Assistant API LangGraph",
         vector_db_status="connected",
         documents_count=None,
     )
 
 @app.post("/query", response_model=QueryResponse)
 async def query_endpoint(request: QueryRequest):
+    """
+    Endpoint principal - Ejecuta el Agent de LangGraph
+    """
     start_time = time.time()
+    
     try:
-        logger.info(f"📨 Nueva consulta", source="api", question=request.question)
         
-        result = agent.invoke(request.question, chat_history=request.chat_history)
+        logger.info(f"📨 Nueva consulta recibida",source="api",question=request.question,k_docs=request.k_docs,threshold=request.threshold)
         
-        # Validar que el scope es válido
-        # if not result.get("is_valid_scope", True):
-        # logger.warning(f"⚠️ Query rechazada", source="api", question=request.question)
-        # return QueryResponse(
-        #     answer="❌ La consulta está fuera del scope de Terraform/Azure",
-        #     sources=[],
-        #     question=request.question,
-        # )
+
+        # 1) seteamos parámetros iniciales
+        k = request.k_docs or SETTINGS.K_DOCS
+        threshold = request.threshold or SETTINGS.THRESHOLD
+        logger.info(f"Parámetros procesados",source="api",k=k,threshold=threshold)
         
-        # Extraer respuestas del estado del grafo
-        answer = result.get("answer", "")
-        documents = result.get("raw_documents", [])
-        
-        # Validar que encontró documentos
-        if not documents:
-            logger.warning(f"⚠️ Sin documentos encontrados", source="api", question=request.question)
-            return QueryResponse(
-                answer="❌ No encontré documentos relevantes en la base de datos",
-                sources=[],
-                question=request.question,
-            )
-        # Construir sources desde documentos del grafo
-        sources = []
-        for doc in documents:
-            sources.append(
-                SourceInfo(
-                    name=doc.metadata.get("name", doc.source),  
-                    path=doc.source,                             
-                    section=doc.metadata.get("section", ""),
-                    pages=doc.metadata.get("pages", "-")
+        # 2) Invocar agente
+        try:
+            agent = Agent()
+            result = agent.invoke(request.question, chat_history=request.chat_history)
+
+            # Validar que el scope es válido
+            if not result.get("is_valid_scope", True):
+                logger.warning(f"⚠️ Query rechazada", source="api", question=request.question)
+                return QueryResponse(
+                    answer="❌ La consulta está fuera del scope de Terraform/Azure",
+                    sources=[],
+                    question=request.question,
                 )
-            )
-        response_time_ms = (time.time() - start_time) * 1000
-        logger.info("✅ Respuesta completada",source="api",documents_count=len(documents),response_time_ms=round(response_time_ms, 2))
+            
+            # Validar que el scope es válido
+            if not result.get("is_valid_scope", True):
+                logger.warning(f"⚠️ Query rechazada", source="api", question=request.question)
+                return QueryResponse(
+                    answer="❌ La consulta está fuera del scope de Terraform/Azure",
+                    sources=[],
+                    question=request.question,
+                )
+                
+            # Extraer respuestas del estado del grafo
+            answer = result.get("answer", "")
+            response_time_ms = (time.time() - start_time) * 1000
+            logger.info("Respuesta generada",source="api",intent=result.get("intent"),action=result.get("response_action"),is_valid_scope=result.get("is_valid_scope"),docs_count=len(result.get("documents", [])),response_time_ms=round(response_time_ms, 2))
+        except Exception as e:
+            logger.error(f"❌ Error al llamar al agente: {e}",source="api",error_type="Exception")
+            raise HTTPException(status_code=500,detail=f"Error al llamar al agente: {str(e)}")
         
+        # 3) Proceso las fuentes
+        try:
+            # Construir sources desde documents_metadata
+            sources = []
+            for source in result.get('raw_documents', []):
+                sources.append(source)
+            logger.info(f"Fuentes procesadas",source="api",sources_count=len(sources))
+            # Validar que encontró documentos
+            if not sources:
+                logger.warning(f"⚠️ Sin documentos encontrados", source="api", question=request.question)
+
+        except Exception as e:
+            logger.error(f"❌ Error procesando fuentes: {e}",source="api",error_type="Exception")
+            
+        # 4) Respuesta
         return QueryResponse(
             answer=answer,
             sources=sources,
@@ -107,9 +119,11 @@ async def query_endpoint(request: QueryRequest):
         )
         
     except Exception as e:
-        logger.error(f"❌ Error crítico",source="api",error=str(e),error_type=type(e).__name__)
+        logger.error("❌ Error crítico",source="api",question=request.question[:100] if request else "unknown",error=str(e),error_type=type(e).__name__)
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# Endpoints de debug
 @app.post("/debug/test-search")
 async def debug_test_search(question: str = "What is terraform?"):
     """

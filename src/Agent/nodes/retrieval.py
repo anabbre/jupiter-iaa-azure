@@ -16,18 +16,18 @@ def retrieve_documents(state: AgentState) -> AgentState:
         Estado actualizado con documentos crudos (sin filtrar)
     """
     question = state["question"]
-    k = 10  
-    
+    k_max = state["k_docs"] + 5  # Traer más documentos para que filtering los seleccione
+    threshold = state["threshold"]    
     try:
-        logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k=k)
+        logger.info(" - Iniciando búsqueda con search_examples",source="retrieval",question=question[:100],k_max=k_max)
         
         hits = search_all_collections(
             query=question,
             collections=ALL_COLLECTIONS,
-            k_per_collection=5,
-            threshold=0.5
+            k_per_collection=k_max,
+            threshold=threshold
         )
-
+        
         logger.info(f"✅ search_examples retornó {len(hits)} resultados",source="retrieval",hits_count=len(hits))
         
         # Convertir hits a DocumentScore (para LangGraph)

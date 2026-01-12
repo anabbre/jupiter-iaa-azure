@@ -2,13 +2,11 @@
 """
 Nodo de decisión basado en la intención detectada
 """
+from config.config import SETTINGS
 from src.Agent.state import AgentState
 from config.logger_config import logger, get_request_id, set_request_id
 from typing import Literal
 from src.api.schemas import SourceInfo
-
-# Umbral minimo score para devolver template code directamente
-TEMPLATE_SCORE_THRESHOLD = 0.80
 
 def _has_terraform_code(content: str) -> bool:
     """Verifica si el contenido tiene código Terraform"""
@@ -56,6 +54,7 @@ def decide_response_type(state: AgentState) -> AgentState:
         is_multi_intent = state.get("is_multi_intent", False)
         raw_documents = state.get("raw_documents", [])
         response_action = state.get("response_action", "")
+        threshold = state.get("threshold", SETTINGS.THRESHOLD)
 
         logger.info("🤔 Evaluando tipo de respuesta", source="decision", intent=intent, is_multi_intent=is_multi_intent, num_docs=len(raw_documents), current_action=response_action)
 
@@ -69,7 +68,7 @@ def decide_response_type(state: AgentState) -> AgentState:
         
         # Caso 2 - Código Template Directo
         if intent in ["code_template", "full_example"]:
-            best_doc, found = _find_best_template(raw_documents, TEMPLATE_SCORE_THRESHOLD)
+            best_doc, found = _find_best_template(raw_documents, threshold)
             
             if found and best_doc:
                 state["response_action"] = "return_template"
@@ -79,7 +78,7 @@ def decide_response_type(state: AgentState) -> AgentState:
                 return state
             else:
                 # No hay buen template, generar con LLM
-                logger.info("⚠️ No se encontró template con score >= {:.2f}".format(TEMPLATE_SCORE_THRESHOLD),source="decision",best_score=raw_documents[0].relevance_score if raw_documents else 0)
+                logger.info("⚠️ No se encontró template con score >= {:.2f}".format(threshold),source="decision",best_score=raw_documents[0].relevance_score if raw_documents else 0)
     
         # Caso 3 - Generar Respuesta Completa
         state["response_action"] = "generate_answer"

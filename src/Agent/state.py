@@ -23,6 +23,8 @@ class AgentState(TypedDict):
     question: str
     original_question: Optional[str]               # Pregunta original sin modificar para contexto en memoria
     chat_history: Optional[List[Dict[str, str]]]   # Historial de conversación (role: user/assistant, content: texto)
+    k_docs: int                          # Número de documentos a recuperar  
+    threshold: float                     # Umbral de puntuación para filtrar documentos  
     # Scope Validation
     is_valid_scope: bool                 # Si la consulta está dentro del scope
     

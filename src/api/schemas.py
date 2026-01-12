@@ -2,6 +2,7 @@ from typing import List, Optional, Dict
 from datetime import datetime
 from pydantic import BaseModel, Field
 from config.config import SETTINGS
+from src.Agent.state import DocumentScore
 
 
 class QueryRequest(BaseModel):
@@ -25,9 +26,9 @@ class SourceInfo(BaseModel):
 class QueryResponse(BaseModel):
     """Modelo para la respuesta del agente"""
     answer: str = Field(..., description="Respuesta generada por el agente")
-    sources: List[SourceInfo] = Field(..., description="Fuentes consultadas")
-    timestamp: datetime = Field(default_factory=datetime.now)
+    sources: List[DocumentScore] = Field(..., description="Fuentes consultadas")
     question: str = Field(..., description="Pregunta original")
+    context: Optional[List[Dict[str, str]]] = Field(default=[], description="Contexto adicional (historial de conversación)")
 
 
 class HealthResponse(BaseModel):

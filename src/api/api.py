@@ -102,11 +102,12 @@ async def query_endpoint(request: QueryRequest):
         except Exception as e:
             logger.error(f"❌ Error procesando fuentes: {e}",source="api",error_type="Exception")
             
-        # 4) Respuesta
+        # 4) Respuesta       
         return QueryResponse(
             answer=answer,
             sources=sources,
             question=request.question,
+            context=result.get("context_hist", [])
         )
         
     except Exception as e:

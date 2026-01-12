@@ -28,6 +28,10 @@ def retrieve_documents(state: AgentState) -> AgentState:
             threshold=threshold
         )
         
+        # Ordenar los hits por score descendente y quedarse con los k_docs mejores
+        hits = sorted(hits, key=lambda x: x.get("score", 0), reverse=True)[:state["k_docs"]]
+
+        
         logger.info(f"✅ search_examples retornó {len(hits)} resultados",source="retrieval",hits_count=len(hits))
         
         # Convertir hits a DocumentScore (para LangGraph)

@@ -50,7 +50,7 @@ def _normalize_source(src_item: dict) -> dict:
         # ref_name = doc_type + ".tf"
         ref_name = f"{doc_type}.tf"
         # extras: difficulty con codificación de color y lines_of_code si existe
-        difficulty = metadata.get("difficulty")
+        difficulty = metadata.get("difficulty") if metadata.get("difficulty") != "all" else None
         # Algunos extractores podrían guardar métricas de calidad; buscar lines_of_code en metadata
         lines_of_code = metadata.get("lines_of_code") or metadata.get("loc")
         # Mapear dificultad a color semáforo

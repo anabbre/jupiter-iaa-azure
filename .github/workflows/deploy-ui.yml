@@ -1,0 +1,43 @@
+name: Deploy UI to ECS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+    - "src/ui/**"
+    - ".github/workflows/deploy-ui.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::049627033071:role/github-actions-jupiter-ecs-deploy
+          aws-region: eu-west-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push UI image
+        run: |
+            IMAGE_URI=049627033071.dkr.ecr.eu-west-1.amazonaws.com/jupiter-iaa-dev-ui:latest
+            docker build -t $IMAGE_URI -f src/ui/Dockerfile .
+            docker push $IMAGE_URI
+
+      - name: Force new deployment (UI)
+        run: |
+          aws ecs update-service \
+            --cluster jupiter-iaa-dev-cluster \
+            --service jupiter-iaa-dev-ui \
+            --force-new-deployment

@@ -13,7 +13,7 @@ ENV GRADIO_SERVER_PORT=7860
 COPY requirements.txt .
 
 # Instalar dependencias de Python
-RUN pip install --no-cache-dir --prefer-binary --timeout 100 --retries 5 -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Copiar código fuente
 COPY src/ ./src/

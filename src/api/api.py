@@ -69,26 +69,17 @@ async def query_endpoint(request: QueryRequest):
         # 2) Invocar agente
         try:
             agent = Agent()
-            result = agent.invoke(request.question, chat_history=request.chat_history)
+            result = agent.invoke(request.question, k, threshold, chat_history=request.chat_history)
 
             # Validar que el scope es válido
-            if not result.get("is_valid_scope", True):
-                logger.warning(f"⚠️ Query rechazada", source="api", question=request.question)
-                return QueryResponse(
-                    answer="❌ La consulta está fuera del scope de Terraform/Azure",
-                    sources=[],
-                    question=request.question,
-                )
-            
-            # Validar que el scope es válido
-            if not result.get("is_valid_scope", True):
-                logger.warning(f"⚠️ Query rechazada", source="api", question=request.question)
-                return QueryResponse(
-                    answer="❌ La consulta está fuera del scope de Terraform/Azure",
-                    sources=[],
-                    question=request.question,
-                )
-                
+            # if not result.get("is_valid_scope", True):
+            #     logger.warning(f"⚠️ Query rechazada", source="api", question=request.question)
+            #     return QueryResponse(
+            #         answer="❌ La consulta está fuera del scope de Terraform/Azure",
+            #         sources=[],
+            #         question=request.question,
+            #     )
+                            
             # Extraer respuestas del estado del grafo
             answer = result.get("answer", "")
             response_time_ms = (time.time() - start_time) * 1000

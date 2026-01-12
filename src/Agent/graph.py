@@ -102,7 +102,7 @@ class Agent:
         logger.info("✅ Grafo compilado", source="agent")
         return workflow.compile()
 
-    def invoke(self, question: str, chat_history: list = None) -> dict:
+    def invoke(self, question: str, k_docs: int, threshold: float, chat_history: list = None) -> dict:
         """
         Ejecuta el grafo con una pregunta.
         """
@@ -111,6 +111,8 @@ class Agent:
         # Estado inicial
         state = {
             "question": question,
+            "k_docs": k_docs,
+            "threshold": threshold,
             "original_question": question,
             "chat_history": chat_history or [],
             "messages": [],
@@ -169,7 +171,7 @@ if __name__ == "__main__":
     print(f"\n📝 Query: {question}")
     print("-"*60)
     
-    result = agent.invoke(question)
+    result = agent.invoke(question, k_docs=5, threshold=0.5, chat_history=[])
     
     # Mostrar resultados
     print(f"\n🔍 Scope válido: {result.get('is_valid_scope', True)}")

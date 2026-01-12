@@ -1,14 +1,15 @@
 from typing import List, Optional, Dict
 from datetime import datetime
 from pydantic import BaseModel, Field
+from config.config import SETTINGS
 
 
 class QueryRequest(BaseModel):
     """Modelo para la petición de consulta"""
     question: str = Field(..., description="Pregunta para el agente RAG")
     chat_history: Optional[List[Dict[str, str]]] = Field(default=[], description="Historial de conversación")
-    k_docs: Optional[int] = Field(default=3, description="Número de documentos a recuperar")
-    threshold: Optional[float] = Field(default=None, description="Umbral de puntuación para filtrar documentos")
+    k_docs: int = Field(default=SETTINGS.K_DOCS, ge=1, le=20, description="Número de documentos a recuperar (1-20)")
+    threshold: float = Field(default=SETTINGS.THRESHOLD, ge=0.0, le=1.0, description="Umbral de puntuación para filtrar documentos (0.0-1.0)")
     temperature: Optional[float] = Field(default=0.0, description="Temperatura del LLM")
 
 

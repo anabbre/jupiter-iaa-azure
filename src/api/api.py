@@ -152,7 +152,7 @@ async def query_endpoint(request: QueryRequest):
     try:
         logger.info(f"📨 Nueva consulta", source="api", question=request.question)
         
-        result = agent.invoke(request.question)
+        result = agent.invoke(request.question, chat_history=request.chat_history)
         
         # Validar que el scope es válido
         if not result.get("is_valid_scope", True):

@@ -112,7 +112,7 @@ def _normalize_source(src_item: dict) -> dict:
     }
 
 
-def get_api_response(question: str) -> dict:
+def get_api_response(question: str, chat_history: list = None) -> dict:
     """
     Consulta la API FastAPI del agente
     
@@ -126,7 +126,9 @@ def get_api_response(question: str) -> dict:
         logger.info("Enviando consulta a API", url=API_URL, question=question[:100], source="ui")
         response = requests.post(
             f"{API_URL}/query",
-            json={"question": question},
+            json={"question": question,
+                  "chat_history": chat_history or []
+            },
             timeout=60
         )
         response.raise_for_status()
@@ -197,7 +199,13 @@ def procesar_mensaje(history, texto, archivo):
 
     try:
         # Consultar la API con la pregunta del usuario
-        result = get_api_response(contenido_usuario)
+        history_for_api = []
+        for msg in history:
+            history_for_api.append({
+                "role": msg["role"],
+                "content": msg["content"]
+            })
+        result = get_api_response(contenido_usuario, chat_history=history_for_api)
 
         # Obtener la respuesta del agente
         respuesta = result.get("answer", "❌ No se pudo generar una respuesta")
@@ -244,7 +252,7 @@ def procesar_mensaje(history, texto, archivo):
                                 extras.append(f"{k}: {v}")
                         extra_txt = f" • {' | '.join(extras)}" if extras else ""
                         ref_url = f"[{source['ref_name']}]({source.get('ref')})" if source.get("ref") else source['ref_name']
-                        respuesta += f"\n{i}. **{source['ref_type']}: {source['name']}**{' — ' + source['description'] if source['description'] else ''}{('\n' + extra_txt) if extra_txt else ''}\n🔗 {ref_url}"
+                        respuesta += f"\n{i}. **{source['ref_type']}: {source['name']}**{' — ' + source['description'] if source['description'] else ''}{(chr(10) + extra_txt) if extra_txt else ''}\n🔗 {ref_url}"
                 
     except Exception as e:
         logger.error("❌ Error al procesar la consulta", error=str(e), tipo_error=type(e).__name__, source="ui")

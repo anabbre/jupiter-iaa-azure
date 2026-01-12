@@ -5,11 +5,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-import json
 import time
 import yaml
 import shutil
-import tempfile
 import boto3
 from botocore.exceptions import ClientError
 from urllib.parse import quote
@@ -17,8 +15,6 @@ from urllib.parse import quote
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from collections import defaultdict
 import hashlib
 import re
 
@@ -33,7 +29,6 @@ from dotenv import load_dotenv
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from src.services.embeddings import embeddings_model
 from config.logger_config import logger, set_request_id, get_request_id
 
 # CONFIGURACIÓN
@@ -81,7 +76,7 @@ class IndexConfig:
                 "code": "terraform_code",
             }
 
-        # Si hay S3, trabajaremos en local_data_dir
+        # Si hay S3, trabajaremos en localM_data_dir
         if self.s3_bucket:
             self.data_dir = self.local_data_dir
             self.manifest_path = (
@@ -645,7 +640,8 @@ class DocumentLoader:
                 examples_count=len(examples),
             )
             for ex in examples:
-                ex_path = Path(ex["path"])
+                examples_base_path = Path(self.config.manifest_path).parent
+                ex_path = examples_base_path / ex["path"]
                 if not ex_path.exists():
                     logger.warning(
                         f"⚠️ Ruta de ejemplo no existe",
@@ -911,11 +907,15 @@ def main():
         action="store_true",
         help="Recrear colecciones (borra contenido anterior)",
     )
-    parser.add_argument("--only-pdfs", action="store_true", help="Solo indexar PDFs")
-    parser.add_argument("--only-tf", action="store_true", help="Solo indexar Terraform")
+    parser.add_argument(
+        "--only-pdfs", action="store_true", help="Solo indexar PDFs"
+    )
+    parser.add_argument(
+        "--only-tf", action="store_true", help="Solo indexar Terraform"
+        )
     parser.add_argument(
         "--only-examples", action="store_true", help="Solo indexar ejemplos"
-    )
+        )
     parser.add_argument(
         "--chunk-size-pdf", type=int, help="Tamaño de chunk para PDFs (default: 1200)"
     )

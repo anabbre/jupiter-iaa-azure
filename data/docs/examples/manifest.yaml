@@ -4,7 +4,7 @@ embeddings_model: intfloat/multilingual-e5-small
 examples:
   - id: ex01
     name: storage-static-website
-    path: "example_storage__static_web.md"
+    path: "example_storage_static_web.md"
     tags: [azure, static-site, storage]
     category: storage
     difficulty: beginner

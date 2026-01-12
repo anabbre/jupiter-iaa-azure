@@ -5,6 +5,7 @@ Construcción del grafo principal
 import time
 from langgraph.graph import StateGraph, END
 from config.logger_config import logger
+from typing import List, Optional, Dict
 
 from src.Agent.state import AgentState
 from src.Agent.nodes.validate_scope import validate_scope, should_continue
@@ -50,6 +51,7 @@ class Agent:
         logger.info("🔧 Creando grafo", source="agent")
         
         workflow = StateGraph(AgentState)
+        
         
         # ========== NODOS ==========
         workflow.add_node("contextualize", contextualize_question)
@@ -102,7 +104,7 @@ class Agent:
         logger.info("✅ Grafo compilado", source="agent")
         return workflow.compile()
 
-    def invoke(self, question: str, chat_history: list = None) -> dict:
+    def invoke(self, question: str,  chat_history: Optional[List[Dict[str, str]]] = None) -> dict:
         """
         Ejecuta el grafo con una pregunta.
         """
@@ -145,12 +147,12 @@ class Agent:
             logger.error("❌ Error en grafo", source="agent", error=str(e))
             raise
         
-def query(self, question: str) -> str:
-        """Método simple que devuelve solo la respuesta."""
-        result = self.invoke(question)
-        return result.get("answer", "No se pudo generar respuesta.")
+    def query(self, question: str) -> str:
+            """Método simple que devuelve solo la respuesta."""
+            result = self.invoke(question)
+            return result.get("answer", "No se pudo generar respuesta.")
     
-# TEst
+# Test
 if __name__ == "__main__":
     import sys
     

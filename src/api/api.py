@@ -10,7 +10,6 @@ sys.path.append('/app')  # Asegura que /app esté en PYTHONPATH
 from config.config import SETTINGS
 from src.services.search import search_examples
 from config.logger_config import logger
-from src.services.search import search_examples
 # OpenAI (v1 SDK). Si no hay API key, haremos fallback.
 from openai import OpenAI
 from .schemas import (
@@ -19,8 +18,6 @@ from .schemas import (
     QueryResponse,
     SourceInfo,
 )
-
-
 
 app = FastAPI(
     title="Terraform RAG Assistant API",
@@ -49,92 +46,7 @@ MIN_RESULTS_REQUIRED = 0   # Mínimo de resultados relevantes
 MAX_CONTEXT_CHARS = 6000  # límite de contexto para el prompt
 CODE_LANG = "hcl"         # resaltado para Terraform
 
-
-def _gather_context(hits: List[dict]):
-    snippets = []
-    for hit in hits:  
-        snippets.append(f"# {hit['name']}\n{hit['content']}")
-    return snippets
-
-
-def _trim_context(snippets: List[str], max_chars: int = MAX_CONTEXT_CHARS) -> str:
-    """
-    Concatena y recorta para no exceder el tamaño máximo.
-    """
-    joined, acc = [], 0
-    for s in snippets:
-        if acc + len(s) > max_chars:
-            joined.append(s[: max(0, max_chars - acc)])
-            break
-        joined.append(s)
-        acc += len(s)
-    return "\n\n---\n\n".join(joined)
-
-def _validate_results_quality(hits):
-    """
-    Valida si los resultados tienen suficiente calidad.
-    
-    Returns:
-        (es_valido, mensaje)
-    """
-    if not hits:
-        return False, "No hay documentos"
-    
-    return True, "OK"
-
-def _llm_answer_no_hallucination(question: str, context: str, hits: List[dict]) -> str:
-    """
-    Genera respuesta SIN HALLUCINATIONS.
-    Si no hay contexto suficiente, lo rechaza.
-    """
-    if not USE_LLM:
-        return (
-            "Información disponible basada en la base de datos:\n\n"
-            f"```{CODE_LANG}\n{context[:1200]}\n```"
-        )
-
-    system = (
-        "REGLAS CRÍTICAS:\n"
-        "1. SOLO responde basándote en el contexto proporcionado\n"
-        "2. NO inventes recursos, módulos ni configuraciones que no estén en el contexto\n"
-        "3. NO hagas suposiciones ni generalizaciones\n"
-        "4. Si el contexto no responde a la pregunta, di: 'No tengo información sobre esto en mi base de datos'\n"
-        "5. Si necesitas información externa, indícalo claramente\n"
-        "6. Responde de forma estructurada y concisa\n"
-        "7. Cuando muestres código, asegúrate de que está EXACTAMENTE en el contexto\n"
-        "\n"
-        "Eres un asistente de documentación de Terraform. Tu única fuente de verdad es el contexto."
-    )
-
-    user = (
-        f"PREGUNTA: {question}\n\n"
-        f"CONTEXTO DISPONIBLE:\n{context}\n\n"
-        f"INSTRUCCIONES:\n"
-        f"- Responde SOLO con lo que está en el contexto\n"
-        f"- Si la pregunta no se responde con el contexto, recházala\n"
-        f"- Estructura la respuesta de forma clara\n"
-        f"- Cita la fuente cuando sea posible"
-    )
-
-    try:
-        resp = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.1,  # MUY bajo para evitar hallucinations
-            max_tokens=2000,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        )
-        
-        text = resp.choices[0].message.content.strip()
-        return text
-    except Exception as e:
-        logger.error(f"Error en LLM: {e}", source="api")
-        return "Error al procesar la respuesta. Intenta de nuevo."
-
 # Endpoints 
-
 @app.get("/", response_model=HealthResponse)
 async def root():
     """Health check endpoint"""
@@ -145,7 +57,6 @@ async def root():
         documents_count=None,
     )
 
-
 @app.post("/query", response_model=QueryResponse)
 async def query_endpoint(request: QueryRequest):
     start_time = time.time()
@@ -155,13 +66,13 @@ async def query_endpoint(request: QueryRequest):
         result = agent.invoke(request.question, chat_history=request.chat_history)
         
         # Validar que el scope es válido
-        if not result.get("is_valid_scope", True):
-            logger.warning(f"⚠️ Query rechazada", source="api", question=request.question)
-            return QueryResponse(
-                answer="❌ La consulta está fuera del scope de Terraform/Azure",
-                sources=[],
-                question=request.question,
-            )
+        # if not result.get("is_valid_scope", True):
+        # logger.warning(f"⚠️ Query rechazada", source="api", question=request.question)
+        # return QueryResponse(
+        #     answer="❌ La consulta está fuera del scope de Terraform/Azure",
+        #     sources=[],
+        #     question=request.question,
+        # )
         
         # Extraer respuestas del estado del grafo
         answer = result.get("answer", "")

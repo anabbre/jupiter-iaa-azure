@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class QueryRequest(BaseModel):
     """Modelo para la petición de consulta"""
     question: str = Field(..., description="Pregunta para el agente RAG")
-    chat_history: Optional[List[Dict[str, str]]] = Field(default=[], description="Historial de conversación")
+    chat_history: Optional[List[Dict[str, str]]] = Field(default=[], description="Historial de conversación [{'role': 'user'|'assistant', 'content': '...'}]")
     k_docs: Optional[int] = Field(default=3, description="Número de documentos a recuperar")
     threshold: Optional[float] = Field(default=None, description="Umbral de puntuación para filtrar documentos")
     temperature: Optional[float] = Field(default=0.0, description="Temperatura del LLM")
@@ -16,7 +16,7 @@ class SourceInfo(BaseModel):
     """Información de una fuente consultada"""
     section: str
     pages: str
-    path: str = ""          # enlace lógico a la ruta origen
+    path: str = ""            # enlace lógico a la ruta origen
     name: Optional[str] = ""  # nombre del ejemplo/documento
     ref: Optional[str] = ""   # enlace directo (PDF con ?page=)
 

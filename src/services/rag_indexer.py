@@ -74,37 +74,59 @@ class ChunkDeduplicator:
         self.similarity_threshold = 0.95 # Umbral de similitud 
     
     @staticmethod
-    def _hash_chunk(content: str, metadata_keys: Tuple[str, ...]) -> str:
+    def _hash_chunk(content: str, metadata_context: str = "") -> str:
         """Genera hash único para un chunk"""
         # Normalizar contenido (quitar espacios múltiples, etc.)
         normalized = re.sub(r'\s+', ' ', content.strip())
-        hash_input = normalized
-        if metadata_keys:
-            hash_input += "||".join(str(k) for k in metadata_keys)
+        
+        # Separador CLARO entre content y metadata
+        if metadata_context:
+            hash_input = f"{normalized}||{metadata_context}"
+        else:
+            hash_input = normalized
+        
         return hashlib.md5(hash_input.encode()).hexdigest()
     
     # VERIFICAR DUPLICADOS
     def is_duplicate(self, content: str, metadata: Dict[str, Any], metadata_keys: Tuple[str, ...] = ("source", "section")) -> bool:
-        """Detecta si un chunk es duplicado"""
-        meta_values = tuple(str(metadata.get(k, "")) for k in metadata_keys if metadata.get(k) is not None)
-        chunk_hash = self._hash_chunk(content, meta_values)
+        """Verifica si un chunk es duplicado basado en hash y metadatos"""
         
+        # Extraer VALORES de metadata según las KEYS
+        meta_values = tuple(
+            str(metadata.get(k, ""))
+            for k in metadata_keys
+            if k in metadata and metadata[k] is not None
+        )
+        
+        # Formatear metadatos como string legible
+        if meta_values:
+            metadata_context = "||".join(meta_values)
+        else:
+            metadata_context = ""
+        
+        # Generar hash con separador claro
+        chunk_hash = self._hash_chunk(content, metadata_context)
+        
+        # Verificar si ya existe
         if chunk_hash in self.seen_hashes:
             self.duplicates_removed += 1
-            logger.debug(f"⏭️ Chunk duplicado detectado", source="qdrant",hash=chunk_hash[:8],original_content=self.seen_hashes[chunk_hash][:50])
+            logger.debug("⏭️ Chunk duplicado detectado", source="qdrant", hash=chunk_hash[:8], metadata=metadata_context[:50])
             return True
         
+        # Registrar nuevo hash
         self.seen_hashes[chunk_hash] = content[:100]
         return False
+
     
     # ESTADÍSTICAS
     def get_stats(self) -> Dict[str, int]:
         """Retorna estadísticas de deduplicación"""
+        total = len(self.seen_hashes) + self.duplicates_removed
         return {
             "unique_chunks": len(self.seen_hashes),
             "duplicates_removed": self.duplicates_removed,
             "total_processed": len(self.seen_hashes) + self.duplicates_removed,
-            "deduplication_rate": (self.duplicates_removed / (len(self.seen_hashes) + self.duplicates_removed) * 100) if (len(self.seen_hashes) + self.duplicates_removed) > 0 else 0
+            "deduplication_rate": ((self.duplicates_removed / total * 100) if total > 0 else 0)
         }
 class MetadataEnricher:
     """Extrae y enriquece metadatos para mejorar búsquedas"""
@@ -381,6 +403,7 @@ class DocumentLoader:
             examples = manifest.get("examples", [])
             logger.info(f"📋 Cargando {len(examples)} ejemplos del manifest", source="qdrant", examples_count=len(examples))
             for ex in examples:
+                # Variable necesaria sin esta linea 
                 ex_path = Path(ex["path"])
                 if not ex_path.exists():
                     logger.warning(f"⚠️ Ruta de ejemplo no existe", 

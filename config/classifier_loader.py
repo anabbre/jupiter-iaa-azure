@@ -35,7 +35,9 @@ def get_rejection_message(msg_type="generic"):
     """Obtiene un mensaje de rechazo aleatorio apropiado."""
     messages = _load()["rejection_messages"].get(msg_type, [])
     if messages:
-        return random.choice(messages)
+        if msg_type == "generic":
+            return random.choice(messages)
+        return messages
     return ""
 
 def get_validation_messages(msg_type, **kwargs):

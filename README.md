@@ -63,29 +63,47 @@ source .venv/bin/activate     # Linux / Mac
 .venv\Scripts\activate        # Windows
 ```
 
+
 ### 3️⃣ Instalar dependencias
 
+Puedes instalar las dependencias usando **pip** o, de forma más rápida y moderna, con **uv**:
+
+**Con pip:**
 ```bash
 pip install -r requirements.txt
 ```
+
+**Con uv:**
+```bash
+uv pip install -r requirements.txt
+```
+> ℹ️ uv es un gestor de paquetes ultrarrápido compatible con pip. Puedes instalarlo con:
+> ```bash
+> pip install uv
+> ```
 
 ### 4️⃣ Configurar variables de entorno
 
 Crea un archivo `.env` en la raíz (usa `.env.example` como referencia):
 
 ```env
-# ==== APIs ====
+
+# -------- Qdrant Config --------
+EMB_MODEL = "text-embedding-3-large"
+QDRANT_URL = "http://localhost:6333"
+QDRANT_COLLECTION = "Terraform_Book_Index"
+
+# ------- LLM Config --------
+DB_DIR = "src/rag/vector_db"
+LLM_MODEL = "gpt-4o-mini"
+K_DOCS = 3
+
+# ------- API -------
+API_URL = "http://localhost:8008"
+
+# -------- Secrets --------
 OPENAI_API_KEY=
-PINECONE_API_KEY=
-PINECONE_ENVIRONMENT=us-east-1
 
-# ==== Índices vectoriales ====
-UPLOADS_INDEX_NAME=jupiter_uploads
-KB_INDEX_NAME=kb_terraform
-
-# ==== Logs ====
-LOG_LEVEL=INFO
-LOG_DIR=logs/app
 ```
 
 ### 5️⃣ Ejecutar la aplicación localmente
@@ -95,7 +113,7 @@ LOG_DIR=logs/app
 uvicorn src.api.main:app --host 0.0.0.0 --port 8008 --reload
 
 # Iniciar la interfaz de usuario
-python src/ui/ui.py
+python -m src.ui.ui
 ```
 
 Accede a la interfaz web en:  
@@ -144,7 +162,38 @@ Cuando se ejecuta este comando, se levantan automáticamente tres contenedores:
 | **terraform_rag_ui** | Interfaz visual desarrollada con Gradio que permite interactuar con el asistente. |
 
 📌 **Nota:**  
-Con el volumen creado ejecutamos `create_book_index.py` para llenar la DB. Ahí deberíamos poder acceder a la UI y que responda citando los chunks consultados vía API.
+Con el volumen creado ejecutamos `src/services/rag_indexer.py` para llenar la base de datos vectorial (Qdrant) con los documentos y ejemplos del proyecto.
+
+### ℹ️ ¿Qué hace `rag_indexer.py`?
+Este script es el **indexador principal** del sistema. Se encarga de:
+- Leer y procesar documentos (`.pdf`, `.md`, archivos Terraform, ejemplos) desde la carpeta `data/` y el manifest.
+- Dividir los documentos en "chunks" optimizados para búsqueda semántica.
+- Enriquecer cada chunk con metadatos útiles (tipo de recurso, sección, calidad del código, etc.).
+- Eliminar duplicados para evitar información redundante.
+- Insertar los chunks en las colecciones de Qdrant, listos para ser consultados por el asistente.
+
+#### Uso básico:
+```bash
+python src/services/rag_indexer.py
+```
+Esto indexa todos los documentos y ejemplos.
+
+#### Opciones avanzadas:
+Puedes usar argumentos para controlar el proceso:
+- `--recreate`          : Borra y recrea las colecciones antes de indexar (limpia la DB).
+- `--only-pdfs`         : Solo indexa PDFs.
+- `--only-tf`           : Solo indexa archivos Terraform.
+- `--only-examples`     : Solo indexa ejemplos del manifest.
+- `--chunk-size-pdf N`  : Cambia el tamaño de chunk para PDFs.
+- `--chunk-size-tf N`   : Cambia el tamaño de chunk para Terraform.
+
+Ejemplo:
+```bash
+python src/services/rag_indexer.py --recreate --only-pdfs
+```
+Esto solo indexa los PDFs y limpia la colección antes de empezar.
+
+Una vez indexada la información, la UI podrá responder citando los chunks consultados vía API.
 
 ---
 

@@ -128,15 +128,11 @@ def generate_s3_url(local_path: str, page: int = None) -> str:
 
 
 def ensure_collection(client, name, vector_size):
-    existing = [c.name for c in client.get_collections().collections]
-    if name not in existing:
-        logger.info(f"🆕 Creando colección: '{name}'")
-        client.create_collection(
-            collection_name=name,
-            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
-        )
-    else:
-        logger.info(f"ℹ️ La colección '{name}' ya existe.")
+    logger.info(f"🧹 RECREANDO colección (Borrado + Creación): '{name}'")
+    client.recreate_collection(
+        collection_name=name,
+        vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+    )
 
 
 # --- MAIN ---

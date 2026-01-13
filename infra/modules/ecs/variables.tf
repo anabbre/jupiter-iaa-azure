@@ -54,19 +54,6 @@ variable "qdrant_port" {
   default = 6333
 }
 
-# Qdrant + EFS
-variable "efs_id" {
-  type = string
-}
-
-variable "efs_access_point_id" {
-  type = string
-}
-
-variable "efs_sg_id" {
-  type = string
-}
-
 # App env
 variable "openai_api_key" {
   type      = string

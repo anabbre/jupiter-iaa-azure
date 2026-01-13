@@ -32,6 +32,12 @@ app.add_middleware(
 
 # Endpoints 
 
+# Endpoint de health simple
+@app.get("/health")
+async def health():
+    """Health check básico"""
+    return {"status": "ok"}
+
 @app.get("/viewer/{path:path}")
 def serve_doc(path: str):
     file_path = os.path.join('data', path)

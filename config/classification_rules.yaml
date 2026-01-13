@@ -219,6 +219,21 @@ domain_keywords:
   - 'what'
   - 'why'
   - 'when'
+  - 'install'
+  - 'instalar'
+  - 'instalacion'
+  - 'instalación'
+  - 'installation'
+  - 'descargar'
+  - 'download'
+  - 'requisitos'
+  - 'requirements'
+  - 'version'
+  - 'versión'
+  - 'actualizar'
+  - 'upgrade'
+  - 'como'
+  - 'cómo'
 
 # Patrones que indican consultas fuera de scope
 out_of_scope_patterns:

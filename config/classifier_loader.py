@@ -34,9 +34,11 @@ def get_out_of_scope_patterns():
 def get_rejection_message(msg_type="generic"):
     """Obtiene un mensaje de rechazo aleatorio apropiado."""
     messages = _load()["rejection_messages"].get(msg_type, [])
-    if messages:
-        return random.choice(messages)
-    return ""
+    if not messages:
+        return ""
+    if isinstance(messages, str):
+        return messages
+    return random.choice(messages)
 
 def get_validation_messages(msg_type, **kwargs):
     """ Obtiene los mensajes de validación. """

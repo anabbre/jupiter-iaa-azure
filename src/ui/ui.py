@@ -38,6 +38,7 @@ def _normalize_source(src_item: dict) -> dict:
     path = metadata.get("file_path") or src.get("source", "") or metadata.get("path") or ""
     section = metadata.get("section") or src.get("section") or metadata.get("page") or ""
     page = metadata.get("page") or ""
+    ref_type = "Documento" 
     section = metadata.get("section") or ""
     ref_name = None
     extras = {}

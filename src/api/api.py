@@ -70,16 +70,7 @@ async def query_endpoint(request: QueryRequest):
         try:
             agent = Agent()
             result = agent.invoke(request.question, k, threshold, chat_history=request.chat_history)
-
-            # Validar que el scope es válido
-            # if not result.get("is_valid_scope", True):
-            #     logger.warning(f"⚠️ Query rechazada", source="api", question=request.question)
-            #     return QueryResponse(
-            #         answer="❌ La consulta está fuera del scope de Terraform/Azure",
-            #         sources=[],
-            #         question=request.question,
-            #     )
-                            
+      
             # Extraer respuestas del estado del grafo
             answer = result.get("answer", "")
             response_time_ms = (time.time() - start_time) * 1000
@@ -96,7 +87,7 @@ async def query_endpoint(request: QueryRequest):
                 sources.append(source)
             logger.info(f"Fuentes procesadas",source="api",sources_count=len(sources))
             # Validar que encontró documentos
-            if not sources:
+            if result.get("is_valid_scope", True) and not sources:
                 logger.warning(f"⚠️ Sin documentos encontrados", source="api", question=request.question)
 
         except Exception as e:

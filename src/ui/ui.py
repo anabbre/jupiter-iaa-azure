@@ -6,8 +6,6 @@ from config.logger_config import logger
 
 API_URL = SETTINGS.API_URL
 
-
-
 def _normalize_source(src_item: dict) -> dict:
     """Normaliza una fuente heterogénea a una estructura común para la UI.
 
@@ -38,6 +36,7 @@ def _normalize_source(src_item: dict) -> dict:
     path = metadata.get("file_path") or src.get("source", "") or metadata.get("path") or ""
     section = metadata.get("section") or src.get("section") or metadata.get("page") or ""
     page = metadata.get("page") or ""
+    ref_type = "Documento" 
     section = metadata.get("section") or ""
     ref_name = None
     extras = {}
@@ -78,7 +77,7 @@ def _normalize_source(src_item: dict) -> dict:
         ref_type = "Libro"
         # name y description directos
         name = metadata.get("name", name)
-        description = metadata.get("description", "")
+        description = metadata.get("description", "Libro completo de Terraform - conceptos y best practices")
         # ref_name = doc_type + "." + file_type
         file_type = metadata.get("file_type") or os.path.splitext(path)[1].lstrip(".") or "pdf"
         ref_name = f"{doc_type}.{file_type}"
@@ -117,13 +116,6 @@ def _normalize_source(src_item: dict) -> dict:
 
 
 MAX_CONTEXT = 20
-
-
-def _truncate_history(history: list) -> list:
-    try:
-        return history[-MAX_CONTEXT:] if isinstance(history, list) else history
-    except Exception:
-        return history
 
 
 def get_api_response(question: str, context: list | None = None) -> dict:
@@ -228,7 +220,8 @@ def procesar_mensaje(history, texto):
                         "extras": []
                     }
                 grouped_sources[doc_type][name]['extras'].extend(source['extras'] if isinstance(source['extras'], list) else [source['extras']])
-
+                
+            
             # Construir la respuesta agrupada
             respuesta += "\n\n🔎 Fuentes consultadas:"
 

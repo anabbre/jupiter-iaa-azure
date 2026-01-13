@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from typing import List, Dict, Any, Tuple
 from config.classifier_loader import (
     get_domain_keywords,
@@ -6,6 +7,27 @@ from config.classifier_loader import (
     get_rejection_message,
     get_validation_messages
 )
+def normalize_query(query: str) -> str:
+    """
+    Normaliza la query: minúsculas, sin tildes, sin puntuación.
+    
+    Args:
+        query: Consulta del usuario
+        
+    Returns:
+        Query normalizada
+    """
+    # 1. Minúsculas
+    text = query.lower()
+    
+    # 2. Quitar tildes: é→e, ñ→n, etc.
+    text = unicodedata.normalize('NFD', text)
+    text = ''.join(c for c in text if unicodedata.category(c) != 'Mn')
+    
+    # 3. Quitar signos de puntuación (mantener espacios y alfanuméricos)
+    text = re.sub(r'[^\w\s]', '', text)
+    
+    return text
 
 def is_query_in_scope(query: str, min_keywords: int = 0) -> Tuple[bool, str]:
     """
@@ -20,6 +42,9 @@ def is_query_in_scope(query: str, min_keywords: int = 0) -> Tuple[bool, str]:
         - is_valid: True si la consulta es válida
         - reason: Mensaje explicativo
     """
+    # Normalizar para keywords (sin puntuación)
+    query_normalized = normalize_query(query)
+    # Original en minúsculas para patrones
     query_lower = query.lower()
     # Cargar patrones y keywords desde el config/classifier_loader
     out_of_scope_patterns = get_out_of_scope_patterns()
@@ -31,7 +56,7 @@ def is_query_in_scope(query: str, min_keywords: int = 0) -> Tuple[bool, str]:
             return False, get_validation_messages("not_technical")
     
     # 2. Verificar si es demasiado corta
-    words = query_lower.split()
+    words = query_normalized.split()
     if len(words) < 2:
         return False, get_validation_messages("too_short")
     
@@ -74,8 +99,9 @@ def filter_results_by_relevance(
     if not results:
         return []
     
-    query_lower = query.lower()
-    query_words = set(query_lower.split())
+    # Usar query normalizada para comparar con keywords
+    query_normalized = normalize_query(query)
+    query_words = set(query_normalized.split())
     # Cargar patrones y keywords desde el config/classifier_loader
     domain_keywords = get_domain_keywords()
     # Calcular overlap con domain keywords

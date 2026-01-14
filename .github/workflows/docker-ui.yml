@@ -2,7 +2,7 @@
 name: docker-ui
 
 on:
-  workflow_dispatch:  
+  workflow_dispatch: 
   # El workflow se ejecuta cuando hay cambios en la rama main o en Pull Requests que afecten a archivos relevantes del UI o Dockerfile
   push:
     branches: [ main ]
@@ -37,15 +37,31 @@ jobs:
     runs-on: ubuntu-latest     # Job principal que se ejecuta en un runner Ubuntu limpio
 
     steps:
-      # Descarga el código fuente del repositorio
+      - name: ☢️ LIMPIEZA NUCLEAR (Liberar espacio)
+        continue-on-error: true # Si falla, que siga intentando construir
+        run: |
+          echo "💾 Espacio ANTES de limpiar:"
+          df -h
+          
+          # Borrar todo lo que no se esté usando AHORA MISMO
+          docker system prune -a -f --volumes
+          docker image prune -a -f
+          docker builder prune -a -f
+          
+          # Borrar caché de pip si existe
+          rm -rf ~/.cache/pip || true
+          
+          echo "💾 Espacio DESPUÉS de limpiar:"
+          df -h
+      # 1) Descarga el código fuente del repositorio
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Configura Docker Buildx, que permite crear imágenes optimizadas
+      # 2) Configura Docker Buildx, que permite crear imágenes optimizadas
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Inicia sesión en GitHub Container Registry con el token del repositorio
+      # 3) Inicia sesión en GitHub Container Registry con el token del repositorio
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -53,7 +69,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Genera etiquetas automáticas (latest, SHA, rama) y metadatos
+      # 4) Genera etiquetas automáticas (latest, SHA, rama) y metadatos
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
@@ -64,7 +80,7 @@ jobs:
             type=sha
             type=ref,event=pr
 
-      # Construye la imagen y, si no es un PR, la publica en GHCR
+      # 5) Construye la imagen y, si no es un PR, la publica en GHCR
       - name: Build and push
         uses: docker/build-push-action@v6
         with:

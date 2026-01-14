@@ -27,14 +27,11 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
     volumes:
-      - ./src:/app/src
       - ./config:/app/config
-      - ./Scripts:/app/Scripts
-      - ./docs:/app/docs
       - ./logs:/app/logs
       - ./data:/app/data
     depends_on:
-      - qdrant           
+      - qdrant
     restart: always
     networks:
       - terraform-rag-network
@@ -60,8 +57,8 @@ services:
       - ./config:/app/config
       - ./logs:/app/logs
     depends_on:
-      - qdrant           
-      - api              
+      - qdrant
+      - api
     restart: always
     networks:
       - terraform-rag-network

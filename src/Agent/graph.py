@@ -5,6 +5,7 @@ Construcción del grafo principal
 import time
 from langgraph.graph import StateGraph, END
 from config.logger_config import logger
+from typing import List, Optional, Dict
 
 from src.Agent.state import AgentState
 from src.Agent.nodes.validate_scope import validate_scope, should_continue
@@ -41,15 +42,16 @@ class Agent:
     def _create_graph(self):
         """
         Crea el grafo:
-        
-        validate_scope ─┬─→ classify_intent → retrieve → decide ─┬─→ generate ──────→  END
-                        │                                        ├─→ format_template → END
-                        │                                        └─→ format_hybrid ──→ END
-                        └─→ reject ──────────────────────────────────────────────────→ END
+
+        contextualize → validate_scope ─┬─→ classify_intent → retrieve → decide ─┬─→ generate ──────→  END
+                                        │                                        ├─→ format_template → END
+                                        │                                        └─→ format_hybrid ──→ END
+                                        └─→ reject ──────────────────────────────────────────────────→ END
         """
         logger.info("🔧 Creando grafo", source="agent")
         
         workflow = StateGraph(AgentState)
+        
         
         # ========== NODOS ==========
         workflow.add_node("contextualize", contextualize_question)
@@ -102,7 +104,7 @@ class Agent:
         logger.info("✅ Grafo compilado", source="agent")
         return workflow.compile()
 
-    def invoke(self, question: str, chat_history: list = None) -> dict:
+    def invoke(self, question: str, k_docs: int, threshold: float, chat_history: Optional[List[Dict[str, str]]] = None) -> dict:
         """
         Ejecuta el grafo con una pregunta.
         """
@@ -111,6 +113,8 @@ class Agent:
         # Estado inicial
         state = {
             "question": question,
+            "k_docs": k_docs,
+            "threshold": threshold,
             "original_question": question,
             "chat_history": chat_history or [],
             "messages": [],
@@ -145,12 +149,12 @@ class Agent:
             logger.error("❌ Error en grafo", source="agent", error=str(e))
             raise
         
-def query(self, question: str) -> str:
-        """Método simple que devuelve solo la respuesta."""
-        result = self.invoke(question)
-        return result.get("answer", "No se pudo generar respuesta.")
+    def query(self, question: str) -> str:
+            """Método simple que devuelve solo la respuesta."""
+            result = self.invoke(question)
+            return result.get("answer", "No se pudo generar respuesta.")
     
-# TEst
+# Test
 if __name__ == "__main__":
     import sys
     
@@ -169,7 +173,7 @@ if __name__ == "__main__":
     print(f"\n📝 Query: {question}")
     print("-"*60)
     
-    result = agent.invoke(question)
+    result = agent.invoke(question, k_docs=5, threshold=0.5, chat_history=[])
     
     # Mostrar resultados
     print(f"\n🔍 Scope válido: {result.get('is_valid_scope', True)}")

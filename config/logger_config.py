@@ -1,4 +1,3 @@
-# logger_config.py
 import os
 import sys
 import json
@@ -7,9 +6,6 @@ import uuid
 import traceback
 from loguru import logger
 from contextvars import ContextVar
-
-
-
 
 # Variables de contexto para rastrear requests
 request_id_var: ContextVar[str] = ContextVar('request_id', default=None)
@@ -66,7 +62,7 @@ CONSOLE_FORMAT  = (
     "<level>{level: <8}</level> | "
     "<cyan>{module}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
     "<yellow>req_id={extra[request_id]}</yellow> | "
-    "<white>{message}</white>"
+    "<level>{message}</level>"
 )
 
 # Formato para archivos (sin colores)
@@ -253,10 +249,3 @@ NOISY_LOGGERS = [
 for noisy in NOISY_LOGGERS:
     logging.getLogger(noisy).setLevel(logging.CRITICAL)
     logging.getLogger(noisy).propagate = False
-
-
-
-
-
-
-

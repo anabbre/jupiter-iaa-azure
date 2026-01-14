@@ -1,19 +1,13 @@
 import os
 import sys
+import boto3
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
-
 import json
 import time
 import yaml
-import shutil
-import tempfile
-import boto3
-from botocore.exceptions import ClientError
-from urllib.parse import quote
-
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -21,7 +15,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 import hashlib
 import re
-
 from qdrant_client import QdrantClient
 from src.services.vector_store import (
     ensure_collection,
@@ -40,6 +33,49 @@ from config.logger_config import logger, set_request_id, get_request_id
 load_dotenv()
 
 
+# Función para descargar desde S3 al arrancar
+def download_data_from_s3(bucket_name: str, prefix: str = "data"):
+    """Descarga inteligente desde S3: config y datos"""
+    if not bucket_name:
+        logger.warning("⚠️ No se definió S3_DATA_BUCKET_NAME.")
+        return
+
+    s3 = boto3.client("s3")
+    local_data_path = Path("/app/data")
+    local_config_path = Path("/app/config")
+
+    logger.info(f"⬇️ Iniciando descarga desde S3: s3://{bucket_name}/{prefix}")
+
+    try:
+        paginator = s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
+            if "Contents" in page:
+                for obj in page["Contents"]:
+                    key = obj["Key"]
+                    if key.endswith("/"):
+                        continue
+
+                    # Lógica de enrutamiento: Config vs Data
+                    if "data/config/" in key:
+                        rel_path = key.split("data/config/")[-1]
+                        dest_path = local_config_path / rel_path
+                    else:
+                        # Quitamos el prefijo "data/" para mantener estructura
+                        rel_path = Path(key).relative_to(prefix)
+                        dest_path = local_data_path / rel_path
+
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    s3.download_file(bucket_name, key, str(dest_path))
+                    logger.info(f"   📄 Descargado: {key}")
+
+        logger.info("✅ Sincronización con S3 completada.")
+    except Exception as e:
+        logger.error(f"❌ Error crítico descargando de S3: {e}")
+
+
+# No salimos (exit) para permitir probar en local si falla S3
+
+
 class DocumentType(Enum):
     """Tipos de documentos soportados"""
 
@@ -56,22 +92,12 @@ class IndexConfig:
     qdrant_url: str = os.getenv("QDRANT_URL", "http://localhost:6333")
     qdrant_api_key: Optional[str] = os.getenv("QDRANT_API_KEY")
     collections: Dict[str, str] = None
-    data_dir: Path = Path(
-        "data"
-    ).resolve()  # se sobreescribe en __post_init__ si hay S3
+    data_dir: Path = Path("data").resolve()
     manifest_path: Path = Path("data/docs/examples/manifest.yaml").resolve()
     chunk_configs: Dict[str, Dict[str, int]] = None
     chunk_overlap: int = 120
     batch_size: int = 50
     max_workers: int = 4
-
-    # S3 / CloudFront (opcionales)
-    s3_bucket: Optional[str] = os.getenv("S3_BUCKET")
-    s3_prefix: str = os.getenv("S3_PREFIX", "data/")
-    local_data_dir: Path = Path(
-        os.getenv("LOCAL_DATA_DIR", "/tmp/jupiter_data")
-    ).resolve()
-    cloudfront_base_url: Optional[str] = os.getenv("CLOUDFRONT_BASE_URL")
 
     def __post_init__(self):
         if self.collections is None:
@@ -81,20 +107,13 @@ class IndexConfig:
                 "code": "terraform_code",
             }
 
-        # Si hay S3, trabajaremos en local_data_dir
-        if self.s3_bucket:
-            self.data_dir = self.local_data_dir
-            self.manifest_path = (
-                self.data_dir / "docs/examples/manifest.yaml"
-            ).resolve()
-
-        # ✅ CONFIGURACIÓN DIFERENCIADA DE CHUNKS
+        # CONFIGURACIÓN DIFERENCIADA DE CHUNKS
         if self.chunk_configs is None:
             self.chunk_configs = {
                 "pdf": {
                     "chunk_size": 1200,
                     "chunk_overlap": 200,
-                },  # Documentación con más contexto
+                },  # Documentación con mas contexto
                 "terraform": {
                     "chunk_size": 1800,
                     "chunk_overlap": 300,
@@ -117,13 +136,17 @@ class ChunkDeduplicator:
         self.similarity_threshold = 0.95  # Umbral de similitud
 
     @staticmethod
-    def _hash_chunk(content: str, metadata_keys: Tuple[str, ...]) -> str:
+    def _hash_chunk(content: str, metadata_context: str = "") -> str:
         """Genera hash único para un chunk"""
         # Normalizar contenido (quitar espacios múltiples, etc.)
         normalized = re.sub(r"\s+", " ", content.strip())
-        hash_input = normalized
-        if metadata_keys:
-            hash_input += "||".join(str(k) for k in metadata_keys)
+
+        # Separador CLARO entre content y metadata
+        if metadata_context:
+            hash_input = f"{normalized}||{metadata_context}"
+        else:
+            hash_input = normalized
+
         return hashlib.md5(hash_input.encode()).hexdigest()
 
     # VERIFICAR DUPLICADOS
@@ -133,39 +156,49 @@ class ChunkDeduplicator:
         metadata: Dict[str, Any],
         metadata_keys: Tuple[str, ...] = ("source", "section"),
     ) -> bool:
-        """Detecta si un chunk es duplicado"""
+        """Verifica si un chunk es duplicado basado en hash y metadatos"""
+
+        # Extraer VALORES de metadata según las KEYS
         meta_values = tuple(
             str(metadata.get(k, ""))
             for k in metadata_keys
-            if metadata.get(k) is not None
+            if k in metadata and metadata[k] is not None
         )
-        chunk_hash = self._hash_chunk(content, meta_values)
 
+        # Formatear metadatos como string legible
+        if meta_values:
+            metadata_context = "||".join(meta_values)
+        else:
+            metadata_context = ""
+
+        # Generar hash con separador claro
+        chunk_hash = self._hash_chunk(content, metadata_context)
+
+        # Verificar si ya existe
         if chunk_hash in self.seen_hashes:
             self.duplicates_removed += 1
             logger.debug(
-                f"⏭️ Chunk duplicado detectado",
+                "⏭️ Chunk duplicado detectado",
                 source="qdrant",
                 hash=chunk_hash[:8],
-                original_content=self.seen_hashes[chunk_hash][:50],
+                metadata=metadata_context[:50],
             )
             return True
 
+        # Registrar nuevo hash
         self.seen_hashes[chunk_hash] = content[:100]
         return False
 
     # ESTADÍSTICAS
     def get_stats(self) -> Dict[str, int]:
         """Retorna estadísticas de deduplicación"""
-        total_processed = len(self.seen_hashes) + self.duplicates_removed
+        total = len(self.seen_hashes) + self.duplicates_removed
         return {
             "unique_chunks": len(self.seen_hashes),
             "duplicates_removed": self.duplicates_removed,
-            "total_processed": total_processed,
+            "total_processed": len(self.seen_hashes) + self.duplicates_removed,
             "deduplication_rate": (
-                (self.duplicates_removed / total_processed * 100)
-                if total_processed > 0
-                else 0
+                (self.duplicates_removed / total * 100) if total > 0 else 0
             ),
         }
 
@@ -248,85 +281,6 @@ class MetadataEnricher:
         }
 
 
-def _s3_list_objects(bucket: str, prefix: str) -> List[str]:
-    s3 = boto3.client("s3")
-    keys = []
-    continuation_token = None
-
-    while True:
-        kwargs = {"Bucket": bucket, "Prefix": prefix}
-        if continuation_token:
-            kwargs["ContinuationToken"] = continuation_token
-
-        resp = s3.list_objects_v2(**kwargs)
-        for item in resp.get("Contents", []):
-            key = item["Key"]
-            if not key.endswith("/"):
-                keys.append(key)
-
-        if resp.get("IsTruncated"):
-            continuation_token = resp.get("NextContinuationToken")
-        else:
-            break
-
-    return keys
-
-
-def sync_s3_prefix_to_local(bucket: str, prefix: str, local_dir: Path) -> None:
-    """
-    Descarga s3://bucket/prefix... a local_dir, conservando rutas relativas.
-    """
-    s3 = boto3.client("s3")
-
-    # limpieza defensiva
-    local_dir.mkdir(parents=True, exist_ok=True)
-
-    keys = _s3_list_objects(bucket, prefix)
-    if not keys:
-        raise RuntimeError(f"No hay objetos en s3://{bucket}/{prefix}")
-
-    for key in keys:
-        rel = key[len(prefix) :] if key.startswith(prefix) else key
-        dest = (local_dir / rel).resolve()
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            s3.download_file(bucket, key, str(dest))
-        except ClientError as e:
-            raise RuntimeError(f"Error descargando {key}: {e}") from e
-
-
-def build_s3_key(config: IndexConfig, file_path: Path) -> Optional[str]:
-    """
-    Convierte un path local (dentro de config.data_dir) a key de S3 bajo config.s3_prefix.
-    Solo aplica cuando estás en modo S3 (S3_BUCKET definido).
-    """
-    if not config.s3_bucket:
-        return None
-
-    base = config.data_dir.resolve()
-    fp = file_path.resolve()
-
-    # Si el archivo no cuelga de data_dir, no podemos calcular key fiable
-    try:
-        rel = fp.relative_to(base)
-    except ValueError:
-        return None
-
-    prefix = config.s3_prefix.rstrip("/") + "/"
-    return prefix + rel.as_posix()
-
-
-def build_cloudfront_url(config: IndexConfig, s3_key: Optional[str]) -> Optional[str]:
-    """
-    URL estática (NO firmada) si tienes CLOUDFRONT_BASE_URL.
-    Nota: si el contenido está privado, esta URL no funcionará sin signed URLs/cookies.
-    """
-    if not config.cloudfront_base_url or not s3_key:
-        return None
-    base = config.cloudfront_base_url.rstrip("/")
-    return f"{base}/{quote(s3_key)}"
-
-
 # Cargador unificado de documentos
 class DocumentLoader:
     """Cargador unificado de documentos"""
@@ -370,7 +324,7 @@ class DocumentLoader:
 
     def load_pdfs(self, pdf_dir: Path) -> List[Document]:
         """Carga PDFs completos o desde directorio"""
-        documents: List[Document] = []
+        documents = []
         pdf_files = sorted(pdf_dir.glob("**/*.pdf")) if pdf_dir.is_dir() else [pdf_dir]
 
         logger.info(
@@ -383,24 +337,22 @@ class DocumentLoader:
             try:
                 loader = PyPDFLoader(str(pdf_file))
                 pages = loader.load()
-
                 # Filtra páginas sin contenido
                 valid_pages = [
                     p for p in pages if p and p.page_content and p.page_content.strip()
                 ]
+                print(f"DEBUG: Valid pages after filter: {len(valid_pages)}")
                 if not valid_pages:
                     logger.warning(
-                        "⏭️ PDF sin contenido válido",
+                        f"⏭️ PDF sin contenido válido",
                         source="qdrant",
                         file=pdf_file.name,
                     )
                     continue
-
                 chunks = self.splitters["pdf"].split_documents(valid_pages)
                 chunks = [
                     c for c in chunks if c and c.page_content and c.page_content.strip()
                 ]
-
                 logger.info(
                     f"📑 PDF dividido en chunks",
                     source="qdrant",
@@ -410,48 +362,46 @@ class DocumentLoader:
                 )
 
                 # Enriquecer metadatos de cada chunk
-                added = 0
                 for i, chunk in enumerate(chunks):
+                    # Extraer sección del contenido
                     section = self.metadata_enricher.extract_section_from_pdf(
                         chunk.page_content
                     )
 
-                    if self.deduplicator.is_duplicate(
+                    # Verificar duplicados
+                    if not self.deduplicator.is_duplicate(
                         chunk.page_content,
                         {"source": str(pdf_file), "section": section or f"chunk_{i}"},
                     ):
-                        continue
-
-                    s3_key = build_s3_key(self.config, pdf_file)
-                    source_url = build_cloudfront_url(self.config, s3_key)
-
-                    chunk.metadata.update(
-                        {
-                            "name": "Terraform: Up & Running",
-                            "description": "Libro completo de Terraform - conceptos y best practices",
-                            "source": pdf_file.name,
-                            "file_path": str(pdf_file),
-                            "file_type": "pdf",
-                            "doc_type": "terraform_book",
-                            "chunk_id": i,
-                            "total_chunks": len(chunks),
-                            "section": section or "Unknown",
-                            "page_start": chunk.metadata.get("page", 0),
-                            "search_context": f"{section or 'Terraform Documentation'} - {chunk.page_content[:200]}",
-                            # S3/CloudFront (para construir presigned en runtime)
-                            "s3_bucket": self.config.s3_bucket,
-                            "s3_key": s3_key,
-                            "source_url": source_url,
-                        }
-                    )
-                    documents.append(chunk)
-                    added += 1
-
+                        chunk.metadata.update(
+                            {
+                                "source": pdf_file.name,
+                                "file_path": str(pdf_file),
+                                "file_type": "pdf",
+                                "doc_type": "terraform_book",
+                                "status": "active",
+                                "chunk_id": i,
+                                "total_chunks": len(chunks),
+                                "section": section or "Unknown",
+                                "page_start": chunk.metadata.get("page", 0),
+                                # Campo de búsqueda enriquecido
+                                "search_context": f"{section or 'Terraform Documentation'} - {chunk.page_content[:200]}",
+                            }
+                        )
+                        documents.append(chunk)
                 logger.info(
                     f"✅ PDF procesado",
                     source="qdrant",
                     file=pdf_file.name,
-                    chunks_indexed=added,
+                    chunks_indexed=len(
+                        [
+                            c
+                            for c in chunks
+                            if not self.deduplicator.is_duplicate(
+                                c.page_content, {"source": str(pdf_file)}
+                            )
+                        ]
+                    ),
                 )
             except Exception as e:
                 logger.error(
@@ -467,9 +417,8 @@ class DocumentLoader:
         self, tf_dir: Path, is_example: bool = False
     ) -> List[Document]:
         """Carga archivos Terraform SIN CHUNKING (archivos completos)"""
-        documents: List[Document] = []
+        documents = []
         tf_files = sorted(tf_dir.glob("**/*.tf"))
-
         logger.info(
             f"🔧 Cargando {len(tf_files)} archivos Terraform",
             source="qdrant",
@@ -494,10 +443,7 @@ class DocumentLoader:
                     content
                 )
 
-                s3_key = build_s3_key(self.config, tf_file)
-                source_url = build_cloudfront_url(self.config, s3_key)
-
-                # NO usar splitter, crear documento completo directamente
+                # ✅ CAMBIO CLAVE: NO usar splitter, crear documento completo directamente
                 doc = Document(
                     page_content=content,  # Contenido completo sin dividir
                     metadata={
@@ -505,36 +451,34 @@ class DocumentLoader:
                         "file_path": str(tf_file),
                         "file_type": "terraform",
                         "doc_type": "example" if is_example else "terraform_code",
-                        "is_complete": True,
+                        "status": "active",
+                        "is_complete": True,  # ✅ Marca que es archivo completo
                         "chunk_id": 0,
                         "total_chunks": 1,  # Solo 1 chunk = archivo completo
                         # Metadatos específicos de Terraform
                         **tf_metadata,
                         **quality_metrics,
+                        # ✅ MEJORA: Search context sin limitar a 150 chars
                         "search_context": f"Terraform {tf_file.stem} - Resources: {', '.join(tf_metadata['resource_types'][:5])}",
-                        "s3_bucket": self.config.s3_bucket,
-                        "s3_key": s3_key,
-                        "source_url": source_url,
                     },
                 )
 
                 # Verificar duplicados (ahora con el archivo completo)
-                if self.deduplicator.is_duplicate(
+                if not self.deduplicator.is_duplicate(
                     doc.page_content, {"source": str(tf_file)}
                 ):
+                    documents.append(doc)
                     logger.info(
-                        "⏭️ TF duplicado omitido", source="qdrant", file=tf_file.name
+                        f"✅ TF completo indexado",
+                        source="qdrant",
+                        file=tf_file.name,
+                        size=len(content),
+                        resources=len(tf_metadata["resource_types"]),
                     )
-                    continue
-
-                documents.append(doc)
-                logger.info(
-                    "✅ TF completo indexado",
-                    source="qdrant",
-                    file=tf_file.name,
-                    size=len(content),
-                    resources=len(tf_metadata["resource_types"]),
-                )
+                else:
+                    logger.info(
+                        f"⏭️ TF duplicado omitido", source="qdrant", file=tf_file.name
+                    )
 
             except Exception as e:
                 logger.error(
@@ -556,7 +500,7 @@ class DocumentLoader:
         self, md_dir: Path, is_example: bool = False
     ) -> List[Document]:
         """Carga archivos Markdown"""
-        documents: List[Document] = []
+        documents = []
         md_files = sorted(md_dir.glob("**/*.md"))
 
         logger.info(
@@ -577,49 +521,45 @@ class DocumentLoader:
                 chunks = [
                     c for c in chunks if c and c.page_content and c.page_content.strip()
                 ]
+
                 if not chunks:
                     continue
 
-                added = 0
                 for i, chunk in enumerate(chunks):
-                    if self.deduplicator.is_duplicate(
+                    if not self.deduplicator.is_duplicate(
                         chunk.page_content, {"source": str(md_file), "chunk_id": i}
                     ):
-                        continue
+                        # Extraer título de la sección
+                        section_match = re.search(
+                            r"^#+\s+(.+)$", chunk.page_content, re.MULTILINE
+                        )
+                        section = (
+                            section_match.group(1) if section_match else "Introduction"
+                        )
 
-                    section_match = re.search(
-                        r"^#+\s+(.+)$", chunk.page_content, re.MULTILINE
-                    )
-                    section = (
-                        section_match.group(1) if section_match else "Introduction"
-                    )
-
-                    s3_key = build_s3_key(self.config, md_file)
-                    source_url = build_cloudfront_url(self.config, s3_key)
-
-                    chunk.metadata.update(
-                        {
-                            "source": md_file.name,
-                            "file_path": str(md_file),
-                            "file_type": "markdown",
-                            "doc_type": "example" if is_example else "documentation",
-                            "chunk_id": i,
-                            "total_chunks": len(chunks),
-                            "section": section,
-                            "search_context": f"{section} - {chunk.page_content[:200]}",
-                            "s3_bucket": self.config.s3_bucket,
-                            "s3_key": s3_key,
-                            "source_url": source_url,
-                        }
-                    )
-                    documents.append(chunk)
-                    added += 1
+                        chunk.metadata.update(
+                            {
+                                "source": md_file.name,
+                                "file_path": str(md_file),
+                                "file_type": "markdown",
+                                "doc_type": (
+                                    "example" if is_example else "documentation"
+                                ),
+                                "status": "active",
+                                "chunk_id": i,
+                                "total_chunks": len(chunks),
+                                "section": section,
+                                # ✅ Campo de búsqueda enriquecido
+                                "search_context": f"{section} - {chunk.page_content[:200]}",
+                            }
+                        )
+                        documents.append(chunk)
 
                 logger.info(
                     f"✅ MD procesado",
                     source="qdrant",
                     file=md_file.name,
-                    chunks_indexed=added,
+                    chunks_indexed=len(chunks),
                 )
             except Exception as e:
                 logger.error(
@@ -633,7 +573,7 @@ class DocumentLoader:
 
     def load_from_manifest(self) -> List[Document]:
         """Carga ejemplos desde manifest.yaml"""
-        documents: List[Document] = []
+        documents = []
         try:
             with open(self.config.manifest_path, "r", encoding="utf-8") as f:
                 manifest = yaml.safe_load(f)
@@ -645,6 +585,7 @@ class DocumentLoader:
                 examples_count=len(examples),
             )
             for ex in examples:
+                # Variable necesaria sin esta linea
                 ex_path = Path(ex["path"])
                 if not ex_path.exists():
                     logger.warning(
@@ -673,6 +614,7 @@ class DocumentLoader:
                             "example_name": ex.get("name"),
                             "example_description": ex.get("description", ""),
                             "tags": ex.get("tags", []),
+                            "status": "active",
                             "category": ex.get("category", "general"),
                             "difficulty": ex.get("difficulty", "intermediate"),
                             "search_context": f"{ex.get('name')} - {ex.get('description', '')} - {doc.metadata.get('search_context', '')}",
@@ -862,7 +804,6 @@ class QdrantIndexer:
                 f"⚡ Velocidad:                  {total_docs/duration if duration > 0 else 0:>6.1f} chunks/s"
             )
             print("=" * 80 + "\n")
-
             logger.info(
                 "✅ Indexación completa",
                 source="qdrant",
@@ -871,7 +812,6 @@ class QdrantIndexer:
                 dedup_stats=dedup_stats,
                 stats=stats,
             )
-
         except Exception as e:
             duration = time.time() - start_time
             logger.error(
@@ -885,22 +825,15 @@ class QdrantIndexer:
 
 def main():
     """Punto de entrada principal"""
-    # Si hay S3_BUCKET, descargamos data/ a local antes de indexar
-    s3_bucket = os.getenv("S3_BUCKET")
-    if s3_bucket:
-        s3_prefix = os.getenv("S3_PREFIX", "data/")
-        local_dir = Path(os.getenv("LOCAL_DATA_DIR", "/tmp/jupiter_data")).resolve()
-
-        # Para evitar mezclar ejecuciones
-        if local_dir.exists():
-            shutil.rmtree(local_dir, ignore_errors=True)
-
-        print(f"⬇️ Descargando desde S3: s3://{s3_bucket}/{s3_prefix} -> {local_dir}")
-        sync_s3_prefix_to_local(s3_bucket, s3_prefix, local_dir)
-        print("✅ Descarga S3 completa")
+    # 1. DESCARGA DESDE S3 (Primero de todo)
+    bucket_name = os.getenv("S3_DATA_BUCKET_NAME")
+    if bucket_name:
+        download_data_from_s3(bucket_name)
+    else:
+        logger.warning("⚠️ Variable S3_DATA_BUCKET_NAME no definida. Saltando descarga.")
 
     config = IndexConfig()
-    # Override si lo necesitas
+
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -972,3 +905,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

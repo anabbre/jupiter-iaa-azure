@@ -44,7 +44,7 @@ terraform validate
 ```
 
 > Ejemplo:  
-> `cd data\terraform/06-static-site+https && terraform init -backend=false && terraform validate`
+> `cd docs/examples/azure-static-site/06-static-site+https && terraform init -backend=false && terraform validate`
 
 ### Opción B — Comando único (todos los ejemplos)
 
@@ -54,7 +54,7 @@ Ya hay un *mini‑check* local para pasar **todos** los ejemplos en orden:
 make tf-check
 ```
 
-Esto ejecuta `Scripts/CI/tf_check_all.sh`, que recorre `data\terraform/*`, hace `fmt`, `init -backend=false -input=false` y `validate`.  
+Esto ejecuta `Scripts/CI/tf_check_all.sh`, que recorre `docs/examples/azure-static-site/*`, hace `fmt`, `init -backend=false -input=false` y `validate`.  
 Si algún ejemplo falla, el script devuelve **exit 1**.
 
 ---

@@ -38,6 +38,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: 🧹 Limpieza de Emergencia (Liberar espacio)
+        run: |
+          docker system prune -af
+          docker volume prune -f
+          rm -rf /home/runner/actions-runner/_work/_tool || true
       # 1) Descarga el código del repositorio
       - name: Checkout
         uses: actions/checkout@v4

@@ -1,32 +1,51 @@
+# --- Index URL para PyTorch CPU (Vital para GitHub Actions) ---
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.1+cpu
-torchaudio==2.5.1+cpu
-torchvision==0.20.1+cpu
-python-dotenv
-pymupdf
-pypdf>=6.5.0
 
+# --- Deep Learning & AI Core ---
+# GitHub usará la URL de arriba para bajar la versión ligera automáticamente.
+torch==2.5.1
+torchaudio==2.5.1
+torchvision==0.20.1
+
+# --- Gestión de Entorno ---
+python-dotenv
+
+# --- Procesamiento de Documentos ---
+pymupdf
+pypdf==3.17.4
+
+# --- LangChain Ecosystem ---
 langchain==0.3.16
 langchain-openai==0.2.14
 langchain-community==0.3.16
 langchain-huggingface
+langchain-core
+langchain-qdrant
+langchain-google-genai
+langgraph
 
+# --- Servidor API ---
 openai
 fastapi
 uvicorn
 tiktoken
+
+# --- Datos y Utilidades ---
 pandas
 gtts
 loguru
 pypika
-langchain-core
+PyYAML
+typing-extensions
+
+# --- Base de Datos Vectorial ---
 qdrant-client
-langchain-qdrant
+boto3
+
+# --- Modelos Locales ---
+sentence-transformers
+
+# --- Interfaz de Usuario ---
 gradio==5.49.1
 gradio-client==1.13.3
-langchain-google-genai
-PyYAML
-sentence-transformers
-typing-extensions
-langgraph
-boto3
+

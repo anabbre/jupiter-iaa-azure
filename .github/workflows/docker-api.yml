@@ -39,11 +39,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧹 Limpieza de Emergencia (Liberar espacio)
+      - name: ☢️ LIMPIEZA NUCLEAR (Liberar espacio)
+        continue-on-error: true # Si falla, que siga intentando construir
         run: |
-          docker system prune -af
-          docker volume prune -f
-          rm -rf /home/runner/actions-runner/_work/_tool || true
+          echo "💾 Espacio ANTES de limpiar:"
+          df -h
+          
+          # Borrar todo lo que no se esté usando AHORA MISMO
+          docker system prune -a -f --volumes
+          docker image prune -a -f
+          docker builder prune -a -f
+          
+          # Borrar caché de pip si existe
+          rm -rf ~/.cache/pip || true
+          
+          echo "💾 Espacio DESPUÉS de limpiar:"
+          df -h
       # 1) Descarga el código del repositorio
       - name: Checkout
         uses: actions/checkout@v4

@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Variables de entorno
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app/src:$PYTHONPATH
+ENV PYTHONPATH=/app/src
 
 # Copiar archivos de dependencias
 COPY requirements.txt .

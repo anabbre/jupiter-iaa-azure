@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Variables de entorno
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONPATH=/app/src
 ENV GRADIO_SERVER_NAME=0.0.0.0
 ENV GRADIO_SERVER_PORT=7860
 
@@ -13,7 +13,7 @@ ENV GRADIO_SERVER_PORT=7860
 COPY requirements.txt .
 
 # Instalar dependencias de Python
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fuente
 COPY src/ ./src/

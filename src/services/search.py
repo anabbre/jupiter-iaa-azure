@@ -351,8 +351,7 @@ def main_cli():
     
     args = parser.parse_args()
     
-    logger.info("🔍 CLI search iniciado", source="search", 
-               query=args.query, top_k=args.k, threshold=args.threshold)
+    logger.info("🔍 CLI search iniciado", source="search", query=args.query, top_k=args.k, threshold=args.threshold)
     
     try:
         results = search_examples(
@@ -422,8 +421,7 @@ def main_cli():
         import traceback
         print("\nTraceback completo:")
         traceback.print_exc()
-        logger.error(f"Error en CLI search: {e}", source="search", 
-                    error_type=type(e).__name__)
+        logger.error(f"Error en CLI search: {e}", source="search", error_type=type(e).__name__)
         sys.exit(2)
 
 

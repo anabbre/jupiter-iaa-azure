@@ -1,6 +1,5 @@
 .PHONY: up down rag-index rag-reindex rag-search cold-start wait-qdrant
 
-
 wait-qdrant: 
 	@echo "⏳ Esperando a Qdrant en http://localhost:6333/healthz ..."
 	@for i in $$(seq 1 40); do \
@@ -11,6 +10,9 @@ wait-qdrant:
 	done; \
 	echo "❌ Qdrant no respondió a tiempo" && exit 1
 
+up:
+	docker compose up -d
+
 down:
 	docker compose down -v
 
@@ -18,20 +20,28 @@ rag-index:
 	docker compose up -d qdrant
 	$(MAKE) wait-qdrant
 	docker compose run --rm \
-		-e EXAMPLES_MANIFEST=data/docs/examples/manifest.yaml \
+		-e EXAMPLES_MANIFEST=docs/examples/manifest.yaml \
 		api python Scripts/RAG/index_examples.py
 
 rag-reindex:
 	docker compose up -d qdrant
 	$(MAKE) wait-qdrant
 	docker compose run --rm \
-		-e EXAMPLES_MANIFEST=data/docs/examples/manifest.yaml \
+		-e EXAMPLES_MANIFEST=docs/examples/manifest.yaml \
 		api python Scripts/RAG/index_examples.py
 
 cold-start:
 	docker compose up -d qdrant
 	$(MAKE) wait-qdrant
 	docker compose run --rm \
-		-e EXAMPLES_MANIFEST=data/docs/examples/manifest.yaml \
+		-e EXAMPLES_MANIFEST=docs/examples/manifest.yaml \
 		api python Scripts/RAG/index_examples.py
 	docker compose up -d api ui
+
+# Nuevas formas simplificadas
+rag-index: wait-qdrant
+	docker compose run --rm api python rag_indexer.py --recreate
+
+rag-reindex: wait-qdrant
+	docker compose run --rm api python rag_indexer.py
+

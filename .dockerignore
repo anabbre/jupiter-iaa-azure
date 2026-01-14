@@ -1,26 +1,23 @@
 # Carpetas de desarrollo
 .vscode/
 .idea/
-_pycache_/
-.ipynb_checkpoint
+__pycache__/
+.ipynb_checkpoints/
 
 # Entornos virtuales
 .env
 .venv/
-.venv*/
-.venv_jupyter/
 env/
 venv/
 ENV/
 
-# Archivos de configuración y dependencias*.pyc
+# Archivos de configuración y dependencias
+*.pyc
 *.pyo
 *.pyd
 *.db
 *.sqlite3
 *.log
-*.ipynb
-.git/
 
 # Logs y archivos temporales
 logs/

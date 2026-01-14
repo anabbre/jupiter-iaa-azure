@@ -4,7 +4,7 @@ embeddings_model: intfloat/multilingual-e5-small
 examples:
   - id: ex01
     name: storage-static-website
-    path: "example_storage__static_web.md"
+    path: data/terraform/01-storage-static-website
     tags: [azure, static-site, storage]
     category: storage
     difficulty: beginner
@@ -13,7 +13,7 @@ examples:
 
   - id: ex02
     name: storage-cdn
-    path: "example_storage__cdn.md"
+    path: data/terraform/02-storage+cdn
     tags: [azure, static-site, cdn]
     category: cdn
     difficulty: intermediate
@@ -22,7 +22,7 @@ examples:
 
   - id: ex03
     name: frontdoor-static
-    path: "example_frontdoor.md"
+    path: data/terraform/03-frontdoor-static
     tags: [azure, static-site, frontdoor]
     category: cdn
     difficulty: advanced
@@ -31,7 +31,7 @@ examples:
 
   - id: ex04
     name: static-site-app-service
-    path: "example_static_site_service.md"
+    path: data/terraform/04-static-site-app-service
     tags: [azure, static-site, app-service]
     category: web
     difficulty: intermediate
@@ -40,7 +40,7 @@ examples:
 
   - id: ex05
     name: static-site-custom-domain
-    path: "example_custom_domain.md"
+    path: data/terraform/05-static-site+custom-domain
     tags: [azure, static-site, custom-domain]
     category: networking
     difficulty: intermediate
@@ -49,7 +49,7 @@ examples:
 
   - id: ex06
     name: static-site-https
-    path: "example_https.md"
+    path: data/terraform/06-static-site+https
     tags: [azure, static-site, https]
     category: security
     difficulty: advanced
@@ -58,7 +58,7 @@ examples:
 
   - id: ex07
     name: static-site-logging
-    path: "example_logging.md"
+    path: data/terraform/07-static-site+logging
     tags: [azure, static-site, logging]
     category: monitoring
     difficulty: intermediate
@@ -67,7 +67,7 @@ examples:
 
   - id: ex08
     name: static-site-diagnostics
-    path: "example_site_diagnostics.md"
+    path: data/terraform/08-static-site+diagnostics
     tags: [azure, static-site, diagnostics]
     category: monitoring
     difficulty: intermediate
@@ -76,7 +76,7 @@ examples:
 
   - id: ex09
     name: static-site-alerts
-    path: "example_site_alerts.md"
+    path: data/terraform/09-static-site+alerts
     tags: [azure, static-site, alerts]
     category: monitoring
     difficulty: advanced
@@ -85,9 +85,18 @@ examples:
 
   - id: ex10
     name: static-site-tfvars-ejemplo
-    path: "example_tfvars.md"
+    path: data/terraform/10-static-site+tfvars-ejemplo
     tags: [azure, static-site, tfvars]
     category: web
     difficulty: beginner
     cloud_provider: azure
     description: 'Ejemplo de parametrización con terraform.tfvars'
+
+  - id: tfbook
+    name: terraform-up-and-running
+    path: data/pdfs/Libro-TF.pdf
+    tags: [terraform, book, pdf, documentation]
+    category: documentation
+    difficulty: all
+    cloud_provider: multi
+    description: 'Libro completo de Terraform - conceptos y best practices'

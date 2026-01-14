@@ -5,7 +5,7 @@ pypdf>=4.0.0
 
 langchain==0.3.16
 langchain-openai==0.2.14
-langchain-community #==0.3.16
+langchain-community==0.3.16
 langchain-huggingface
 
 openai
@@ -26,4 +26,3 @@ PyYAML
 sentence-transformers
 typing-extensions
 langgraph
-boto3

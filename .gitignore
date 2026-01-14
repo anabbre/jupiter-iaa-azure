@@ -1,71 +1,99 @@
-# === Python ===
+# --- Python ---
 __pycache__/
+.pytest_cache
+*/__init__.py
 *.py[cod]
 *.pyo
 *.pyd
 *.so
+*.egg
 *.egg-info/
 build/
 dist/
 
-# === Entornos virtuales ===
+# --- Virtual environments ---
+.env
 .venv/
+*.venv/
+ProyectoJupyter/
+env/
 venv/
 ENV/
-env/
-.python-version
+*.env
+!.env.example
 
+# -- LOGS --
+logs/
 
 # --- Jupyter and notebooks ---
 .ipynb_checkpoints/
 *.nbconvert.ipynb
 
-# === Config y variables locales ===
-.env
-!.env.example 
-.envrc
-
-# === Docker ===
-*.pid
-*.log
-docker-compose.override.yml
-qdrant_data/
-
-# === Terraform ===
-**/.terraform/
-*.tfstate
-*.tfstate.*
+# --- Experiment configs ---
 *.tfvars
-*.terraform.lock.hcl
+*.tfplan
 
-# === Logs ===
-logs/*
-!logs/.gitkeep
-!logs/app/.gitkeep
+# --- MLflow cache (if used) ---
+mlruns/
+mlartifacts/
 
-# === IDEs y sistema ===
+# --- VSCode ---
 .vscode/
+
+# --- PyCharm ---
 .idea/
+
+# --- OS-specific ---
 .DS_Store
 Thumbs.db
 
-# === Archivos temporales ===
+# --- Test outputs ---
+coverage.xml
 .cache/
-__pycache__/
-*.lock
+pytest_cache/
+htmlcov/
+*.cover
+*.coverage
 
-# === Archivos de gradio ===
-.gradio/
+# --- Docker ---
+*.pid
+*.log
+docker-compose.override.yml
 
-# Python bytecode extra
-*.pyc
-
-# Data generada por el indexador 
-data/index/
-
-# Infra
+# --- Terraform (if used) ---
 **/.terraform/
-**/.terraform.lock.hcl
-**/*.tfstate
-**/*.tfstate.*
-crash.log
+*.tfstate
+*.tfstate.backup
+
+# --- CI/CD secrets ---
+*.pem
+*.key
+.envrc
+.env.*
+
+# --- ML & data artifacts ---
+mlruns/
+artifacts/
+*.log
+*.h5
+*.pkl
+*.joblib
+*.ckpt
+
+# --- Data files ---
+*.csv
+*.tsv
+*.xlsx
+*.parquet
+*.zip
+*.gz
+
+
+# --- Additional files to ignore ---
+qdrant_data/
+.venv_jupyter/
+
+
+Notebooks/
+*.lock
+config/classification_rules.yaml

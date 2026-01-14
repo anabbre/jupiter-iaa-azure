@@ -54,8 +54,20 @@ jobs:
           echo "💾 Espacio DESPUÉS de limpiar:"
           df -h
       # 1) Descarga el código fuente del repositorio
-      - name: Checkout
+      - name: Checkout (sparse)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            src/
+            config/
+            requirements.txt
+            pyproject.toml
+            docker-compose.yml
+            .dockerignore
+            .github/workflows/docker-ui.yml
+            qdrant_config/
+          sparse-checkout-cone-mode: false
 
       # 2) Configura Docker Buildx, que permite crear imágenes optimizadas
       - name: Set up Docker Buildx

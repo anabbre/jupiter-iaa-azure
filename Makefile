@@ -27,7 +27,7 @@ rag-reindex:
 	docker compose up -d qdrant
 	$(MAKE) wait-qdrant
 	@echo "🧹🧹 Borrando colecciones y re-indexando TODO..."
-	# Montamos tus credenciales locales en el contenedor
+# Montamos las credenciales locales en el contenedor
 	docker compose run --rm \
 		-v $(HOME)/.aws:/root/.aws \
 		-e AWS_PROFILE=jupiter-iaa \

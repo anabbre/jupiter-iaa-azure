@@ -2,6 +2,7 @@
 name: docker-api
 
 on:
+  workflow_dispatch:  
   # El workflow se ejecuta cuando se realizan cambios en main o en PRs que afecten a estos paths
   push:
     branches: [ main ]

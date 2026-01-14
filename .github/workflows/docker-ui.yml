@@ -2,6 +2,7 @@
 name: docker-ui
 
 on:
+  workflow_dispatch: 
   # El workflow se ejecuta cuando hay cambios en la rama main o en Pull Requests que afecten a archivos relevantes del UI o Dockerfile
   push:
     branches: [ main ]

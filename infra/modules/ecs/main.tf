@@ -98,7 +98,6 @@ resource "aws_security_group_rule" "app_ingress_ui_from_alb" {
   source_security_group_id = var.alb_sg_id
 }
 
-# SG Qdrant (solo acepta desde SG app y permite NFS hacia EFS)
 resource "aws_security_group" "qdrant" {
   name        = "${var.name}-qdrant-sg"
   description = "Qdrant tasks SG"
@@ -121,16 +120,6 @@ resource "aws_security_group_rule" "qdrant_ingress_from_app" {
   to_port                  = var.qdrant_port
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.app.id
-}
-
-# Importante: permitir NFS (2049) desde SG qdrant hacia SG EFS.
-resource "aws_security_group_rule" "efs_ingress_from_qdrant" {
-  type                     = "ingress"
-  security_group_id        = var.efs_sg_id
-  from_port                = 2049
-  to_port                  = 2049
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.qdrant.id
 }
 
 # ---------------------------
@@ -237,6 +226,26 @@ resource "aws_iam_role_policy_attachment" "task_exec_attach" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Permiso para leer secretos de SSM
+resource "aws_iam_role_policy" "task_exec_ssm_policy" {
+  name = "${var.name}-ssm-read"
+  role = aws_iam_role.task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters",
+          "ssm:GetParameter"
+        ]
+        # Esto permite leer el secreto que creaste
+        Resource = "arn:aws:ssm:*:*:parameter/jupiter/dev/openai_api_key"
+      }
+    ]
+  })
+}
 # (Opcional futuro: acceso S3, etc. Si lo necesitamos lo añadimos después)
 
 # ---------------------------
@@ -260,17 +269,21 @@ resource "aws_ecs_task_definition" "api" {
       hostPort      = var.api_port
       protocol      = "tcp"
     }]
+    secrets = [
+      {
+        name      = "OPENAI_API_KEY"
+        valueFrom = "/jupiter/dev/openai_api_key"
+      }
+    ],
     environment = [
-      { name = "OPENAI_API_KEY", value = var.openai_api_key },
       { name = "LOG_LEVEL", value = var.log_level },
 
-      # ✅ Qdrant por DNS interno (Cloud Map)
-      # Resuelve a: qdrant.${var.name}.local
+      # Qdrant por DNS interno (Cloud Map)
       { name = "QDRANT_URL", value = "http://qdrant.${aws_service_discovery_private_dns_namespace.this.name}:6333" },
-
       { name = "UPLOADS_INDEX_NAME", value = var.uploads_index_name },
       { name = "KB_INDEX_NAME", value = var.kb_index_name },
-      { name = "PYTHONPATH", value = "/app" }
+      { name = "PYTHONPATH", value = "/app" },
+      { name = "S3_DATA_BUCKET_NAME", value = "jupiter-iaa-docs" },
     ]
     logConfiguration = {
       logDriver = "awslogs"
@@ -327,7 +340,6 @@ resource "aws_ecs_task_definition" "ui" {
   tags = var.tags
 }
 
-# Qdrant en Fargate con EFS
 resource "aws_ecs_task_definition" "qdrant" {
   family                   = "${var.name}-qdrant"
   requires_compatibilities = ["FARGATE"]
@@ -336,35 +348,17 @@ resource "aws_ecs_task_definition" "qdrant" {
   memory                   = "1024"
   execution_role_arn       = aws_iam_role.task_execution.arn
 
-  volume {
-    name = "qdrant_data"
-    efs_volume_configuration {
-      file_system_id     = var.efs_id
-      transit_encryption = "ENABLED"
-      authorization_config {
-        access_point_id = var.efs_access_point_id
-        iam             = "DISABLED"
-      }
-    }
-  }
-
   container_definitions = jsonencode([{
-    name = "qdrant"
-
-    # ✅ No usar latest (buena práctica)
-    image = "qdrant/qdrant:v1.10.1"
-
+    name      = "qdrant"
+    image     = "qdrant/qdrant:v1.16.2"
     essential = true
+
     portMappings = [{
       containerPort = var.qdrant_port
       hostPort      = var.qdrant_port
       protocol      = "tcp"
     }]
-    mountPoints = [{
-      sourceVolume  = "qdrant_data"
-      containerPath = "/qdrant/storage"
-      readOnly      = false
-    }]
+
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -374,6 +368,7 @@ resource "aws_ecs_task_definition" "qdrant" {
       }
     }
   }])
+
 
   tags = var.tags
 }
@@ -389,7 +384,7 @@ resource "aws_ecs_service" "qdrant" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
-  # ✅ Registro en Cloud Map (DNS interno)
+  # Registro en Cloud Map (DNS interno)
   service_registries {
     registry_arn = aws_service_discovery_service.qdrant.arn
   }
@@ -424,7 +419,12 @@ resource "aws_ecs_service" "api" {
 
   depends_on = [aws_ecs_service.qdrant]
   tags       = var.tags
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
+
 
 resource "aws_ecs_service" "ui" {
   name            = "${var.name}-ui"
@@ -446,4 +446,9 @@ resource "aws_ecs_service" "ui" {
   }
 
   tags = var.tags
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
+

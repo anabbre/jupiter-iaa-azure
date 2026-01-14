@@ -43,15 +43,6 @@ module "alb" {
   public_subnet_ids = module.network.public_subnet_ids
   tags              = local.tags
 }
-
-module "efs" {
-  source             = "../../modules/efs"
-  name               = local.name
-  vpc_id             = module.network.vpc_id
-  private_subnet_ids = module.network.private_subnet_ids
-  tags               = local.tags
-}
-
 module "ecs" {
   source = "../../modules/ecs"
 
@@ -75,11 +66,6 @@ module "ecs" {
   # Ports
   api_port = 8008
   ui_port  = 7860
-
-  # EFS
-  efs_id              = module.efs.efs_id
-  efs_access_point_id = module.efs.access_point_id
-  efs_sg_id           = module.efs.efs_sg_id
 
   # App
   openai_api_key     = var.openai_api_key

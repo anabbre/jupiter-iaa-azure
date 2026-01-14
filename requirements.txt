@@ -26,4 +26,3 @@ PyYAML
 sentence-transformers
 typing-extensions
 langgraph
-boto3

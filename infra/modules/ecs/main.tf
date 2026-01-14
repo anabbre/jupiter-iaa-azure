@@ -134,7 +134,7 @@ resource "aws_lb_target_group" "api" {
   target_type = "ip"
 
   health_check {
-    path                = "/api/"
+    path                = "/docs"
     protocol            = "HTTP"
     matcher             = "200"
     healthy_threshold   = 2
@@ -240,14 +240,37 @@ resource "aws_iam_role_policy" "task_exec_ssm_policy" {
           "ssm:GetParameters",
           "ssm:GetParameter"
         ]
-        # Esto permite leer el secreto que creaste
+        # Esto permite leer el Secret Store
         Resource = "arn:aws:ssm:*:*:parameter/jupiter/dev/openai_api_key"
       }
     ]
   })
 }
-# (Opcional futuro: acceso S3, etc. Si lo necesitamos lo añadimos después)
 
+# Permiso para que la API (Python) pueda leer el Bucket S3
+resource "aws_iam_role_policy" "task_s3_policy" {
+  name = "${var.name}-s3-read"
+  role = aws_iam_role.task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::jupiter-iaa-docs",  # El bucket
+          "arn:aws:s3:::jupiter-iaa-docs/*" # Los archivos dentro
+        ]
+      }
+    ]
+  })
+}
+
+# ------------------
 # ---------------------------
 # Task Definitions
 # ---------------------------
@@ -259,6 +282,7 @@ resource "aws_ecs_task_definition" "api" {
   cpu                      = "512"
   memory                   = "1024"
   execution_role_arn       = aws_iam_role.task_execution.arn
+  task_role_arn            = aws_iam_role.task_execution.arn
 
   container_definitions = jsonencode([{
     name      = "api"
@@ -294,7 +318,7 @@ resource "aws_ecs_task_definition" "api" {
       }
     }
     healthCheck = {
-      command     = ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${var.api_port}/api/')\" || exit 1"]
+      command     = ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${var.api_port}/docs')\" || exit 1"]
       interval    = 30
       timeout     = 5
       retries     = 3
